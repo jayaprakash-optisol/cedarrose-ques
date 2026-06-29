@@ -258,7 +258,7 @@ export const schemas: Record<string, OpenAPIV3.SchemaObject> = {
       eventType: { $ref: "#/components/schemas/AuditEventType" },
       description: { type: "string" },
       status: { type: "string", enum: ["Success", "Failed", "Pending"] },
-      step: { type: "integer", minimum: 1, maximum: 16, nullable: true },
+      step: { type: "integer", minimum: 1, maximum: 15, nullable: true },
       createdAt: { $ref: "#/components/schemas/DateTime" },
     },
   },

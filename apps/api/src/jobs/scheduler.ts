@@ -2,6 +2,7 @@ import cron from "node-cron";
 import { differenceInDays, subHours } from "date-fns";
 import type { Container } from "../container.js";
 import { logger } from "../config/logger.js";
+import { WORKFLOW_STEP } from "../config/workflow.js";
 
 function getReminderDue(config: {
   reminder1Day: number;
@@ -35,7 +36,7 @@ export function startScheduler(container: Container) {
           await casesRepo.incrementRemindersSent(c.caseId);
           await auditService.log({
             caseId: c.caseId,
-            step: 6,
+            step: WORKFLOW_STEP.SEND_LINK,
             eventType: "Link Event",
             description: "Reminder sent",
             status: "Success",
@@ -54,7 +55,7 @@ export function startScheduler(container: Container) {
         await casesRepo.update(c.caseId, { status: "EXPIRED" });
         await auditService.log({
           caseId: c.caseId,
-          step: 6,
+          step: WORKFLOW_STEP.SEND_LINK,
           eventType: "Link Event",
           description: "Link expired",
           status: "Success",

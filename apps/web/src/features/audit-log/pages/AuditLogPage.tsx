@@ -12,36 +12,12 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateField } from "@/components/ui/date-field";
 import { absTime } from "@/lib/format";
-import { groupAuditEventsByCase, indexAuditEventsByCase, resolveAuditCaseLabels, stepTimestampsFromEvents } from "@/lib/audit-log";
+import { groupAuditEventsByCase, indexAuditEventsByCase, resolveAuditCaseLabels } from "@/lib/audit-log";
+import { buildWorkflowProgress, normalizeWorkflowStep } from "@/lib/workflow-progress";
 import { toast } from "sonner";
 import { Check, Loader2, Circle } from "lucide-react";
 import { WORKFLOW_STEPS } from "@/config/workflow";
 import { StatusBadge } from "@/components/common/StatusBadge";
-
-/** Build per-step timeline from case record and/or its audit events. */
-function buildTimeline(
-  caseRecord: CaseRecord | undefined,
-  caseEvents: AuditEvent[],
-  fallbackStep: number,
-  fallbackTs: string,
-): { currentStep: number; completedAt: (string | null)[] } {
-  const stepTimestamps = {
-    ...caseRecord?.stepTimestamps,
-    ...stepTimestampsFromEvents(caseEvents),
-  };
-  const maxLoggedStep = Object.keys(stepTimestamps).reduce(
-    (max, key) => Math.max(max, Number(key)),
-    0,
-  );
-  const currentStep = caseRecord?.currentStep ?? Math.max(maxLoggedStep + 1, fallbackStep + 1);
-  const completedAt = WORKFLOW_STEPS.map((_, i) => {
-    const stepNum = i + 1;
-    const ts = stepTimestamps[stepNum];
-    if (ts) return absTime(ts);
-    return stepNum < fallbackStep ? absTime(fallbackTs) : null;
-  });
-  return { currentStep, completedAt };
-}
 
 const search = z.object({ caseId: z.string().optional() });
 
@@ -173,7 +149,7 @@ export default function AuditLogPage() {
                 const caseRecord = mockCases.find((m) => m.id === e.caseId);
                 const { subject, orderId } = resolveAuditCaseLabels(e, caseRecord);
                 const caseEvents = eventsByCase.get(rowKey) ?? [e];
-                const timeline = buildTimeline(caseRecord, caseEvents, e.step, e.timestamp);
+                const timeline = buildWorkflowProgress(caseRecord, caseEvents);
                 return (
                   <FragmentRow key={rowKey}>
                     <tr className="border-t border-border hover:bg-secondary/40 cursor-pointer" onClick={() => toggle(rowKey)}>
@@ -192,7 +168,7 @@ export default function AuditLogPage() {
                         <div className="font-medium">{subject}</div>
                         {orderId && <div className="text-xs text-muted-foreground font-mono">{orderId}</div>}
                       </td>
-                      <td className="px-3 py-3">{e.step}</td>
+                      <td className="px-3 py-3">{normalizeWorkflowStep(e.step) ?? e.step}</td>
                       <td className="px-3 py-3 text-muted-foreground">{e.type}</td>
                       <td className="px-3 py-3">{e.description}</td>
                       <td className="px-3 py-3 text-muted-foreground">{e.triggeredBy}</td>
@@ -244,7 +220,7 @@ function WorkflowTimelinePanel({
   completedAt: (string | null)[];
 }) {
   const left = WORKFLOW_STEPS.slice(0, 8);
-  const right = WORKFLOW_STEPS.slice(8, 16);
+  const right = WORKFLOW_STEPS.slice(8);
   const renderStep = (name: string, idx: number) => {
     const num = idx + 1;
     const state = num < currentStep ? "done" : num === currentStep ? "current" : "todo";

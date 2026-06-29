@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateField } from "@/components/ui/date-field";
+import { caseCompanyName } from "@/lib/case-display";
 import { toast } from "sonner";
 
 
@@ -30,7 +31,7 @@ export default function AllCasesPage() {
     return mockCases.filter((c) => {
       if (q) {
         const needle = q.toLowerCase();
-        if (![c.subjectName, c.orderId, c.uid].some((v) => v.toLowerCase().includes(needle))) return false;
+        if (![caseCompanyName(c), c.orderId, c.uid].some((v) => v.toLowerCase().includes(needle))) return false;
       }
       if (status !== "All" && c.status !== status) return false;
       if (type !== "All" && c.recipientType !== type) return false;
@@ -42,9 +43,9 @@ export default function AllCasesPage() {
   }, [q, status, type, from, to, mockCases]);
 
   const exportCsv = () => {
-    const header = ["Order ID", "Subject", "Country", "Recipient", "Status", "Mandatory", "Requested", "Last Activity", "Researcher"];
+    const header = ["Order ID", "Company name", "Country", "Recipient", "Status", "Mandatory", "Requested", "Last Activity", "Researcher"];
     const rows = filtered.map((c) => [
-      c.orderId, c.subjectName, c.country, c.recipientType, c.status,
+      c.orderId, caseCompanyName(c), c.country, c.recipientType, c.status,
       `${c.completionMandatory.done}/${c.completionMandatory.total}`,
       c.requestedDate, c.lastActivity, c.researcherStatus,
     ]);
@@ -72,7 +73,7 @@ export default function AllCasesPage() {
                 <Input
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
-                  placeholder="Search subject, order ID, or UID"
+                  placeholder="Search company, order ID, or UID"
                   className="pl-9 h-11 rounded-lg border-[#CBD5E0] bg-white text-[14px] text-[#2D3748] focus-visible:border-[#2B3178] focus-visible:ring-[#2B3178]"
                 />
               </div>

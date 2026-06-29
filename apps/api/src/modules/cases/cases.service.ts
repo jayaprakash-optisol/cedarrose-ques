@@ -9,6 +9,7 @@ import { detectEmailTypo } from "../../shared/utils/email.js";
 import { AppError } from "../../shared/errors/AppError.js";
 import { env } from "../../config/env.js";
 import { safeExternalFetch } from "../../shared/utils/http-client.js";
+import { WORKFLOW_STEP } from "../../config/workflow.js";
 
 export class CasesService {
   constructor(
@@ -50,9 +51,13 @@ export class CasesService {
     }
 
     let companyId: string | undefined;
+    let subjectName = dto.subjectName;
     if (dto.uid) {
       const company = await this.companiesRepo.findByCrisNumber(dto.uid);
-      if (company) companyId = company.companyId;
+      if (company) {
+        companyId = company.companyId;
+        subjectName = company.companyName;
+      }
     }
 
     let templateId = dto.templateId;
@@ -74,7 +79,7 @@ export class CasesService {
       caseRef,
       orderId: dto.orderId,
       companyId,
-      subjectName: dto.subjectName,
+      subjectName,
       country: dto.country,
       recipientType: dto.recipientType,
       status: linkData ? "SENT" : status,
@@ -91,21 +96,52 @@ export class CasesService {
       caseId: created.caseId,
       caseSubject: created.subjectName,
       caseOrderId: created.orderId,
-      step: 1,
+      step: WORKFLOW_STEP.ORDER_RECEIVED,
       eventType: "API Call",
-      description: "Case created",
+      description: "Order received",
       triggeredByUserId: requesterId,
       status: "Success",
     });
 
+    if (companyId) {
+      await this.auditService.log({
+        caseId: created.caseId,
+        step: WORKFLOW_STEP.FETCH_COMPANY_DATA,
+        eventType: "API Call",
+        description: "Company data fetched from CRiS",
+        triggeredByUserId: requesterId,
+        status: "Success",
+      });
+    }
+
+    if (templateId) {
+      await this.auditService.log({
+        caseId: created.caseId,
+        step: WORKFLOW_STEP.APPLY_TEMPLATE,
+        eventType: "API Call",
+        description: "Questionnaire template applied",
+        triggeredByUserId: requesterId,
+        status: "Success",
+      });
+    }
+
     let linkUrl: string | null = null;
     if (linkData) {
+      await this.auditService.log({
+        caseId: created.caseId,
+        step: WORKFLOW_STEP.GENERATE_LINK,
+        eventType: "Link Event",
+        description: "Secure link generated",
+        triggeredByUserId: requesterId,
+        status: "Success",
+      });
+
       linkUrl = `${env.frontendUrl}/q/${linkData.rawToken}`;
       if (dto.recipientEmail) {
-        await this.emailService.sendQuestionnaireLink(dto.recipientEmail, dto.subjectName, linkUrl);
+        await this.emailService.sendQuestionnaireLink(dto.recipientEmail, subjectName, linkUrl);
         await this.auditService.log({
           caseId: created.caseId,
-          step: 5,
+          step: WORKFLOW_STEP.SEND_LINK,
           eventType: "Link Event",
           description: "Secure link sent",
           triggeredByUserId: requesterId,
@@ -139,7 +175,7 @@ export class CasesService {
 
     await this.auditService.log({
       caseId,
-      step: 5,
+      step: WORKFLOW_STEP.SEND_LINK,
       eventType: "Link Event",
       description: "Link resent",
       triggeredByUserId: requesterId,
@@ -172,7 +208,7 @@ export class CasesService {
 
     await this.auditService.log({
       caseId,
-      step: 14,
+      step: WORKFLOW_STEP.RESEARCHER_REVIEW,
       eventType: "Researcher Action",
       description: `Researcher decision: ${decision}`,
       triggeredByUserId: researcherId,
@@ -212,7 +248,7 @@ export class CasesService {
 
       await this.auditService.log({
         caseId,
-        step: 15,
+        step: WORKFLOW_STEP.API_PUSH,
         eventType: "API Push",
         description: "API push succeeded",
         status: "Success",

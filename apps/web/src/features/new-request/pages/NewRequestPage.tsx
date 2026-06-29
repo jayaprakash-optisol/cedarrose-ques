@@ -91,7 +91,7 @@ export default function NewRequestPage() {
       const result = await casesService.create({
         orderId,
         uid: uid.trim(),
-        subjectName: subject,
+        subjectName: company.companyName,
         country: country || company.country,
         recipientType,
         recipientEmail: company.recipientEmails[0],

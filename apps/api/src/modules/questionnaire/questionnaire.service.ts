@@ -8,6 +8,7 @@ import type { QuestionnaireRepository } from "./questionnaire.repository.js";
 import { hashToken, generateOtp } from "../../shared/utils/crypto.js";
 import { env } from "../../config/env.js";
 import { QUESTIONNAIRE_TOKEN_EXPIRY } from "../../config/constants.js";
+import { WORKFLOW_STEP } from "../../config/workflow.js";
 import { AppError } from "../../shared/errors/AppError.js";
 
 export class QuestionnaireService {
@@ -26,6 +27,21 @@ export class QuestionnaireService {
     const local = email.slice(0, atIdx);
     const domain = email.slice(atIdx + 1);
     return `${local[0]}***@${domain}`;
+  }
+
+  private computeCompletionPercentages(
+    responses: Array<{ mandatory: boolean; answer?: string | null }>,
+  ) {
+    const mandatory = responses.filter((r) => r.mandatory);
+    const optional = responses.filter((r) => !r.mandatory);
+    const pct = (list: typeof responses) =>
+      list.length
+        ? Math.round((list.filter((r) => r.answer?.trim()).length / list.length) * 100)
+        : 0;
+    return {
+      completionMandatory: pct(mandatory),
+      completionOptional: pct(optional),
+    };
   }
 
   private async getPrimaryRecipientEmail(caseId: string): Promise<string> {
@@ -48,7 +64,7 @@ export class QuestionnaireService {
 
     await this.auditService.log({
       caseId: c.caseId,
-      step: 7,
+      step: WORKFLOW_STEP.RECIPIENT_OPENS_LINK,
       eventType: "Link Event",
       description: "Link verified",
       status: "Success",
@@ -78,7 +94,7 @@ export class QuestionnaireService {
 
     await this.auditService.log({
       caseId: c.caseId,
-      step: 8,
+      step: WORKFLOW_STEP.AUTHENTICATION,
       eventType: "Authentication",
       description: "OTP requested",
       status: "Success",
@@ -113,7 +129,7 @@ export class QuestionnaireService {
 
     await this.auditService.log({
       caseId: c.caseId,
-      step: 8,
+      step: WORKFLOW_STEP.AUTHENTICATION,
       eventType: "Authentication",
       description: "OTP verified",
       status: "Success",
@@ -157,9 +173,14 @@ export class QuestionnaireService {
 
     const savedResponses = await this.questionnaireRepo.getResponses(c.caseId);
 
+    if (savedResponses.length) {
+      const completion = this.computeCompletionPercentages(savedResponses);
+      await this.casesRepo.update(c.caseId, completion);
+    }
+
     await this.auditService.log({
       caseId: c.caseId,
-      step: 9,
+      step: WORKFLOW_STEP.BEGIN_QUESTIONNAIRE,
       eventType: "Form Activity",
       description: "Form loaded",
       status: "Success",
@@ -181,11 +202,13 @@ export class QuestionnaireService {
   async saveProgress(authHeader: string | undefined, responses: Parameters<QuestionnaireRepository["upsertResponses"]>[1]) {
     const c = await this.getCaseFromSession(authHeader);
     await this.questionnaireRepo.upsertResponses(c.caseId, responses);
-    await this.casesRepo.update(c.caseId, { lastActivity: new Date() });
+    const allResponses = await this.questionnaireRepo.getResponses(c.caseId);
+    const completion = this.computeCompletionPercentages(allResponses);
+    await this.casesRepo.update(c.caseId, { lastActivity: new Date(), ...completion });
 
     await this.auditService.log({
       caseId: c.caseId,
-      step: 10,
+      step: WORKFLOW_STEP.SAVE_PROGRESS,
       eventType: "Form Activity",
       description: "Progress saved",
       status: "Success",
@@ -216,11 +239,29 @@ export class QuestionnaireService {
       lastActivity: new Date(),
     });
 
+    if (allMandatoryFilled) {
+      await this.auditService.log({
+        caseId: c.caseId,
+        step: WORKFLOW_STEP.MANDATORY_COMPLETE,
+        eventType: "Form Activity",
+        description: "Mandatory fields complete",
+        status: "Success",
+      });
+    }
+
     await this.auditService.log({
       caseId: c.caseId,
-      step: 12,
+      step: WORKFLOW_STEP.SUBMIT,
       eventType: "Form Activity",
       description: "Questionnaire submitted",
+      status: "Success",
+    });
+
+    await this.auditService.log({
+      caseId: c.caseId,
+      step: WORKFLOW_STEP.SUBMISSION_RECEIVED,
+      eventType: "Form Activity",
+      description: "Submission received",
       status: "Success",
     });
 

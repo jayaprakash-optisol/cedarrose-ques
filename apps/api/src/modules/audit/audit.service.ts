@@ -2,6 +2,7 @@ import type { AuditRepository } from "./audit.repository.js";
 import type { CasesRepository } from "../cases/cases.repository.js";
 import type { UsersRepository } from "../users/users.repository.js";
 import type { auditEvents } from "../../db/schema/audit-events.js";
+import { WORKFLOW_STEP_COUNT } from "../../config/workflow.js";
 
 type AuditInsert = typeof auditEvents.$inferInsert;
 type AuditRow = typeof auditEvents.$inferSelect;
@@ -75,7 +76,22 @@ export class AuditService {
 
   async log(event: AuditInsert) {
     const enriched = await this.enrichEvent(event);
-    return this.auditRepo.insert(enriched);
+    const row = await this.auditRepo.insert(enriched);
+
+    if (
+      enriched.caseId &&
+      enriched.step &&
+      enriched.status === "Success" &&
+      enriched.step <= WORKFLOW_STEP_COUNT
+    ) {
+      const c = await this.casesRepo.findById(enriched.caseId);
+      const nextStep = Math.min(enriched.step + 1, WORKFLOW_STEP_COUNT + 1);
+      if (c && (c.currentStep ?? 1) < nextStep) {
+        await this.casesRepo.update(enriched.caseId, { currentStep: nextStep });
+      }
+    }
+
+    return row;
   }
 
   async list(filters: Parameters<AuditRepository["findAll"]>[0]) {

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ResendLinkModal } from "@/features/cases/components/ResendLinkModal";
 import { toast } from "sonner";
 import { relTime, isStale } from "@/lib/format";
+import { caseCompanyName, caseCrisUid } from "@/lib/case-display";
 
 type SortKey = "status" | "lastActivity" | null;
 
@@ -157,7 +158,7 @@ export function CaseTable({ cases, onRowClick, showOrderId = false }: Props) {
         <thead className="text-left text-xs text-muted-foreground uppercase tracking-wide bg-secondary/60">
           <tr>
             {showOrderId && <th className="px-4 py-3 font-medium">Order ID</th>}
-            <th className="px-4 py-3 font-medium">Subject Name</th>
+            <th className="px-4 py-3 font-medium">Company name</th>
             <th className="px-4 py-3 font-medium">Country</th>
             <th className="px-4 py-3 font-medium">Recipient</th>
             <th className="px-4 py-3 font-medium">Analyst</th>
@@ -202,9 +203,9 @@ export function CaseTable({ cases, onRowClick, showOrderId = false }: Props) {
                         <AlertTriangle className="h-4 w-4" />
                       </span>
                     )}
-                    {c.subjectName}
+                    {caseCompanyName(c)}
                   </div>
-                  <div className="text-xs text-muted-foreground">{c.uid}</div>
+                  <div className="text-xs text-muted-foreground">{caseCrisUid(c)}</div>
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">{c.country}</td>
                 <td className="px-4 py-3"><RecipientBadge type={c.recipientType} /></td>
@@ -246,7 +247,7 @@ export function CaseTable({ cases, onRowClick, showOrderId = false }: Props) {
           onConfirmed={() => {
             setResentIds((s) => new Set(s).add(resendCase.id));
             void queryClient.invalidateQueries({ queryKey: ["cases"] });
-            toast.success(`Link resent to ${resendCase.subjectName}.`);
+            toast.success(`Link resent to ${caseCompanyName(resendCase)}.`);
           }}
           onViewDetails={() => onRowClick?.(resendCase)}
         />

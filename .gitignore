@@ -32,3 +32,6 @@ apps/api/src/db/drizzle-generated/
 skills-lock.json
 AGENTS.md
 .cursor/
+
+# Local Lovable reference copy (questionnaire already ported into apps/web)
+Cedar Rose - Client Form/

@@ -1,21 +1,17 @@
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Check, Loader2, Circle } from "lucide-react";
 import type { CaseRecord } from "@/types/case";
 import { WORKFLOW_STEPS } from "@/config/workflow";
+import { buildWorkflowProgress } from "@/lib/workflow-progress";
 import { RecipientBadge, StatusBadge } from "@/components/common/StatusBadge";
 import { ResponsesReview } from "@/features/cases/components/ResponsesReview";
-import { absTime, relTime } from "@/lib/format";
-
-/** Resolve the display timestamp for a completed step. */
-function stepTimestamp(c: CaseRecord, stepNum: number): string | null {
-  if (c.stepTimestamps) {
-    const ts = c.stepTimestamps[stepNum];
-    if (ts) return absTime(ts);
-  }
-  // Fallback: use lastActivity for all done steps
-  return relTime(c.lastActivity);
-}
+import { absTime } from "@/lib/format";
+import { caseCompanyName, caseCrisUid } from "@/lib/case-display";
+import { resolveCaseCompletion } from "@/lib/response-completion";
+import { casesService, auditService } from "@/services";
 
 interface Props {
   case: CaseRecord | null;
@@ -23,26 +19,55 @@ interface Props {
   onOpenChange: (o: boolean) => void;
 }
 
-export function CaseDetailPanel({ case: c, open, onOpenChange }: Props) {
+export function CaseDetailPanel({ case: selected, open, onOpenChange }: Props) {
+  const queryClient = useQueryClient();
+  const caseId = selected?.id;
+
+  const { data: detail, isLoading: detailLoading } = useQuery({
+    queryKey: ["case", caseId],
+    queryFn: () => casesService.getById(caseId!),
+    enabled: open && !!caseId,
+  });
+
+  const { data: auditEvents = [] } = useQuery({
+    queryKey: ["audit-log", "case", caseId],
+    queryFn: () => auditService.list({ caseId }),
+    enabled: open && !!caseId,
+  });
+
+  useEffect(() => {
+    if (detail) {
+      queryClient.invalidateQueries({ queryKey: ["cases"] });
+    }
+  }, [detail, queryClient]);
+
+  const c = detail ?? selected;
   if (!c) return null;
-  const pct = Math.round((c.completionMandatory.done / c.completionMandatory.total) * 100);
-  
+
+  const companyName = caseCompanyName(c);
+  const completion = resolveCaseCompletion(c);
+  const timeline = buildWorkflowProgress(c, auditEvents);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-[720px] overflow-y-auto">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
-            {c.subjectName} <RecipientBadge type={c.recipientType} />
+            {caseCompanyName(c)} <RecipientBadge type={c.recipientType} />
           </SheetTitle>
           <div className="text-xs text-muted-foreground space-x-3">
-            <span>UID <span className="font-mono">{c.uid}</span></span>
+            <span>UID <span className="font-mono">{caseCrisUid(c)}</span></span>
             <span>Order <span className="font-mono">{c.orderId}</span></span>
             <span>Submitted {absTime(c.lastActivity)}</span>
             <span>{c.country}</span>
           </div>
           <div className="pt-1 flex items-center gap-2">
             <StatusBadge status={c.status} />
+            {detailLoading && (
+              <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" /> Syncing…
+              </span>
+            )}
           </div>
         </SheetHeader>
 
@@ -78,9 +103,23 @@ export function CaseDetailPanel({ case: c, open, onOpenChange }: Props) {
             </Section>
 
             <Section title="Completion">
-              <Field label="Mandatory" value={`${c.completionMandatory.done}/${c.completionMandatory.total}`} />
-              <Field label="Optional" value={`${c.completionOptional.done}/${c.completionOptional.total}`} />
-              <Field label="Overall" value={`${pct}%`} />
+              <Field
+                label="Mandatory"
+                value={
+                  completion.mandatory.total
+                    ? `${completion.mandatory.done}/${completion.mandatory.total} (${completion.mandatoryPct}%)`
+                    : "—"
+                }
+              />
+              <Field
+                label="Optional"
+                value={
+                  completion.optional.total
+                    ? `${completion.optional.done}/${completion.optional.total} (${completion.optionalPct}%)`
+                    : "—"
+                }
+              />
+              <Field label="Overall" value={`${completion.overallPct}%`} />
             </Section>
 
             {(c.status === "COMPLETED" || c.status === "COMPLETED — MISSING DATA") && (
@@ -95,7 +134,7 @@ export function CaseDetailPanel({ case: c, open, onOpenChange }: Props) {
 
           {showResponses && (
             <TabsContent value="responses" className="mt-4">
-              <ResponsesReview />
+              <ResponsesReview responses={c.responses} companyName={companyName} />
             </TabsContent>
           )}
 
@@ -104,7 +143,13 @@ export function CaseDetailPanel({ case: c, open, onOpenChange }: Props) {
               <ol className="space-y-2">
                 {WORKFLOW_STEPS.map((name, idx) => {
                   const num = idx + 1;
-                  const state = num < c.currentStep ? "done" : num === c.currentStep ? "current" : "todo";
+                  const state =
+                    num < timeline.currentStep
+                      ? "done"
+                      : num === timeline.currentStep
+                        ? "current"
+                        : "todo";
+                  const ts = timeline.completedAt[idx];
                   return (
                     <li key={num} className="flex items-start gap-3">
                       <span className="mt-0.5">
@@ -129,8 +174,11 @@ export function CaseDetailPanel({ case: c, open, onOpenChange }: Props) {
                           <span className="text-muted-foreground mr-1">Step {num}.</span>
                           {name}
                         </div>
-                        {state === "done" && (
-                          <div className="text-xs text-muted-foreground">{stepTimestamp(c, num)}</div>
+                        {state === "done" && ts && (
+                          <div className="text-xs text-muted-foreground">{ts}</div>
+                        )}
+                        {state === "current" && (
+                          <div className="text-xs text-status-progress-fg italic">In progress</div>
                         )}
                       </div>
                     </li>

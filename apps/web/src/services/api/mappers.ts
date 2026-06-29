@@ -277,7 +277,7 @@ export function mapCase(
   return {
     id: raw.caseId,
     orderId: raw.orderId,
-    uid: uid || companyData.registrationNumber,
+    uid: uid || raw.company?.crisNumber || companyData.registrationNumber,
     subjectName: raw.subjectName,
     country: raw.country,
     recipientType: raw.recipientType,

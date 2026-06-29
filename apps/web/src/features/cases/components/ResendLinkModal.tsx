@@ -5,6 +5,7 @@ import type { CaseRecord } from "@/types/case";
 import { Button } from "@/components/ui/button";
 import { casesService } from "@/services";
 import { ApiError } from "@/services/api/client";
+import { caseCompanyName, caseCrisUid } from "@/lib/case-display";
 
 interface Props {
   case: CaseRecord;
@@ -75,9 +76,9 @@ export function ResendLinkModal({ case: c, open, onClose, onConfirmed, onViewDet
 
             <div className="p-5 space-y-4">
               <div className="rounded-lg bg-secondary/60 p-4 space-y-2">
-                <div className="font-semibold text-base">{c.subjectName}</div>
+                <div className="font-semibold text-base">{caseCompanyName(c)}</div>
                 <div className="text-xs text-muted-foreground">
-                  <span className="font-mono">{c.uid}</span> · <span className="font-mono">{c.orderId}</span>
+                  <span className="font-mono">{caseCrisUid(c)}</span> · <span className="font-mono">{c.orderId}</span>
                 </div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs pt-2">
                   <Row label="Country" value={c.country} />

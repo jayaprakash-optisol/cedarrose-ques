@@ -1,7 +1,6 @@
 [
   "Order received",
-  "Validate order ID",
-  "Fetch company data (Step 1B)",
+  "Fetch company data",
   "Apply questionnaire template",
   "Generate secure link",
   "Send link to recipient",
