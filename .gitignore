@@ -27,3 +27,7 @@ coverage/
 
 # API generated artifacts
 apps/api/src/db/drizzle-generated/
+
+.agents
+skills-lock.json
+AGENTS.md
