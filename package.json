@@ -6,7 +6,7 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "concurrently -n web,api -c cyan,magenta \"npm run dev -w cedarrose-opshub-web\" \"npm run dev -w cedarrose-opshub-api\"",
+    "dev": "concurrently -n api,web -c magenta,cyan \"npm run dev -w cedarrose-opshub-api\" \"wait-on http://127.0.0.1:3000/health -t 120000 && npm run dev -w cedarrose-opshub-web\"",
     "dev:web": "npm run dev -w cedarrose-opshub-web",
     "dev:api": "npm run dev -w cedarrose-opshub-api",
     "build": "npm run build -w cedarrose-opshub-api && npm run build -w cedarrose-opshub-web",
@@ -20,7 +20,14 @@
     "test": "npm run test -w cedarrose-opshub-api"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "concurrently": "^9.2.1",
+    "wait-on": "^8.0.3"
+  },
+  "overrides": {
+    "esbuild": "^0.25.4",
+    "@esbuild-kit/core-utils": {
+      "esbuild": "^0.25.4"
+    }
   },
   "engines": {
     "node": ">=20"

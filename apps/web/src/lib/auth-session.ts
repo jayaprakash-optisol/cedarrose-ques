@@ -22,6 +22,10 @@ export async function fetchCurrentUser(): Promise<CurrentUser | null> {
   try {
     return await authService.getCurrentUser();
   } catch (error) {
+    if (error instanceof TypeError) {
+      // API unreachable (e.g. still starting in dev) — treat as logged out
+      return null;
+    }
     if (
       error instanceof ApiError &&
       (error.status === 401 ||
