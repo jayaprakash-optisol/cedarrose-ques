@@ -150,7 +150,7 @@ export const apiCasesService = {
 
 export const apiAuditService = {
   async list(params?: { caseId?: string }): Promise<AuditEvent[]> {
-    const qs = new URLSearchParams({ page: "1", limit: "100" });
+    const qs = new URLSearchParams({ page: "1", limit: "500" });
     if (params?.caseId) qs.set("caseId", params.caseId);
     const rows = await apiClient<ApiAuditEvent[]>(`/audit-log?${qs}`);
     return rows.map(mapAuditEvent);

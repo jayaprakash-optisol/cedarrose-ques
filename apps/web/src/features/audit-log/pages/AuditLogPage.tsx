@@ -12,32 +12,36 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateField } from "@/components/ui/date-field";
 import { absTime } from "@/lib/format";
+import { groupAuditEventsByCase, indexAuditEventsByCase, resolveAuditCaseLabels, stepTimestampsFromEvents } from "@/lib/audit-log";
 import { toast } from "sonner";
 import { Check, Loader2, Circle } from "lucide-react";
 import { WORKFLOW_STEPS } from "@/config/workflow";
 import { StatusBadge } from "@/components/common/StatusBadge";
 
-// Per-case workflow timestamps for the audit-log expansion view.
-const CASE_TIMELINES: Record<string, { completedAt: (string | null)[]; currentStep: number }> = {
-  "c-006": {
-    currentStep: 15,
-    completedAt: [
-      "30 Apr 2026, 08:00", "30 Apr 2026, 08:01", "30 Apr 2026, 08:02", "30 Apr 2026, 08:03",
-      "30 Apr 2026, 08:05", "30 Apr 2026, 08:06", "30 Apr 2026, 14:22", "30 Apr 2026, 14:23",
-      "30 Apr 2026, 14:25", "30 Apr 2026, 15:10", "30 Apr 2026, 17:44", "30 Apr 2026, 18:00",
-      "30 Apr 2026, 18:01", "07 May 2026, 12:49", null, null,
-    ],
-  },
-  "c-005": {
-    currentStep: 14,
-    completedAt: [
-      "04 May 2026, 14:00", "04 May 2026, 14:01", "04 May 2026, 14:02", "04 May 2026, 14:03",
-      "04 May 2026, 14:05", "04 May 2026, 14:06", "05 May 2026, 09:00", "05 May 2026, 09:02",
-      "05 May 2026, 09:05", "05 May 2026, 11:00", "05 May 2026, 15:30", "05 May 2026, 16:06",
-      "07 May 2026, 12:07", null, null, null,
-    ],
-  },
-};
+/** Build per-step timeline from case record and/or its audit events. */
+function buildTimeline(
+  caseRecord: CaseRecord | undefined,
+  caseEvents: AuditEvent[],
+  fallbackStep: number,
+  fallbackTs: string,
+): { currentStep: number; completedAt: (string | null)[] } {
+  const stepTimestamps = {
+    ...caseRecord?.stepTimestamps,
+    ...stepTimestampsFromEvents(caseEvents),
+  };
+  const maxLoggedStep = Object.keys(stepTimestamps).reduce(
+    (max, key) => Math.max(max, Number(key)),
+    0,
+  );
+  const currentStep = caseRecord?.currentStep ?? Math.max(maxLoggedStep + 1, fallbackStep + 1);
+  const completedAt = WORKFLOW_STEPS.map((_, i) => {
+    const stepNum = i + 1;
+    const ts = stepTimestamps[stepNum];
+    if (ts) return absTime(ts);
+    return stepNum < fallbackStep ? absTime(fallbackTs) : null;
+  });
+  return { currentStep, completedAt };
+}
 
 const search = z.object({ caseId: z.string().optional() });
 
@@ -65,14 +69,21 @@ export default function AuditLogPage() {
   const filtered = useMemo(() => {
     return mockAuditLog.filter((e) => {
       if (sp.caseId && e.caseId !== sp.caseId) return false;
-      if (q && !`${e.caseSubject} ${e.caseOrderId}`.toLowerCase().includes(q.toLowerCase())) return false;
+      if (q) {
+        const caseRecord = mockCases.find((m) => m.id === e.caseId);
+        const { subject, orderId } = resolveAuditCaseLabels(e, caseRecord);
+        if (!`${subject} ${orderId}`.toLowerCase().includes(q.toLowerCase())) return false;
+      }
       if (type !== "All" && e.type !== type) return false;
       const t = new Date(e.timestamp).getTime();
       if (from && t < new Date(from).getTime()) return false;
       if (to && t > new Date(to).getTime() + 86_400_000) return false;
       return true;
     });
-  }, [q, type, from, to, sp.caseId, mockAuditLog]);
+  }, [q, type, from, to, sp.caseId, mockAuditLog, mockCases]);
+
+  const grouped = useMemo(() => groupAuditEventsByCase(filtered), [filtered]);
+  const eventsByCase = useMemo(() => indexAuditEventsByCase(filtered), [filtered]);
 
   const toggle = (id: string) => {
     setExpanded((prev) => (prev === id ? null : id));
@@ -80,8 +91,12 @@ export default function AuditLogPage() {
 
   const exportCsv = () => {
     const csv = ["Timestamp,Case,Order,Step,Type,Description,TriggeredBy,Status",
-      ...filtered.map((e) => [e.timestamp, e.caseSubject, e.caseOrderId, e.step, e.type, e.description, e.triggeredBy, e.status]
-        .map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))].join("\n");
+      ...grouped.map((e) => {
+        const caseRecord = mockCases.find((m) => m.id === e.caseId);
+        const { subject, orderId } = resolveAuditCaseLabels(e, caseRecord);
+        return [e.timestamp, subject, orderId, e.step, e.type, e.description, e.triggeredBy, e.status]
+          .map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
+      })].join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
     const a = document.createElement("a");
     a.href = url; a.download = "cedarrose-audit-log.csv"; a.click(); URL.revokeObjectURL(url);
@@ -93,7 +108,11 @@ export default function AuditLogPage() {
       <div className="space-y-4">
         <div>
           <h2 className="text-xl font-semibold tracking-tight">Audit log</h2>
-          <p className="text-sm text-muted-foreground">{filtered.length} event{filtered.length === 1 ? "" : "s"}{sp.caseId ? ` · filtered by case` : ""}</p>
+          <p className="text-sm text-muted-foreground">
+            {grouped.length} case{grouped.length === 1 ? "" : "s"}
+            {filtered.length !== grouped.length ? ` · ${filtered.length} events` : ""}
+            {sp.caseId ? " · filtered by case" : ""}
+          </p>
         </div>
 
         <div className="rounded-[10px] border border-[#EDF2F7] bg-white p-4">
@@ -146,22 +165,22 @@ export default function AuditLogPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {grouped.length === 0 ? (
                 <tr><td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">No events match the current filters.</td></tr>
-              ) : filtered.map((e) => {
-                const isOpen = expanded === e.id;
+              ) : grouped.map((e) => {
+                const rowKey = e.caseId || e.id;
+                const isOpen = expanded === rowKey;
                 const caseRecord = mockCases.find((m) => m.id === e.caseId);
-                const timeline = CASE_TIMELINES[e.caseId] ?? {
-                  currentStep: e.step + 1,
-                  completedAt: WORKFLOW_STEPS.map((_, i) => (i < e.step ? absTime(e.timestamp) : null)),
-                };
+                const { subject, orderId } = resolveAuditCaseLabels(e, caseRecord);
+                const caseEvents = eventsByCase.get(rowKey) ?? [e];
+                const timeline = buildTimeline(caseRecord, caseEvents, e.step, e.timestamp);
                 return (
-                  <FragmentRow key={e.id}>
-                    <tr className="border-t border-border hover:bg-secondary/40 cursor-pointer" onClick={() => toggle(e.id)}>
+                  <FragmentRow key={rowKey}>
+                    <tr className="border-t border-border hover:bg-secondary/40 cursor-pointer" onClick={() => toggle(rowKey)}>
                       <td className="px-3 py-3">
                         <button
                           type="button"
-                          onClick={(ev) => { ev.stopPropagation(); toggle(e.id); }}
+                          onClick={(ev) => { ev.stopPropagation(); toggle(rowKey); }}
                           aria-label={isOpen ? "Collapse row" : "Expand row"}
                           className="inline-flex h-6 w-6 items-center justify-center rounded border border-border bg-background text-foreground hover:bg-secondary"
                         >
@@ -170,8 +189,8 @@ export default function AuditLogPage() {
                       </td>
                       <td className="px-3 py-3 text-muted-foreground text-xs whitespace-nowrap">{absTime(e.timestamp)}</td>
                       <td className="px-3 py-3">
-                        <div className="font-medium">{e.caseSubject}</div>
-                        <div className="text-xs text-muted-foreground font-mono">{e.caseOrderId}</div>
+                        <div className="font-medium">{subject}</div>
+                        {orderId && <div className="text-xs text-muted-foreground font-mono">{orderId}</div>}
                       </td>
                       <td className="px-3 py-3">{e.step}</td>
                       <td className="px-3 py-3 text-muted-foreground">{e.type}</td>
@@ -187,12 +206,12 @@ export default function AuditLogPage() {
                       </td>
                     </tr>
                     {isOpen && (
-                      <tr key={`${e.id}-detail`} className="border-t border-border bg-card">
+                      <tr key={`${rowKey}-detail`} className="border-t border-border bg-card">
                         <td />
                         <td colSpan={7} className="px-0 py-0">
                           <WorkflowTimelinePanel
-                            title={e.caseSubject}
-                            orderId={e.caseOrderId}
+                            title={subject}
+                            orderId={orderId}
                             status={caseRecord?.status}
                             currentStep={timeline.currentStep}
                             completedAt={timeline.completedAt}

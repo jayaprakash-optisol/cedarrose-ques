@@ -69,4 +69,8 @@ export interface CaseRecord {
   analyst: string;
   linkExpiry: string | null;
   remindersSent: number | null;
+  /** Maps step number (1–16) to ISO timestamp when that step completed. */
+  stepTimestamps?: Record<number, string>;
+  /** Returned once on case creation — the full /q/:token URL for the recipient. */
+  linkUrl?: string | null;
 }

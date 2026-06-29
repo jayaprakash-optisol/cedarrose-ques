@@ -20,6 +20,23 @@ export class QuestionnaireService {
     private readonly emailService: EmailService
   ) {}
 
+  private maskEmail(email: string): string {
+    const atIdx = email.indexOf("@");
+    if (atIdx <= 0) return email;
+    const local = email.slice(0, atIdx);
+    const domain = email.slice(atIdx + 1);
+    return `${local[0]}***@${domain}`;
+  }
+
+  private async getPrimaryRecipientEmail(caseId: string): Promise<string> {
+    const fullCase = await this.casesRepo.findById(caseId);
+    const email = fullCase?.company?.recipientEmails?.[0];
+    if (!email) {
+      throw new AppError(400, "VALIDATION_ERROR", "No recipient email on file for this case");
+    }
+    return email;
+  }
+
   async verifyLink(rawToken: string) {
     const tokenHash = hashToken(rawToken);
     const c = await this.casesRepo.findByLinkHash(tokenHash);
@@ -37,23 +54,27 @@ export class QuestionnaireService {
       status: "Success",
     });
 
+    const primaryEmail = await this.getPrimaryRecipientEmail(c.caseId);
+
     return {
       caseId: c.caseId,
       subjectName: c.subjectName,
       recipientType: c.recipientType,
       status: c.status,
+      maskedEmail: this.maskEmail(primaryEmail),
     };
   }
 
-  async requestOtp(rawToken: string, email: string) {
+  async requestOtp(rawToken: string) {
     const tokenHash = hashToken(rawToken);
     const c = await this.casesRepo.findByLinkHash(tokenHash);
     if (!c) throw new AppError(400, "VALIDATION_ERROR", "Invalid or expired link");
 
+    const recipientEmail = await this.getPrimaryRecipientEmail(c.caseId);
     const otp = generateOtp(6);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     await this.questionnaireRepo.setOtp(c.caseId, hashToken(otp), expiresAt);
-    await this.emailService.sendOtpEmail(email, otp);
+    await this.emailService.sendOtpEmail(recipientEmail, otp);
 
     await this.auditService.log({
       caseId: c.caseId,
@@ -132,6 +153,10 @@ export class QuestionnaireService {
     }
 
     const template = await this.templatesRepo.getFullTemplate(c.templateId);
+    if (!template) throw new AppError(404, "NOT_FOUND", "Template not found");
+
+    const savedResponses = await this.questionnaireRepo.getResponses(c.caseId);
+
     await this.auditService.log({
       caseId: c.caseId,
       step: 9,
@@ -140,7 +165,17 @@ export class QuestionnaireService {
       status: "Success",
     });
 
-    return { case: c, template };
+    return {
+      case: {
+        caseId: c.caseId,
+        subjectName: c.subjectName,
+        recipientType: c.recipientType,
+        status: c.status,
+        currentStep: c.currentStep,
+      },
+      template,
+      savedResponses,
+    };
   }
 
   async saveProgress(authHeader: string | undefined, responses: Parameters<QuestionnaireRepository["upsertResponses"]>[1]) {

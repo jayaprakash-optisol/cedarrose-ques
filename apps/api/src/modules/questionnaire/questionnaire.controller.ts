@@ -11,7 +11,7 @@ export class QuestionnaireController {
   };
 
   authenticate = async (req: Request, res: Response) => {
-    await this.questionnaireService.requestOtp(req.body.token, req.body.email);
+    await this.questionnaireService.requestOtp(req.body.token);
     sendSuccess(res, null, 200, "OTP sent");
   };
 

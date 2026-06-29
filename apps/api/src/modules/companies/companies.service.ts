@@ -7,8 +7,11 @@ export class CompaniesService {
   async getByUid(uid: string) {
     const company = await this.companiesRepo.findByCrisNumber(uid);
     if (!company) throw new AppError(404, "NOT_FOUND", `Company ${uid} not found`);
-    const emails = await this.companiesRepo.getRecipientEmails(company.companyId);
-    return { ...company, uid: company.crisNumber, recipientEmails: emails };
+    const emailRows = await this.companiesRepo.getRecipientEmails(company.companyId);
+    const recipientEmails = emailRows
+      .sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary))
+      .map((row) => row.email);
+    return { ...company, uid: company.crisNumber, recipientEmails };
   }
 
   async list(offset: number, limit: number) {

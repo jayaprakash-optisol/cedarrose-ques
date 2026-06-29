@@ -7,6 +7,16 @@ import { RecipientBadge, StatusBadge } from "@/components/common/StatusBadge";
 import { ResponsesReview } from "@/features/cases/components/ResponsesReview";
 import { absTime, relTime } from "@/lib/format";
 
+/** Resolve the display timestamp for a completed step. */
+function stepTimestamp(c: CaseRecord, stepNum: number): string | null {
+  if (c.stepTimestamps) {
+    const ts = c.stepTimestamps[stepNum];
+    if (ts) return absTime(ts);
+  }
+  // Fallback: use lastActivity for all done steps
+  return relTime(c.lastActivity);
+}
+
 interface Props {
   case: CaseRecord | null;
   open: boolean;
@@ -54,7 +64,14 @@ export function CaseDetailPanel({ case: c, open, onOpenChange }: Props) {
               <Field label="Registration #" value={c.companyData.registrationNumber} />
               <Field label="Country" value={c.companyData.country} />
               <Field label="Risk rating" value={c.companyData.riskRating} />
-              <Field label="Recipient email(s)" value={c.companyData.recipientEmails.join(", ")} />
+              <Field
+                label="Recipient email(s)"
+                value={
+                  c.companyData.recipientEmails.length
+                    ? c.companyData.recipientEmails.join(", ")
+                    : "—"
+                }
+              />
               <Field label="Incorporated" value={c.companyData.additionalFields.incorporationDate} />
               <Field label="Legal structure" value={c.companyData.additionalFields.legalStructure} />
               <Field label="Industry" value={c.companyData.additionalFields.primaryIndustry} />
@@ -113,7 +130,7 @@ export function CaseDetailPanel({ case: c, open, onOpenChange }: Props) {
                           {name}
                         </div>
                         {state === "done" && (
-                          <div className="text-xs text-muted-foreground">{relTime(c.lastActivity)}</div>
+                          <div className="text-xs text-muted-foreground">{stepTimestamp(c, num)}</div>
                         )}
                       </div>
                     </li>

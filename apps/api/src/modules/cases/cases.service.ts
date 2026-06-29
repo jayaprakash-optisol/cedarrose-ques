@@ -98,20 +98,26 @@ export class CasesService {
       status: "Success",
     });
 
-    if (linkData && dto.recipientEmail) {
-      const link = `${env.frontendUrl}/q/${linkData.rawToken}`;
-      await this.emailService.sendQuestionnaireLink(dto.recipientEmail, dto.subjectName, link);
-      await this.auditService.log({
-        caseId: created.caseId,
-        step: 5,
-        eventType: "Link Event",
-        description: "Secure link sent",
-        triggeredByUserId: requesterId,
-        status: "Success",
-      });
+    let linkUrl: string | null = null;
+    if (linkData) {
+      linkUrl = `${env.frontendUrl}/q/${linkData.rawToken}`;
+      if (dto.recipientEmail) {
+        await this.emailService.sendQuestionnaireLink(dto.recipientEmail, dto.subjectName, linkUrl);
+        await this.auditService.log({
+          caseId: created.caseId,
+          step: 5,
+          eventType: "Link Event",
+          description: "Secure link sent",
+          triggeredByUserId: requesterId,
+          status: "Success",
+        });
+      }
     }
 
-    return created;
+    const caseRecord = (await this.casesRepo.findById(created.caseId)) ?? created;
+    // Return linkUrl once in the creation response so admin UI can display/copy it.
+    // The raw token is never stored in the DB — this is the only time it is returned.
+    return { ...caseRecord, linkUrl };
   }
 
   async resendLink(caseId: string, requesterId: string, requesterRole: string) {

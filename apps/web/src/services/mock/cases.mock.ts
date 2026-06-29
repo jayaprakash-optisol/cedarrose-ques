@@ -60,9 +60,12 @@ export const mockCasesService: CasesService = {
     await delay(800);
     const cases = getCases();
     const nextNum = cases.length + 1;
+    const newId = `c-${String(nextNum).padStart(3, "0")}`;
+    // Generate a mock token that the QuestionnaireLandingPage mock accepts (any non-"expired" string)
+    const mockToken = `mock-${newId}-${Date.now()}`;
     const created: CaseRecord = {
       ...cases[0],
-      id: `c-${String(nextNum).padStart(3, "0")}`,
+      id: newId,
       orderId: input.orderId,
       uid: input.uid ?? "",
       subjectName: input.subjectName,
@@ -77,6 +80,7 @@ export const mockCasesService: CasesService = {
         expiresAt: new Date(Date.now() + (input.linkValidityHours ?? 48) * 3600_000).toISOString(),
         resentCount: 0,
       },
+      linkUrl: input.recipientEmail ? `${window.location.origin}/q/${mockToken}` : null,
     };
     cases.unshift(created);
     casesCache = cases;

@@ -1,12 +1,12 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import { Loader2, Check, AlertCircle, ArrowLeft } from "lucide-react";
+import { Loader2, Check, AlertCircle, ArrowLeft, Copy, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { companiesService, casesService } from "@/services";
 import { ApiError } from "@/services/api/client";
 import { COUNTRIES } from "@/config/workflow";
-import type { CompanyData, RecipientType } from "@/types/case";
+import type { CaseRecord, CompanyData, RecipientType } from "@/types/case";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +49,7 @@ export default function NewRequestPage() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [company, setCompany] = useState<CompanyData | null>(null);
+  const [createdCase, setCreatedCase] = useState<CaseRecord | null>(null);
 
   const [recipientType, setRecipientType] = useState<RecipientType>("Supplier");
   const [auth, setAuth] = useState<"OTP" | "Password" | "One-time link">("OTP");
@@ -87,7 +88,7 @@ export default function NewRequestPage() {
     if (!company) return;
     setSending(true);
     try {
-      await casesService.create({
+      const result = await casesService.create({
         orderId,
         uid: uid.trim(),
         subjectName: subject,
@@ -96,6 +97,7 @@ export default function NewRequestPage() {
         recipientEmail: company.recipientEmails[0],
         linkValidityHours: Number(expiry),
       });
+      setCreatedCase(result);
       setStep("C");
       toast.success("Secure link sent to recipient.");
     } catch (e) {
@@ -274,9 +276,39 @@ export default function NewRequestPage() {
               <Read label="Auth method" value={auth} />
               <Read label="Template" value={`${recipientType} questionnaire`} />
             </div>
+
+            {/* Questionnaire link — shown once at creation */}
+            {createdCase?.linkUrl && (
+              <div className="max-w-md mx-auto space-y-2">
+                <p className="text-xs text-muted-foreground font-medium text-left">Questionnaire link</p>
+                <div className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2">
+                  <span className="flex-1 text-xs font-mono text-foreground truncate">{createdCase.linkUrl}</span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 shrink-0"
+                    onClick={() => {
+                      navigator.clipboard.writeText(createdCase.linkUrl!);
+                      toast.success("Link copied to clipboard.");
+                    }}
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </Button>
+                  <a href={createdCase.linkUrl} target="_blank" rel="noopener noreferrer">
+                    <Button size="sm" variant="ghost" className="h-7 px-2 shrink-0">
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </Button>
+                  </a>
+                </div>
+                <p className="text-[11px] text-muted-foreground text-left">
+                  Share this link with the recipient or open it to test the questionnaire flow.
+                </p>
+              </div>
+            )}
+
             <div className="flex gap-3 justify-center pt-2">
               <Link to="/cases"><Button variant="outline">View case in All Cases</Button></Link>
-              <Button onClick={() => { setStep("A"); setCompany(null); setOrderId(""); setSubject(""); setCountry(""); setUid("UID-44529"); }} className="bg-navy hover:bg-navy/90 text-white">
+              <Button onClick={() => { setStep("A"); setCompany(null); setCreatedCase(null); setOrderId(""); setSubject(""); setCountry(""); setUid("UID-44529"); }} className="bg-navy hover:bg-navy/90 text-white">
                 Trigger another request
               </Button>
             </div>

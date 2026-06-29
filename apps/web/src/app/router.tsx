@@ -6,6 +6,10 @@ import { hasAppSelected } from "@/lib/app-selection";
 
 const LoginPage = lazy(() => import("@/features/auth/pages/LoginPage"));
 const CompleteRegistrationPage = lazy(() => import("@/features/auth/pages/CompleteRegistrationPage"));
+const QuestionnaireLandingPage = lazy(() => import("@/features/questionnaire/pages/QuestionnaireLandingPage"));
+const QuestionnaireOtpPage = lazy(() => import("@/features/questionnaire/pages/QuestionnaireOtpPage"));
+const QuestionnaireFormPage = lazy(() => import("@/features/questionnaire/pages/QuestionnaireFormPage"));
+const QuestionnaireExpiredPage = lazy(() => import("@/features/questionnaire/pages/QuestionnaireExpiredPage"));
 const SelectAppPage = lazy(() => import("@/features/auth/pages/SelectAppPage"));
 const DashboardPage = lazy(() => import("@/features/dashboard/pages/DashboardPage"));
 const CasesPage = lazy(() => import("@/features/cases/pages/CasesPage"));
@@ -80,6 +84,23 @@ function NotFoundPage() {
 }
 
 const router = createBrowserRouter([
+  // Public questionnaire routes (outside AuthGuard — no session required)
+  {
+    path: "/q/:token",
+    element: <LazyPage><QuestionnaireLandingPage /></LazyPage>,
+  },
+  {
+    path: "/q/:token/otp",
+    element: <LazyPage><QuestionnaireOtpPage /></LazyPage>,
+  },
+  {
+    path: "/q/:token/form",
+    element: <LazyPage><QuestionnaireFormPage /></LazyPage>,
+  },
+  {
+    path: "/q/:token/expired",
+    element: <LazyPage><QuestionnaireExpiredPage /></LazyPage>,
+  },
   {
     path: "/login",
     element: (

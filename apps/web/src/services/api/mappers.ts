@@ -7,6 +7,7 @@ import type {
 import type { AuditEvent } from "@/types/audit";
 import type { Notification } from "@/types/notification";
 import type { PlatformConfig } from "@/types/config";
+import type { QuestionnaireFormData } from "@/types/questionnaire";
 import type { Template, Question, Section } from "@/types/template";
 import type { CurrentUser, RoleKey, User } from "@/types/user";
 import { absTime } from "@/lib/format";
@@ -41,6 +42,7 @@ export interface ApiCase {
   dateReceived: string;
   lastActivity?: string | null;
   analystId?: string | null;
+  analystName?: string | null;
   assignedResearcherId?: string | null;
   researcherStatus?: string | null;
   researcherNotes?: string | null;
@@ -53,6 +55,20 @@ export interface ApiCase {
   remindersSent?: number | null;
   resentCount?: number;
   responses?: ApiResponse[];
+  company?: ApiCaseCompany | null;
+  stepTimestamps?: Record<number, string>;
+  linkUrl?: string | null;
+}
+
+export interface ApiCaseCompany {
+  companyName: string;
+  crisNumber: string;
+  country: string | null;
+  riskRating: string | null;
+  incorporationDate?: string | null;
+  legalStructure?: string | null;
+  primaryIndustry?: string | null;
+  recipientEmails: string[];
 }
 
 export interface ApiResponse {
@@ -230,16 +246,33 @@ function mapResponses(responses?: ApiResponse[]): QuestionnaireResponse[] {
   }));
 }
 
+function mapCaseCompany(c: ApiCaseCompany): CompanyData {
+  return {
+    companyName: c.companyName,
+    registrationNumber: c.crisNumber,
+    country: c.country ?? "",
+    riskRating: (c.riskRating ?? "Low") as CompanyData["riskRating"],
+    recipientEmails: c.recipientEmails ?? [],
+    additionalFields: {
+      incorporationDate: c.incorporationDate ?? "",
+      legalStructure: c.legalStructure ?? "",
+      primaryIndustry: c.primaryIndustry ?? "",
+    },
+  };
+}
+
 export function mapCase(
   raw: ApiCase,
   company?: CompanyData | null,
   uid = "",
 ): CaseRecord {
-  const companyData = company ?? {
-    ...EMPTY_COMPANY,
-    companyName: raw.subjectName,
-    country: raw.country,
-  };
+  const companyData =
+    company ??
+    (raw.company ? mapCaseCompany(raw.company) : {
+      ...EMPTY_COMPANY,
+      companyName: raw.subjectName,
+      country: raw.country,
+    });
 
   return {
     id: raw.caseId,
@@ -271,10 +304,23 @@ export function mapCase(
     },
     responses: mapResponses(raw.responses),
     currentStep: raw.currentStep,
-    analyst: raw.analystId ?? "—",
+    analyst: raw.analystName ?? "—",
     linkExpiry: raw.linkExpiry ?? null,
     remindersSent: raw.remindersSent ?? null,
+    stepTimestamps: raw.stepTimestamps,
+    linkUrl: raw.linkUrl,
   };
+}
+
+function normalizeRecipientEmails(emails: ApiCompany["recipientEmails"]): string[] {
+  if (!Array.isArray(emails)) return [];
+  return emails.map((entry) =>
+    typeof entry === "string"
+      ? entry
+      : typeof entry === "object" && entry && "email" in entry
+        ? String((entry as { email: string }).email)
+        : String(entry)
+  );
 }
 
 export function mapCompany(c: ApiCompany): CompanyData {
@@ -283,7 +329,7 @@ export function mapCompany(c: ApiCompany): CompanyData {
     registrationNumber: c.crisNumber,
     country: c.country,
     riskRating: c.riskRating,
-    recipientEmails: c.recipientEmails,
+    recipientEmails: normalizeRecipientEmails(c.recipientEmails),
     additionalFields: {
       incorporationDate: c.incorporationDate ?? "",
       legalStructure: c.legalStructure ?? "",
@@ -410,7 +456,7 @@ function mapTableColumns(
 function mapQuestion(q: ApiTemplateQuestion, index: number): Question {
   return {
     id: q.questionId ?? `q-${index}`,
-    text: q.label,
+    text: q.label ?? "",
     type: q.fieldType,
     required: q.mandatory,
     prefill: q.prefill ?? false,
@@ -511,4 +557,52 @@ export function isLocalUserId(id: string): boolean {
 
 export function isLocalTemplateId(id: string): boolean {
   return id.startsWith("tpl-") || !/^[0-9a-f-]{36}$/i.test(id);
+}
+
+export interface ApiQuestionnaireFormPayload {
+  case: {
+    caseId: string;
+    subjectName: string;
+    recipientType: string;
+    status: string;
+    currentStep?: number;
+  };
+  template: ApiTemplate;
+  savedResponses?: Array<{
+    questionId?: string | null;
+    sectionId?: string | null;
+    question: string;
+    answer?: string | null;
+    mandatory?: boolean;
+  }>;
+}
+
+export function mapQuestionnaireFormData(raw: ApiQuestionnaireFormPayload): QuestionnaireFormData {
+  const mappedTemplate = mapTemplate(raw.template);
+
+  return {
+    case: {
+      caseId: raw.case.caseId,
+      subjectName: raw.case.subjectName,
+      recipientType: raw.case.recipientType,
+      status: raw.case.status,
+      currentStep: raw.case.currentStep ?? 1,
+    },
+    template: {
+      id: mappedTemplate.id,
+      name: mappedTemplate.name,
+      sections: mappedTemplate.sections,
+    },
+    savedResponses: raw.savedResponses
+      ?.filter((r): r is typeof r & { questionId: string; sectionId: string } =>
+        Boolean(r.questionId && r.sectionId),
+      )
+      .map((r) => ({
+        questionId: r.questionId,
+        sectionId: r.sectionId,
+        question: r.question,
+        answer: r.answer ?? "",
+        mandatory: r.mandatory ?? false,
+      })),
+  };
 }

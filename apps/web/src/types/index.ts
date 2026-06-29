@@ -5,3 +5,4 @@ export * from "./template";
 export * from "./notification";
 export * from "./config";
 export * from "./dashboard";
+export * from "./questionnaire";

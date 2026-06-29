@@ -2,7 +2,10 @@ import { eq, and, or, ilike, count, lt, inArray, sql, desc } from "drizzle-orm";
 import { addHours } from "date-fns";
 import type { DrizzleDB } from "../../config/database.js";
 import { cases } from "../../db/schema/cases.js";
+import { users } from "../../db/schema/users.js";
+import { companies, companyRecipientEmails } from "../../db/schema/companies.js";
 import { questionnaireResponses } from "../../db/schema/questionnaire-responses.js";
+import { auditEvents } from "../../db/schema/audit-events.js";
 import { STATUS_PRIORITY } from "../../config/constants.js";
 import { generateSecureToken, hashToken } from "../../shared/utils/crypto.js";
 
@@ -16,12 +19,124 @@ export interface CaseFilters {
   limit: number;
 }
 
+type CaseRow = typeof cases.$inferSelect;
+type CompanyRow = typeof companies.$inferSelect;
+
+export type CaseCompanySnapshot = {
+  companyName: string;
+  crisNumber: string;
+  country: string | null;
+  riskRating: string | null;
+  incorporationDate: string | null;
+  legalStructure: string | null;
+  primaryIndustry: string | null;
+  recipientEmails: string[];
+};
+
+export type CaseWithAnalyst = CaseRow & {
+  analystName: string | null;
+  company: CaseCompanySnapshot | null;
+  stepTimestamps?: Record<number, string>;
+};
+
+function withAnalystName(
+  row: CaseRow,
+  firstName: string | null,
+  company: CaseCompanySnapshot | null,
+  stepTimestamps?: Record<number, string>
+): CaseWithAnalyst {
+  return { ...row, analystName: firstName, company, stepTimestamps };
+}
+
+async function loadStepTimestamps(
+  db: DrizzleDB,
+  caseId: string
+): Promise<Record<number, string>> {
+  const events = await db
+    .select({ step: auditEvents.step, createdAt: auditEvents.createdAt })
+    .from(auditEvents)
+    .where(and(eq(auditEvents.caseId, caseId), eq(auditEvents.status, "Success")))
+    .orderBy(auditEvents.createdAt);
+
+  const result: Record<number, string> = {};
+  for (const ev of events) {
+    if (ev.step !== null && !(ev.step in result)) {
+      result[ev.step] = ev.createdAt.toISOString();
+    }
+  }
+  return result;
+}
+
+function buildCompanySnapshot(
+  company: CompanyRow | null,
+  recipientEmails: string[]
+): CaseCompanySnapshot | null {
+  if (!company) return null;
+  return {
+    companyName: company.companyName,
+    crisNumber: company.crisNumber,
+    country: company.country,
+    riskRating: company.riskRating,
+    incorporationDate: company.incorporationDate ? String(company.incorporationDate) : null,
+    legalStructure: company.legalStructure,
+    primaryIndustry: company.primaryIndustry,
+    recipientEmails,
+  };
+}
+
+async function loadRecipientEmailsByCompanyIds(
+  db: DrizzleDB,
+  companyIds: string[]
+): Promise<Map<string, string[]>> {
+  if (!companyIds.length) return new Map();
+
+  const rows = await db
+    .select({
+      companyId: companyRecipientEmails.companyId,
+      email: companyRecipientEmails.email,
+      isPrimary: companyRecipientEmails.isPrimary,
+    })
+    .from(companyRecipientEmails)
+    .where(inArray(companyRecipientEmails.companyId, companyIds))
+    .orderBy(desc(companyRecipientEmails.isPrimary));
+
+  const map = new Map<string, string[]>();
+  for (const row of rows) {
+    const list = map.get(row.companyId) ?? [];
+    list.push(row.email);
+    map.set(row.companyId, list);
+  }
+  return map;
+}
+
 export class CasesRepository {
   constructor(private readonly db: DrizzleDB) {}
 
-  async findById(caseId: string) {
-    const [row] = await this.db.select().from(cases).where(eq(cases.caseId, caseId)).limit(1);
-    return row ?? null;
+  async findById(caseId: string): Promise<CaseWithAnalyst | null> {
+    const [row] = await this.db
+      .select({ case: cases, analystFirstName: users.firstName, company: companies })
+      .from(cases)
+      .leftJoin(users, eq(cases.analystId, users.userId))
+      .leftJoin(companies, eq(cases.companyId, companies.companyId))
+      .where(eq(cases.caseId, caseId))
+      .limit(1);
+    if (!row) return null;
+
+    const emailsByCompany = row.company
+      ? await loadRecipientEmailsByCompanyIds(this.db, [row.company.companyId])
+      : new Map<string, string[]>();
+    const recipientEmails = row.company
+      ? (emailsByCompany.get(row.company.companyId) ?? [])
+      : [];
+
+    const stepTimestamps = await loadStepTimestamps(this.db, caseId);
+
+    return withAnalystName(
+      row.case,
+      row.analystFirstName,
+      buildCompanySnapshot(row.company, recipientEmails),
+      stepTimestamps
+    );
   }
 
   async findAll(filters: CaseFilters) {
@@ -45,10 +160,12 @@ export class CasesRepository {
       .map(([status, priority]) => `WHEN '${status}' THEN ${priority}`)
       .join(" ");
 
-    const [data, [{ total }]] = await Promise.all([
+    const [rows, [{ total }]] = await Promise.all([
       this.db
-        .select()
+        .select({ case: cases, analystFirstName: users.firstName, company: companies })
         .from(cases)
+        .leftJoin(users, eq(cases.analystId, users.userId))
+        .leftJoin(companies, eq(cases.companyId, companies.companyId))
         .where(where)
         .orderBy(
           sql`CASE ${cases.status} ${sql.raw(priorityCases)} ELSE 99 END`,
@@ -59,7 +176,24 @@ export class CasesRepository {
       this.db.select({ total: count() }).from(cases).where(where),
     ]);
 
-    return { data, total: Number(total) };
+    const companyIds = [
+      ...new Set(rows.map((row) => row.company?.companyId).filter((id): id is string => !!id)),
+    ];
+    const emailsByCompany = await loadRecipientEmailsByCompanyIds(this.db, companyIds);
+
+    return {
+      data: rows.map((row) => {
+        const recipientEmails = row.company
+          ? (emailsByCompany.get(row.company.companyId) ?? [])
+          : [];
+        return withAnalystName(
+          row.case,
+          row.analystFirstName,
+          buildCompanySnapshot(row.company, recipientEmails)
+        );
+      }),
+      total: Number(total),
+    };
   }
 
   async getResponses(caseId: string) {

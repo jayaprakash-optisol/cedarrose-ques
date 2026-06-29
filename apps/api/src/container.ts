@@ -46,7 +46,7 @@ export function createContainer() {
   const usersRepo = new UsersRepository(db);
   const dashboardRepo = new DashboardRepository(db);
 
-  const auditService = new AuditService(auditRepo);
+  const auditService = new AuditService(auditRepo, casesRepo, usersRepo);
   const notificationsService = new NotificationsService(notificationsRepo);
   const authService = new AuthService(authRepo, emailService);
   const templatesService = new TemplatesService(templatesRepo);

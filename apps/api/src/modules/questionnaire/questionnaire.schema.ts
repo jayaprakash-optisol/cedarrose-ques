@@ -6,7 +6,6 @@ export const verifyLinkSchema = z.object({
 
 export const authenticateSchema = z.object({
   token: z.string().min(1),
-  email: z.string().email(),
 });
 
 export const otpVerifySchema = z.object({
