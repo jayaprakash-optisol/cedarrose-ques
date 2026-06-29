@@ -266,13 +266,7 @@ export class QuestionnaireService {
     });
 
     if (c.analystId) {
-      await this.notificationsService.create({
-        userId: c.analystId,
-        type: "submission",
-        title: `Case ${c.caseRef} submitted`,
-        body: `Status: ${status}`,
-        caseId: c.caseId,
-      });
+      await this.notificationsService.notifySubmission(c.caseId, c.analystId);
     }
 
     return updated;

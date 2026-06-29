@@ -10,7 +10,7 @@ import type { PlatformConfig } from "@/types/config";
 import type { QuestionnaireFormData } from "@/types/questionnaire";
 import type { Template, Question, Section } from "@/types/template";
 import type { CurrentUser, RoleKey, User } from "@/types/user";
-import { absTime } from "@/lib/format";
+import { absTime, relTime } from "@/lib/format";
 
 export interface ApiUser {
   userId: string;
@@ -355,13 +355,15 @@ export function mapAuditEvent(e: ApiAuditEvent): AuditEvent {
 }
 
 export function mapNotification(n: ApiNotification): Notification {
+  const type = n.type === "stale" ? "stale" : n.type;
   return {
     id: n.notificationId,
-    type: n.type,
+    type,
     title: n.title,
     body: n.body,
-    time: absTime(n.createdAt),
+    time: relTime(n.createdAt),
     read: n.read,
+    caseId: n.caseId ?? undefined,
   };
 }
 

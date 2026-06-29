@@ -7,20 +7,20 @@ import {
   otpVerifySchema,
   saveProgressSchema,
 } from "./questionnaire.schema.js";
-import { questionnaireAuthLimit } from "../../middleware/rate-limit.js";
+import { questionnaireOtpLimit } from "../../middleware/rate-limit.js";
 
 export function questionnaireRouter(controller: QuestionnaireController): Router {
   const router = Router();
   router.post("/verify-link", validate(verifyLinkSchema), controller.verifyLink);
   router.post(
     "/authenticate",
-    questionnaireAuthLimit,
+    questionnaireOtpLimit,
     validate(authenticateSchema),
     controller.authenticate
   );
   router.post(
     "/otp-verify",
-    questionnaireAuthLimit,
+    questionnaireOtpLimit,
     validate(otpVerifySchema),
     controller.otpVerify
   );

@@ -6,7 +6,7 @@ import cookieParser from "cookie-parser";
 import { env } from "./config/env.js";
 import { requestId } from "./middleware/request-id.js";
 import { httpLogger } from "./middleware/http-logger.js";
-import { generalRateLimit, cookieTokenExtractor } from "./middleware/rate-limit.js";
+import { cookieTokenExtractor } from "./middleware/rate-limit.js";
 import { authenticate } from "./middleware/authenticate.js";
 import { authorize } from "./middleware/authorize.js";
 import { errorHandler } from "./middleware/error-handler.js";
@@ -53,7 +53,6 @@ export function createApp() {
   app.use(express.urlencoded({ extended: false }));
   app.use(cookieParser());
   app.use(cookieTokenExtractor);
-  app.use(generalRateLimit);
   app.use(compression());
 
   if (!env.isProduction) {

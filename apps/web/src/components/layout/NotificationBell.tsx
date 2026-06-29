@@ -11,6 +11,7 @@ const ICON_STYLE: Record<NotifType, { bg: string; Icon: React.ComponentType<{ cl
   review: { bg: "bg-blue-500", Icon: ClipboardList },
   blocked: { bg: "bg-orange-500", Icon: AlertTriangle },
   reminder: { bg: "bg-amber-500", Icon: Bell },
+  stale: { bg: "bg-amber-500", Icon: Bell },
   api: { bg: "bg-purple-500", Icon: ArrowRight },
 };
 
@@ -20,6 +21,7 @@ const ROUTES: Record<NotifType, string> = {
   review: "/cases",
   blocked: "/cases",
   reminder: "/cases",
+  stale: "/cases",
   api: "/audit-log",
 };
 
@@ -58,6 +60,10 @@ export function NotificationBell() {
   const handleClick = (n: Notification) => {
     if (!n.read) markReadMutation.mutate(n.id);
     setOpen(false);
+    if (n.caseId) {
+      navigate(`/cases?caseId=${encodeURIComponent(n.caseId)}`);
+      return;
+    }
     navigate(ROUTES[n.type]);
   };
 

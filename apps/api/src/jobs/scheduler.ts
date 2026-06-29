@@ -30,7 +30,6 @@ export function startScheduler(container: Container) {
         if (due !== null && daysSince >= due && (c.remindersSent ?? 0) < 3) {
           await notificationsService.sendReminder({
             caseId: c.caseId,
-            caseRef: c.caseRef,
             analystId: c.analystId,
           });
           await casesRepo.incrementRemindersSent(c.caseId);
@@ -61,13 +60,7 @@ export function startScheduler(container: Container) {
           status: "Success",
         });
         if (c.analystId) {
-          await notificationsService.create({
-            userId: c.analystId,
-            type: "expired",
-            title: `Case ${c.caseRef} expired`,
-            body: "The questionnaire link has expired",
-            caseId: c.caseId,
-          });
+          await notificationsService.notifyExpired(c.caseId, c.analystId);
         }
       }
     } catch (err) {
@@ -82,13 +75,7 @@ export function startScheduler(container: Container) {
       const stale = await casesRepo.findStaleInProgress(threshold);
       for (const c of stale) {
         if (c.analystId) {
-          await notificationsService.create({
-            userId: c.analystId,
-            type: "reminder",
-            title: `Case ${c.caseRef} is stale`,
-            body: `No activity in ${config.staleHours}h`,
-            caseId: c.caseId,
-          });
+          await notificationsService.notifyStale(c.caseId, c.analystId, config.staleHours);
         }
       }
     } catch (err) {

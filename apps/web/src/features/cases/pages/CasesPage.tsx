@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Download, Search } from "lucide-react";
 import type { CaseRecord, CaseStatus, RecipientType } from "@/types/case";
@@ -15,6 +16,8 @@ import { toast } from "sonner";
 
 
 export default function AllCasesPage() {
+  const [searchParams] = useSearchParams();
+  const caseIdParam = searchParams.get("caseId");
   const { data: mockCases = [] } = useQuery<CaseRecord[]>({
     queryKey: ["cases"],
     queryFn: () => casesService.list(),
@@ -26,6 +29,12 @@ export default function AllCasesPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [selected, setSelected] = useState<CaseRecord | null>(null);
+
+  useEffect(() => {
+    if (!caseIdParam || !mockCases.length) return;
+    const found = mockCases.find((c) => c.id === caseIdParam);
+    if (found) setSelected(found);
+  }, [caseIdParam, mockCases]);
 
   const filtered = useMemo(() => {
     return mockCases.filter((c) => {

@@ -1,4 +1,4 @@
-export type NotifType = "submission" | "expired" | "blocked" | "reminder" | "review" | "api";
+export type NotifType = "submission" | "expired" | "blocked" | "reminder" | "review" | "api" | "stale";
 
 export interface Notification {
   id: string;
@@ -7,4 +7,5 @@ export interface Notification {
   body: string;
   time: string;
   read: boolean;
+  caseId?: string;
 }

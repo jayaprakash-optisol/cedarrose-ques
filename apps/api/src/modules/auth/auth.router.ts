@@ -13,6 +13,7 @@ import {
   authRefreshLimit,
   authPasswordResetLimit,
   authRegistrationLimit,
+  authChangePasswordLimit,
   cookieTokenExtractor,
 } from "../../middleware/rate-limit.js";
 import { authenticate } from "../../middleware/authenticate.js";
@@ -27,6 +28,7 @@ export function authRouter(controller: AuthController): Router {
   router.get("/me", cookieTokenExtractor, authenticate, controller.me);
   router.post(
     "/change-password",
+    authChangePasswordLimit,
     cookieTokenExtractor,
     authenticate,
     passwordPolicyMiddleware,

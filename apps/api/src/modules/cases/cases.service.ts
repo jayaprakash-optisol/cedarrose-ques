@@ -216,13 +216,7 @@ export class CasesService {
     });
 
     if (decision === "Approved" && c.analystId) {
-      await this.notificationsService.create({
-        userId: c.analystId,
-        type: "review",
-        title: `Case ${c.caseRef} approved`,
-        body: notes ?? "Researcher approved the submission",
-        caseId,
-      });
+      await this.notificationsService.notifyReviewApproved(caseId, c.analystId, notes);
     }
 
     return updated;

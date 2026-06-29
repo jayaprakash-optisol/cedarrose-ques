@@ -1,48 +1,63 @@
 import type { Request, Response, NextFunction } from "express";
 import rateLimit from "express-rate-limit";
 
-export const generalRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
+const limiterDefaults = {
   standardHeaders: true,
   legacyHeaders: false,
-});
+} as const;
 
+/** Login attempts — brute-force protection. */
 export const authLoginLimit = rateLimit({
+  ...limiterDefaults,
   windowMs: 15 * 60 * 1000,
   max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
 });
 
+/** Token refresh — moderate cap. */
 export const authRefreshLimit = rateLimit({
+  ...limiterDefaults,
   windowMs: 15 * 60 * 1000,
   max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
 });
 
-export const questionnaireAuthLimit = rateLimit({
+/** OTP request / verify on public questionnaire flow. */
+export const questionnaireOtpLimit = rateLimit({
+  ...limiterDefaults,
   windowMs: 15 * 60 * 1000,
-  max: 5,
-  standardHeaders: true,
-  legacyHeaders: false,
+  max: 10,
+  message: { success: false, message: "Too many OTP attempts. Try again later." },
 });
 
+/** Forgot / reset password. */
 export const authPasswordResetLimit = rateLimit({
+  ...limiterDefaults,
   windowMs: 15 * 60 * 1000,
   max: 5,
-  standardHeaders: true,
-  legacyHeaders: false,
   message: { success: false, message: "Too many password reset attempts. Try again later." },
 });
 
+/** Invitation registration completion. */
 export const authRegistrationLimit = rateLimit({
+  ...limiterDefaults,
   windowMs: 15 * 60 * 1000,
   max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
   message: { success: false, message: "Too many registration attempts. Try again later." },
+});
+
+/** Authenticated password change. */
+export const authChangePasswordLimit = rateLimit({
+  ...limiterDefaults,
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { success: false, message: "Too many password change attempts. Try again later." },
+});
+
+/** Endpoints that trigger outbound email (invite, resend link, etc.). */
+export const emailActionLimit = rateLimit({
+  ...limiterDefaults,
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { success: false, message: "Too many email requests. Try again later." },
 });
 
 export function setSecureCookie(
