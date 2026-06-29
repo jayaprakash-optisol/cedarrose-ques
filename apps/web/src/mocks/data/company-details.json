@@ -1,0 +1,16 @@
+{
+  "default": {
+    "companyName": "ABC Holdings Ltd",
+    "registrationNumber": "CR-987654",
+    "country": "UAE",
+    "riskRating": "Medium",
+    "recipientEmails": [
+      "compliance@abcholdings.ae"
+    ],
+    "additionalFields": {
+      "incorporationDate": "2015-03-12",
+      "legalStructure": "LLC",
+      "primaryIndustry": "Trading"
+    }
+  }
+}

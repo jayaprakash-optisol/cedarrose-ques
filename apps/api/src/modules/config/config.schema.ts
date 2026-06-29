@@ -1,0 +1,26 @@
+import { z } from "zod";
+
+export const replaceConfigSchema = z.object({
+  linkValidityDays: z.number().int().min(1).max(365).optional(),
+  tokenType: z.enum(["single-use", "time-based"]).optional(),
+  tokenExpiryValue: z.number().int().min(1).max(9999).optional(),
+  tokenExpiryUnit: z.enum(["minutes", "hours", "days"]).optional(),
+  otpLength: z.number().int().min(4).max(8).optional(),
+  otpExpiryMinutes: z.number().int().min(1).max(60).optional(),
+  otpMaxAttempts: z.number().int().min(1).max(10).optional(),
+  reminder1Day: z.number().int().min(0).max(90).optional(),
+  reminder2Day: z.number().int().min(0).max(90).optional(),
+  reminderFinalDay: z.number().int().min(0).max(90).optional(),
+  expiryDay: z.number().int().min(1).max(365).optional(),
+  gamificationEnabled: z.boolean().optional(),
+  tier1Label: z.string().max(100).nullish(),
+  tier1Description: z.string().max(2000).nullish(),
+  tier2Label: z.string().max(100).nullish(),
+  tier2Description: z.string().max(2000).nullish(),
+  autoProcessA: z.boolean().optional(),
+  manualProcessB: z.boolean().optional(),
+  alertCd: z.boolean().optional(),
+  auditRetentionDays: z.number().int().min(30).max(3650).optional(),
+  exportFormat: z.enum(["csv", "json"]).optional(),
+  staleHours: z.number().int().min(1).max(720).optional(),
+});

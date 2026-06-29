@@ -1,0 +1,18 @@
+[
+  "Order received",
+  "Validate order ID",
+  "Fetch company data (Step 1B)",
+  "Apply questionnaire template",
+  "Generate secure link",
+  "Send link to recipient",
+  "Recipient opens link",
+  "Authentication (OTP / Password)",
+  "Recipient begins questionnaire",
+  "Recipient saves progress",
+  "Mandatory fields complete",
+  "Recipient submits",
+  "Submission received",
+  "Researcher review",
+  "Data mapping",
+  "API push to CedarRose Data Exchange"
+]

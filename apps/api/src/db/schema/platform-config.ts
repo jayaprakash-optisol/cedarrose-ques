@@ -1,0 +1,30 @@
+import { pgTable, uuid, integer, varchar, boolean, text, timestamp } from "drizzle-orm/pg-core";
+import { users } from "./users.js";
+
+export const platformConfig = pgTable("platform_config", {
+  configId: uuid("ConfigID").primaryKey().defaultRandom(),
+  linkValidityDays: integer("LinkValidityDays").notNull().default(10),
+  tokenType: varchar("TokenType", { length: 15 }).notNull().default("single-use"),
+  tokenExpiryValue: integer("TokenExpiryValue").notNull().default(30),
+  tokenExpiryUnit: varchar("TokenExpiryUnit", { length: 10 }).notNull().default("minutes"),
+  otpLength: integer("OtpLength").notNull().default(6),
+  otpExpiryMinutes: integer("OtpExpiryMinutes").notNull().default(10),
+  otpMaxAttempts: integer("OtpMaxAttempts").notNull().default(3),
+  reminder1Day: integer("Reminder1Day").notNull().default(3),
+  reminder2Day: integer("Reminder2Day").notNull().default(5),
+  reminderFinalDay: integer("ReminderFinalDay").notNull().default(7),
+  expiryDay: integer("ExpiryDay").notNull().default(10),
+  gamificationEnabled: boolean("GamificationEnabled").notNull().default(true),
+  tier1Label: varchar("Tier1Label", { length: 100 }),
+  tier1Description: text("Tier1Description"),
+  tier2Label: varchar("Tier2Label", { length: 100 }),
+  tier2Description: text("Tier2Description"),
+  autoProcessA: boolean("AutoProcessA").notNull().default(true),
+  manualProcessB: boolean("ManualProcessB").notNull().default(false),
+  alertCd: boolean("AlertCD").notNull().default(true),
+  auditRetentionDays: integer("AuditRetentionDays").notNull().default(365),
+  exportFormat: varchar("ExportFormat", { length: 10 }).notNull().default("csv"),
+  staleHours: integer("StaleHours").notNull().default(72),
+  updatedBy: uuid("UpdatedBy").references(() => users.userId),
+  updatedAt: timestamp("UpdatedAt").notNull().defaultNow(),
+});

@@ -1,0 +1,158 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Cedar Rose login / brand */
+  --color-cr-navy: #2B3178;
+  --color-cr-indigo: #4F46E5;
+  --color-cr-indigo-hover: #4338CA;
+  --color-cr-body: #2D3748;
+  --color-cr-secondary: #718096;
+  --color-cr-border: #EDF2F7;
+  --color-cr-label: #4A5568;
+  --color-cr-input-border: #CBD5E0;
+  --color-cr-heading: #1A202C;
+  --color-cr-muted: #A0AEC0;
+  --color-cr-error: #E53E3E;
+  --color-cr-bg: #F7F8FC;
+  --color-cr-indigo-soft: #EEF2FF;
+
+  /* Brand */
+  --color-navy: var(--navy);
+  --color-navy-active: var(--navy-active);
+  --color-navy-soft: var(--navy-soft);
+
+  /* Status */
+  --color-status-notstarted-bg: var(--status-notstarted-bg);
+  --color-status-notstarted-fg: var(--status-notstarted-fg);
+  --color-status-progress-bg: var(--status-progress-bg);
+  --color-status-progress-fg: var(--status-progress-fg);
+  --color-status-completed-bg: var(--status-completed-bg);
+  --color-status-completed-fg: var(--status-completed-fg);
+  --color-status-abandoned-bg: var(--status-abandoned-bg);
+  --color-status-abandoned-fg: var(--status-abandoned-fg);
+  --color-status-pending-bg: var(--status-pending-bg);
+  --color-status-pending-fg: var(--status-pending-fg);
+}
+
+:root {
+  --radius: 0.5rem;
+
+  --background: oklch(0.984 0.003 247);   /* #F8FAFC page bg */
+  --foreground: oklch(0.21 0.03 257);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.21 0.03 257);
+
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.21 0.03 257);
+
+  /* Brand primary — #2B3178 navy */
+  --primary: oklch(0.30 0.10 277);
+  --primary-foreground: oklch(1 0 0);
+  --color-primary: #2B3178;
+  --color-primary-hover: #3B4499;
+  --color-primary-ring: rgba(43, 49, 120, 0.15);
+
+  --secondary: oklch(0.96 0.01 270);
+  --secondary-foreground: oklch(0.21 0.03 270);
+
+  --muted: oklch(0.96 0.01 270);
+  --muted-foreground: oklch(0.5 0.02 270);
+
+  --accent: oklch(0.94 0.04 277);
+  --accent-foreground: oklch(0.30 0.10 277);
+
+  --destructive: oklch(0.5 0.17 25);
+  --destructive-foreground: oklch(1 0 0);
+
+  --border: oklch(0.92 0.01 270);
+  --input: oklch(0.92 0.01 270);
+  --ring: oklch(0.30 0.10 277);
+
+  --chart-1: oklch(0.30 0.10 277);
+  --chart-2: oklch(0.62 0.10 200);
+  --chart-3: oklch(0.75 0.15 75);
+  --chart-4: oklch(0.55 0.18 145);
+  --chart-5: oklch(0.55 0.20 25);
+
+  /* Brand navy — Cedar Rose #1B2A4A */
+  --navy: oklch(0.30 0.10 277);            /* #2B3178 */
+  --navy-active: oklch(0.34 0.07 263);     /* #2D3F6B */
+  --navy-soft: oklch(0.96 0.02 263);       /* light navy bg */
+
+  /* Status palette (matches spec hex values) */
+  --status-notstarted-bg: oklch(0.62 0.005 90);   /* #888780 */
+  --status-notstarted-fg: oklch(1 0 0);
+  --status-progress-bg: oklch(0.95 0.025 250);    /* #E6F1FB */
+  --status-progress-fg: oklch(0.45 0.10 250);     /* #185FA5 */
+  --status-completed-bg: oklch(0.94 0.05 125);    /* #EAF3DE */
+  --status-completed-fg: oklch(0.42 0.12 130);    /* #3B6D11 */
+  --status-abandoned-bg: oklch(0.94 0.03 25);     /* #FCEBEB */
+  --status-abandoned-fg: oklch(0.48 0.16 25);     /* #A32D2D */
+  --status-pending-bg: oklch(0.94 0.05 75);       /* #FAEEDA */
+  --status-pending-fg: oklch(0.45 0.11 65);       /* #854F0B */
+}
+
+@layer base {
+  * { border-color: var(--color-border); }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+@keyframes cr-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(6px); }
+}
+.cr-shake { animation: cr-shake 0.3s ease-in-out; }
+
+@keyframes cr-spin {
+  to { transform: rotate(360deg); }
+}
+.cr-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255,255,255,0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: cr-spin 0.7s linear infinite;
+}

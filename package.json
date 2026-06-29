@@ -1,0 +1,28 @@
+{
+  "name": "cedarrose-opshub",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n web,api -c cyan,magenta \"npm run dev -w cedarrose-opshub-web\" \"npm run dev -w cedarrose-opshub-api\"",
+    "dev:web": "npm run dev -w cedarrose-opshub-web",
+    "dev:api": "npm run dev -w cedarrose-opshub-api",
+    "build": "npm run build -w cedarrose-opshub-api && npm run build -w cedarrose-opshub-web",
+    "build:web": "npm run build -w cedarrose-opshub-web",
+    "build:api": "npm run build -w cedarrose-opshub-api",
+    "type-check": "npm run type-check -w cedarrose-opshub-api && npm run build -w cedarrose-opshub-web",
+    "lint": "npm run lint --workspaces --if-present",
+    "migrate": "npm run migrate -w cedarrose-opshub-api",
+    "migrate:status": "npm run migrate:status -w cedarrose-opshub-api",
+    "seed": "npm run seed -w cedarrose-opshub-api",
+    "test": "npm run test -w cedarrose-opshub-api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

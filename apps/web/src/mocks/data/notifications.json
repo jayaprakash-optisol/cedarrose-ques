@@ -1,0 +1,42 @@
+[
+  {
+    "id": "1",
+    "type": "submission",
+    "title": "New submission received",
+    "body": "Al Manara Industries (ORD-10005) submitted their questionnaire. Awaiting researcher review.",
+    "time": "2 hours ago",
+    "read": false
+  },
+  {
+    "id": "2",
+    "type": "expired",
+    "title": "Questionnaire link expired",
+    "body": "Phoenix Maritime DMCC (ORD-10007) link expired without submission after 10 days.",
+    "time": "8 hours ago",
+    "read": false
+  },
+  {
+    "id": "3",
+    "type": "blocked",
+    "title": "Blocked dispatch — action required",
+    "body": "Gulf Meridian Partners (ORD-10009) cannot be dispatched. No company profile or contact email found.",
+    "time": "6 hours ago",
+    "read": false
+  },
+  {
+    "id": "4",
+    "type": "reminder",
+    "title": "Final reminder sent",
+    "body": "Reminder 3 (Day 7) sent to Crescent Trading Co. (ORD-10003). Link expires in 3 days.",
+    "time": "1 day ago",
+    "read": true
+  },
+  {
+    "id": "5",
+    "type": "reminder",
+    "title": "Reminder sent",
+    "body": "Reminder 2 (Day 5) sent to Helios Energy Partners (ORD-10004). Currently 67% complete.",
+    "time": "2 days ago",
+    "read": true
+  }
+]

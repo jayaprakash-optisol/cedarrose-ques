@@ -1,0 +1,35 @@
+export interface PlatformConfig {
+  linkValidity: number;
+  tokenType: string;
+  tokenUnit: "hours" | "minutes";
+  tokenHours: number;
+  tokenMinutes: number;
+  otpExpiry: number;
+  otpRetry: number;
+  lockoutDuration: number;
+  otpResend: number;
+  r1: number;
+  r2: number;
+  r3: number;
+  expiry: number;
+  gamification: boolean;
+  midPrompt: boolean;
+  midText: string;
+  nearPrompt: boolean;
+  nearText: string;
+  rewardSystem: boolean;
+  tier1Title: string;
+  tier1Desc: string;
+  tier1Accel: boolean;
+  tier1Discount: boolean;
+  tier1Active: boolean;
+  tier2Title: string;
+  tier2Desc: string;
+  tier2Active: boolean;
+  autoA: boolean;
+  manualB: boolean;
+  alertCD: boolean;
+  auditRetention: number;
+  exportFormat: string;
+  staleHours: number;
+}

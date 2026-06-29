@@ -1,0 +1,27 @@
+import { z } from "zod";
+
+export const verifyLinkSchema = z.object({
+  token: z.string().min(1),
+});
+
+export const authenticateSchema = z.object({
+  token: z.string().min(1),
+  email: z.string().email(),
+});
+
+export const otpVerifySchema = z.object({
+  token: z.string().min(1),
+  otp: z.string().min(4).max(8),
+});
+
+export const saveProgressSchema = z.object({
+  responses: z.array(
+    z.object({
+      questionId: z.string().uuid().optional(),
+      sectionId: z.string().uuid().optional(),
+      question: z.string(),
+      answer: z.string().optional(),
+      mandatory: z.boolean().optional(),
+    })
+  ),
+});

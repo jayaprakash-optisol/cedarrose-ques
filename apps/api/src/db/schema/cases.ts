@@ -1,0 +1,39 @@
+import { pgTable, uuid, varchar, text, integer, timestamp } from "drizzle-orm/pg-core";
+import { users } from "./users.js";
+import { companies } from "./companies.js";
+import { templates } from "./templates.js";
+
+export const cases = pgTable("cases", {
+  caseId: uuid("CaseID").primaryKey().defaultRandom(),
+  caseRef: varchar("CaseRef", { length: 20 }).notNull().unique(),
+  orderId: varchar("OrderID", { length: 100 }).notNull(),
+  companyId: uuid("CompanyID").references(() => companies.companyId),
+  subjectName: varchar("SubjectName", { length: 255 }).notNull(),
+  country: varchar("Country", { length: 100 }).notNull(),
+  recipientType: varchar("RecipientType", { length: 50 }).notNull(),
+  status: varchar("Status", { length: 50 }).notNull().default("NOT SENT"),
+  completionMandatory: integer("CompletionMandatory").notNull().default(0),
+  completionOptional: integer("CompletionOptional").notNull().default(0),
+  dateSubmitted: timestamp("DateSubmitted"),
+  dateDispatched: timestamp("DateDispatched"),
+  firstOpenedAt: timestamp("FirstOpenedAt"),
+  dateReceived: timestamp("DateReceived").notNull().defaultNow(),
+  lastActivity: timestamp("LastActivity"),
+  analystId: uuid("AnalystID").references(() => users.userId),
+  assignedResearcherId: uuid("AssignedResearcherID").references(() => users.userId),
+  researcherStatus: varchar("ResearcherStatus", { length: 20 }),
+  researcherNotes: text("ResearcherNotes"),
+  researcherReviewedAt: timestamp("ResearcherReviewedAt"),
+  apiPushStatus: varchar("ApiPushStatus", { length: 10 }).default("Pending"),
+  apiPushAt: timestamp("ApiPushAt"),
+  currentStep: integer("CurrentStep").notNull().default(1),
+  linkTokenHash: text("LinkTokenHash"),
+  linkExpiry: timestamp("LinkExpiry"),
+  linkValidityHours: integer("LinkValidityHours").notNull().default(48),
+  remindersSent: integer("RemindersSent").notNull().default(0),
+  resentCount: integer("ResentCount").notNull().default(0),
+  templateId: uuid("TemplateID").references(() => templates.templateId),
+  templateVersion: integer("TemplateVersion").notNull().default(1),
+  createdAt: timestamp("CreatedAt").notNull().defaultNow(),
+  updatedAt: timestamp("UpdatedAt").notNull().defaultNow(),
+});
