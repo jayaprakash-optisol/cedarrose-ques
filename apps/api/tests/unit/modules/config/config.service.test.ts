@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ConfigService } from "../../../../src/modules/config/config.service.js";
+import type { ConfigRepository } from "../../../../src/modules/config/config.repository.js";
 import { createMockConfigRepository } from "../../../helpers/mock-repositories.js";
 
 function createMockConfig() {
@@ -38,7 +39,7 @@ describe("ConfigService", () => {
 
   beforeEach(() => {
     repo = createMockConfigRepository();
-    service = new ConfigService(repo);
+    service = new ConfigService(repo as unknown as ConfigRepository);
   });
 
   describe("get", () => {

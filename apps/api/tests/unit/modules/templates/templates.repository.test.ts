@@ -136,7 +136,7 @@ describe("TemplatesRepository", () => {
       {
         title: "Section 1",
         orderIndex: 0,
-        questions: [{ label: "Q1", fieldType: "text", mandatory: true }],
+        questions: [{ sectionId: "s1", label: "Q1", fieldType: "text", mandatory: true }],
       },
     ]);
     expect(db.transaction).toHaveBeenCalled();

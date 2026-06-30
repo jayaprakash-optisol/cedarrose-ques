@@ -10,6 +10,10 @@ export function createMockCasesRepository() {
     getNextCaseRef: vi.fn(),
     incrementReminders: vi.fn(),
     findByLinkHash: vi.fn(),
+    findExpiredActive: vi.fn(),
+    findByStatuses: vi.fn(),
+    findStaleInProgress: vi.fn(),
+    incrementRemindersSent: vi.fn(),
   };
 }
 
@@ -17,6 +21,7 @@ export function createMockCompaniesRepository() {
   return {
     findByCrisNumber: vi.fn(),
     findAll: vi.fn(),
+    findById: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
     getRecipientEmails: vi.fn(),
@@ -55,6 +60,7 @@ export function createMockUsersRepository() {
     update: vi.fn(),
     softDelete: vi.fn(),
     setPlatforms: vi.fn(),
+    getPlatforms: vi.fn(),
     getLatestInvitation: vi.fn(),
     insertInvitation: vi.fn(),
     cancelInvitations: vi.fn(),

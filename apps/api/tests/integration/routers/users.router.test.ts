@@ -74,7 +74,7 @@ describe("users router", () => {
   });
 
   it("DELETE /:id deactivates user", async () => {
-    vi.mocked(service.deactivate).mockResolvedValue(undefined);
+    vi.mocked(service.deactivate).mockResolvedValue(undefined as never);
     const app = createUsersApp(service);
 
     const res = await request(app).delete("/api/v1/users/u-1");
@@ -84,7 +84,7 @@ describe("users router", () => {
   });
 
   it("POST /:id/resend-invitation resends invite", async () => {
-    vi.mocked(service.resendInvitation).mockResolvedValue(undefined);
+    vi.mocked(service.resendInvitation).mockResolvedValue(undefined as never);
     const app = createUsersApp(service);
 
     const res = await request(app).post("/api/v1/users/u-1/resend-invitation");
@@ -94,7 +94,7 @@ describe("users router", () => {
   });
 
   it("DELETE /:id/invitations cancels invitation", async () => {
-    vi.mocked(service.cancelInvitation).mockResolvedValue(undefined);
+    vi.mocked(service.cancelInvitation).mockResolvedValue(undefined as never);
     const app = createUsersApp(service);
 
     const res = await request(app).delete("/api/v1/users/u-1/invitations");

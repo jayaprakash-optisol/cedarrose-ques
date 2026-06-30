@@ -8,7 +8,7 @@ describe("CompaniesController", () => {
   let controller: CompaniesController;
   let res: ReturnType<typeof createMockResponse>;
 
-  const mockCompany = { uid: "comp-1", name: "Acme Corp" };
+  const mockCompany = { uid: "comp-1", name: "Acme Corp" } as never;
 
   beforeEach(() => {
     companiesService = {
@@ -72,7 +72,7 @@ describe("CompaniesController", () => {
   describe("update", () => {
     it("updates a company", async () => {
       const body = { name: "Updated Corp" };
-      vi.mocked(companiesService.update).mockResolvedValue({ ...mockCompany, ...body });
+      vi.mocked(companiesService.update).mockResolvedValue({ name: "Updated Corp", uid: "comp-1" } as never);
       const req = createMockRequest({ params: { uid: "comp-1" }, body });
 
       await controller.update(req, res);

@@ -9,7 +9,7 @@ describe("TemplatesController", () => {
   let controller: TemplatesController;
   let res: ReturnType<typeof createMockResponse>;
 
-  const mockTemplate = { templateId: "tpl-1", name: "Default", status: "Active" };
+  const mockTemplate = { templateId: "tpl-1", name: "Default", status: "Active" } as never;
 
   beforeEach(() => {
     templatesService = {

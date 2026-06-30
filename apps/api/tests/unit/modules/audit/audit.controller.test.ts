@@ -14,7 +14,7 @@ describe("AuditController", () => {
     description: "Case created",
     status: "Success",
     caseId: "case-1",
-  };
+  } as never;
 
   beforeEach(() => {
     auditService = {

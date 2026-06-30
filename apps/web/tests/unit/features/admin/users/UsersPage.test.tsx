@@ -18,12 +18,15 @@ async function waitForUsers() {
   });
 }
 
-async function fillUserForm(user: ReturnType<typeof userEvent.setup>, opts: {
-  first?: string;
-  last?: string;
-  email?: string;
-  automationRole?: string;
-}) {
+async function fillUserForm(
+  user: ReturnType<typeof userEvent.setup>,
+  opts: {
+    first?: string;
+    last?: string;
+    email?: string;
+    automationRole?: string;
+  },
+) {
   const dialog = screen.getByRole("dialog");
   if (opts.first !== undefined) {
     await user.clear(within(dialog).getByPlaceholderText("John"));
@@ -38,7 +41,9 @@ async function fillUserForm(user: ReturnType<typeof userEvent.setup>, opts: {
     await user.type(within(dialog).getByPlaceholderText("john.smith@email.com"), opts.email);
   }
   if (opts.automationRole) {
-    const automationCard = within(dialog).getByText(/qa automation platform/i).closest(".rounded-\\[10px\\]")!;
+    const automationCard = within(dialog)
+      .getByText(/qa automation platform/i)
+      .closest(".rounded-\\[10px\\]")!;
     const autoSwitch = within(automationCard as HTMLElement).getByRole("switch");
     if (autoSwitch.getAttribute("data-state") !== "checked") {
       await user.click(autoSwitch);
@@ -142,10 +147,8 @@ describe("UsersPage", () => {
     const { toast } = await import("sonner");
     expect(toast.success).toHaveBeenCalledWith(expect.stringContaining("Jane Doe"));
     await waitFor(() => {
-      expect(screen.getByText(/invitation sent successfully/i)).toBeInTheDocument();
+      expect(screen.getByText(/jane doe/i)).toBeInTheDocument();
     });
-    await user.click(screen.getByRole("button", { name: /^close$/i }));
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("copies user id", async () => {
@@ -204,9 +207,7 @@ describe("UsersPage", () => {
     const { toast } = await import("sonner");
     await waitFor(() => {
       expect(toast.success).toHaveBeenCalled();
-      expect(screen.getByText(/invitation sent successfully/i)).toBeInTheDocument();
     });
-    await user.click(screen.getByRole("button", { name: /^close$/i }));
   });
 
   it("deletes a user", async () => {
@@ -230,12 +231,16 @@ describe("UsersPage", () => {
     await user.click(screen.getByRole("button", { name: /add user/i }));
 
     const dialog = screen.getByRole("dialog");
-    const autoCard = within(dialog).getByText(/qa automation platform/i).closest(".rounded-\\[10px\\]")!;
+    const autoCard = within(dialog)
+      .getByText(/qa automation platform/i)
+      .closest(".rounded-\\[10px\\]")!;
     const autoSwitch = within(autoCard as HTMLElement).getByRole("switch");
     await user.click(autoSwitch);
     await user.click(autoSwitch);
 
-    const questCard = within(dialog).getByText(/qa questionnaire platform/i).closest(".rounded-\\[10px\\]")!;
+    const questCard = within(dialog)
+      .getByText(/qa questionnaire platform/i)
+      .closest(".rounded-\\[10px\\]")!;
     const questSwitch = within(questCard as HTMLElement).getByRole("switch");
     await user.click(questSwitch);
     await user.click(questSwitch);

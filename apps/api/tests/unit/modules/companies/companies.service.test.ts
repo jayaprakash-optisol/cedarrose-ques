@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { CompaniesService } from "../../../../src/modules/companies/companies.service.js";
+import type { CompaniesRepository } from "../../../../src/modules/companies/companies.repository.js";
 import { createMockCompaniesRepository } from "../../../helpers/mock-repositories.js";
 
 function createMockCompany(overrides: Record<string, unknown> = {}) {
@@ -24,7 +25,7 @@ describe("CompaniesService", () => {
 
   beforeEach(() => {
     repo = createMockCompaniesRepository();
-    service = new CompaniesService(repo);
+    service = new CompaniesService(repo as unknown as CompaniesRepository);
   });
 
   describe("getByUid", () => {

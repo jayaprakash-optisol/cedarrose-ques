@@ -131,7 +131,7 @@ describe("UsersController", () => {
           role: mockUser.role,
           status: mockUser.status,
         },
-      ]);
+      ] as never);
       const req = createMockRequest();
 
       await controller.exportCsv(req, res);

@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import jwt from "jsonwebtoken";
 import { QuestionnaireService } from "../../../../src/modules/questionnaire/questionnaire.service.js";
+import type { CasesRepository } from "../../../../src/modules/cases/cases.repository.js";
+import type { TemplatesRepository } from "../../../../src/modules/templates/templates.repository.js";
+import type { QuestionnaireRepository } from "../../../../src/modules/questionnaire/questionnaire.repository.js";
 import { WORKFLOW_STEP } from "../../../../src/config/workflow.js";
 import { env } from "../../../../src/config/env.js";
 import { hashToken } from "../../../../src/shared/utils/crypto.js";
@@ -52,9 +55,9 @@ describe("QuestionnaireService", () => {
     notificationsService = createMockNotificationsService();
     emailService = createMockEmailService();
     service = new QuestionnaireService(
-      casesRepo,
-      templatesRepo,
-      questionnaireRepo,
+      casesRepo as unknown as CasesRepository,
+      templatesRepo as unknown as TemplatesRepository,
+      questionnaireRepo as unknown as QuestionnaireRepository,
       auditService,
       notificationsService,
       emailService,

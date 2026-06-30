@@ -9,7 +9,7 @@ describe("CasesController", () => {
   let controller: CasesController;
   let res: ReturnType<typeof createMockResponse>;
 
-  const mockCase = { caseId: "case-1", caseRef: "CR-001", status: "Open" };
+  const mockCase = { caseId: "case-1", caseRef: "CR-001", status: "Open" } as never;
 
   beforeEach(() => {
     casesService = {
@@ -162,7 +162,7 @@ describe("CasesController", () => {
 
   describe("apiPush", () => {
     it("triggers API push", async () => {
-      const result = { pushed: true };
+      const result = { pushed: true } as never;
       vi.mocked(casesService.apiPush).mockResolvedValue(result);
       const req = createMockRequest({ params: { id: "case-1" } });
 
@@ -186,7 +186,7 @@ describe("CasesController", () => {
           status: "Open",
           country: "US",
         },
-      ]);
+      ] as never);
       const req = createMockRequest();
 
       await controller.exportCsv(req, res);

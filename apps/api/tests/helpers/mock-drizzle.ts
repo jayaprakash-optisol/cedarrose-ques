@@ -19,7 +19,7 @@ function createQueryBuilder(getResult: () => unknown) {
     builder[method] = vi.fn(() => builder);
   }
   builder.returning = vi.fn(() => Promise.resolve(getResult()));
-  (builder as { then: typeof Promise.prototype.then }).then = (resolve, reject) =>
+  (builder as unknown as { then: typeof Promise.prototype.then }).then = (resolve, reject) =>
     Promise.resolve(getResult()).then(resolve, reject);
   return builder;
 }

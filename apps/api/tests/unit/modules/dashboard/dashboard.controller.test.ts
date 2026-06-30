@@ -9,7 +9,7 @@ describe("DashboardController", () => {
   let controller: DashboardController;
   let res: ReturnType<typeof createMockResponse>;
 
-  const mockStats = { completed: 10, total: 20 };
+  const mockStats = { completed: 10, total: 20 } as never;
 
   beforeEach(() => {
     dashboardService = {

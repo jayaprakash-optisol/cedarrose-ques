@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { TemplatesService } from "../../../../src/modules/templates/templates.service.js";
+import type { TemplatesRepository } from "../../../../src/modules/templates/templates.repository.js";
 import { createMockTemplatesRepository } from "../../../helpers/mock-repositories.js";
 
 const templateId = "33333333-3333-3333-3333-333333333333";
@@ -36,7 +37,7 @@ function createFullTemplate(overrides: Record<string, unknown> = {}) {
             questionId: "q1",
             sectionId: "s1",
             label: "Company name",
-            type: "text",
+            fieldType: "text",
             mandatory: true,
             systemControlled: true,
             orderIndex: 0,
@@ -45,7 +46,7 @@ function createFullTemplate(overrides: Record<string, unknown> = {}) {
             questionId: "q2",
             sectionId: "s1",
             label: "Revenue",
-            type: "number",
+            fieldType: "number",
             mandatory: false,
             systemControlled: false,
             orderIndex: 1,
@@ -63,7 +64,7 @@ describe("TemplatesService", () => {
 
   beforeEach(() => {
     repo = createMockTemplatesRepository();
-    service = new TemplatesService(repo);
+    service = new TemplatesService(repo as unknown as TemplatesRepository);
   });
 
   describe("list", () => {
@@ -135,8 +136,9 @@ describe("TemplatesService", () => {
               orderIndex: 0,
               questions: [
                 {
+                  sectionId: "s1",
                   label: "New system q",
-                  type: "text",
+                  fieldType: "text",
                   mandatory: true,
                   systemControlled: true,
                   orderIndex: 0,
@@ -167,8 +169,9 @@ describe("TemplatesService", () => {
               orderIndex: 0,
               questions: [
                 {
+                  sectionId: "s1",
                   label: "Revenue",
-                  type: "number",
+                  fieldType: "number",
                   mandatory: false,
                   systemControlled: false,
                   orderIndex: 0,
@@ -238,7 +241,7 @@ describe("TemplatesService", () => {
                 questionId: "q1",
                 sectionId: "s1",
                 label: "Optional",
-                type: "text",
+                fieldType: "text",
                 mandatory: false,
                 systemControlled: false,
                 orderIndex: 0,

@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { NotificationsService } from "../../../../src/modules/notifications/notifications.service.js";
+import type { NotificationsRepository } from "../../../../src/modules/notifications/notifications.repository.js";
+import type { CasesRepository } from "../../../../src/modules/cases/cases.repository.js";
 import {
   createMockCasesRepository,
   createMockNotificationsRepository,
@@ -34,7 +36,10 @@ describe("NotificationsService", () => {
   beforeEach(() => {
     notificationsRepo = createMockNotificationsRepository();
     casesRepo = createMockCasesRepository();
-    service = new NotificationsService(notificationsRepo, casesRepo);
+    service = new NotificationsService(
+      notificationsRepo as unknown as NotificationsRepository,
+      casesRepo as unknown as CasesRepository,
+    );
   });
 
   describe("list", () => {

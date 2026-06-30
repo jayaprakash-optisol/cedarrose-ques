@@ -8,10 +8,10 @@ describe("QuestionnaireController", () => {
   let controller: QuestionnaireController;
   let res: ReturnType<typeof createMockResponse>;
 
-  const mockForm = { caseId: "case-1", questions: [] };
-  const mockVerify = { caseId: "case-1", subjectName: "Acme" };
-  const mockOtpResult = { sessionToken: "session-tok" };
-  const mockSubmit = { submittedAt: "2026-01-01T00:00:00.000Z" };
+  const mockForm = { caseId: "case-1", questions: [] } as never;
+  const mockVerify = { caseId: "case-1", subjectName: "Acme" } as never;
+  const mockOtpResult = { sessionToken: "session-tok" } as never;
+  const mockSubmit = { submittedAt: "2026-01-01T00:00:00.000Z" } as never;
 
   beforeEach(() => {
     questionnaireService = {

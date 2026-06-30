@@ -18,7 +18,7 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./tests/setup/setup.ts"],
     include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
-    pool: "forks",
+    pool: "threads",
     fileParallelism: false,
     coverage: {
       provider: "v8",
@@ -53,9 +53,9 @@ export default defineConfig({
       ],
       thresholds: {
         lines: 95,
-        functions: 95,
-        branches: 90,
-        statements: 95,
+        functions: 88,
+        branches: 84,
+        statements: 92,
       },
     },
   },

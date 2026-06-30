@@ -123,7 +123,7 @@ describe("AuthController", () => {
 
     it("returns 404 when user is not found", async () => {
       vi.mocked(authService.validateRefreshToken).mockResolvedValue({ userId: "missing" });
-      vi.mocked(authService.findById).mockResolvedValue(null);
+      vi.mocked(authService.findById).mockResolvedValue(null as never);
       const req = createMockRequest({ cookies: { refresh_token: "valid" } });
 
       await controller.refreshToken(req, res);
@@ -290,7 +290,7 @@ describe("AuthController", () => {
     });
 
     it("returns invitation data on success", async () => {
-      const data = { email: "invite@test.com" };
+      const data = { email: "invite@test.com", firstName: "Test", lastName: "User", role: "Analyst" };
       vi.mocked(authService.verifyInvitation).mockResolvedValue(data);
       const req = createMockRequest({ query: { token: "inv-tok" } });
 

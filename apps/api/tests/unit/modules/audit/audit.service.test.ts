@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { AuditService } from "../../../../src/modules/audit/audit.service.js";
+import type { AuditRepository } from "../../../../src/modules/audit/audit.repository.js";
+import type { CasesRepository } from "../../../../src/modules/cases/cases.repository.js";
+import type { UsersRepository } from "../../../../src/modules/users/users.repository.js";
 import { WORKFLOW_STEP } from "../../../../src/config/workflow.js";
 import {
   createMockAuditRepository,
@@ -19,7 +22,11 @@ describe("AuditService", () => {
     auditRepo = createMockAuditRepository();
     casesRepo = createMockCasesRepository();
     usersRepo = createMockUsersRepository();
-    service = new AuditService(auditRepo, casesRepo, usersRepo);
+    service = new AuditService(
+      auditRepo as unknown as AuditRepository,
+      casesRepo as unknown as CasesRepository,
+      usersRepo as unknown as UsersRepository,
+    );
   });
 
   describe("log", () => {

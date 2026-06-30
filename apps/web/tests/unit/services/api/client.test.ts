@@ -293,6 +293,9 @@ describe("apiUsersService", () => {
         email: "new@cedarrose.local",
         role: "analyst",
         status: "Pending",
+        totalReports: null,
+        score: null,
+        lastSubmission: null,
       },
     ]);
     expect(saved).toHaveLength(1);
@@ -315,6 +318,9 @@ describe("apiUsersService", () => {
         email: "admin@cedarrose.local",
         role: "admin",
         status: "Active",
+        totalReports: null,
+        score: null,
+        lastSubmission: null,
       },
     ]);
     expect(saved[0].name).toBe("Updated Admin");

@@ -9,7 +9,7 @@ describe("ConfigController", () => {
   let controller: ConfigController;
   let res: ReturnType<typeof createMockResponse>;
 
-  const mockConfig = { reminderDays: 3, staleDays: 7 };
+  const mockConfig = { reminderDays: 3, staleDays: 7 } as never;
 
   beforeEach(() => {
     configService = {
@@ -38,7 +38,7 @@ describe("ConfigController", () => {
     it("replaces config and returns updated data", async () => {
       const user = createMockUser();
       const body = { reminderDays: 5 };
-      vi.mocked(configService.replace).mockResolvedValue({ ...mockConfig, ...body });
+      vi.mocked(configService.replace).mockResolvedValue({ reminderDays: 5, staleDays: 7 } as never);
       const req = createMockRequest({ user, body });
 
       await controller.replace(req, res);

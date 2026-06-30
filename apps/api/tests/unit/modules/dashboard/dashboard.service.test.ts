@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { subDays } from "date-fns";
 import { DashboardService, EXPIRED_CAP_DAYS } from "../../../../src/modules/dashboard/dashboard.service.js";
-import type { DashboardCaseRow } from "../../../../src/modules/dashboard/dashboard.repository.js";
+import type { DashboardCaseRow, DashboardRepository } from "../../../../src/modules/dashboard/dashboard.repository.js";
 import { createMockDashboardRepository } from "../../../helpers/mock-repositories.js";
 
 function dashboardRow(overrides: Partial<DashboardCaseRow> = {}): DashboardCaseRow {
@@ -24,7 +24,7 @@ describe("DashboardService", () => {
 
   beforeEach(() => {
     repo = createMockDashboardRepository();
-    service = new DashboardService(repo);
+    service = new DashboardService(repo as unknown as DashboardRepository);
   });
 
   describe("getCompletionStats", () => {

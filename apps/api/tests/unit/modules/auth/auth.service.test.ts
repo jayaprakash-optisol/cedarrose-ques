@@ -22,7 +22,7 @@ describe("AuthService", () => {
 
   describe("validateUser", () => {
     it("returns null when email is unknown", async () => {
-      vi.mocked(repo.findByEmail).mockResolvedValue(null);
+      vi.mocked(repo.findByEmail).mockResolvedValue(null as never);
       await expect(service.validateUser("unknown@test.com", "pass")).resolves.toBeNull();
     });
 
@@ -49,7 +49,7 @@ describe("AuthService", () => {
 
   describe("generateResetToken", () => {
     it("does nothing for unknown email (no enumeration)", async () => {
-      vi.mocked(repo.findByEmail).mockResolvedValue(null);
+      vi.mocked(repo.findByEmail).mockResolvedValue(null as never);
       await service.generateResetToken("missing@test.com");
       expect(repo.insertPasswordResetToken).not.toHaveBeenCalled();
       expect(email.sendPasswordResetEmail).not.toHaveBeenCalled();
@@ -86,7 +86,7 @@ describe("AuthService", () => {
 
   describe("verifyResetToken", () => {
     it("rejects missing tokens", async () => {
-      vi.mocked(repo.findPasswordResetToken).mockResolvedValue(null);
+      vi.mocked(repo.findPasswordResetToken).mockResolvedValue(null as never);
       await expect(service.verifyResetToken("bad")).rejects.toMatchObject({
         message: "Invalid or expired reset token",
       });
@@ -247,7 +247,7 @@ describe("AuthService", () => {
     });
 
     it("returns null for unknown refresh token", async () => {
-      vi.mocked(repo.findRefreshToken).mockResolvedValue(null);
+      vi.mocked(repo.findRefreshToken).mockResolvedValue(null as never);
       await expect(service.validateRefreshToken("missing")).resolves.toBeNull();
     });
 
@@ -346,7 +346,7 @@ describe("AuthService", () => {
         lastResentAt: null,
         createdAt: new Date(),
       });
-      vi.mocked(repo.findById).mockResolvedValue(null);
+      vi.mocked(repo.findById).mockResolvedValue(null as never);
 
       await expect(service.verifyInvitation("invite")).rejects.toMatchObject({
         code: "NOT_FOUND",
@@ -371,7 +371,7 @@ describe("AuthService", () => {
 
   describe("changePassword edge cases", () => {
     it("rejects when user is missing", async () => {
-      vi.mocked(repo.findById).mockResolvedValue(null);
+      vi.mocked(repo.findById).mockResolvedValue(null as never);
       await expect(service.changePassword("missing", "Current1", "NewPass123")).rejects.toMatchObject({
         code: "NOT_FOUND",
       });
@@ -397,7 +397,7 @@ describe("AuthService", () => {
         expiresAt: addHours(new Date(), 1),
         createdAt: new Date(),
       });
-      vi.mocked(repo.findById).mockResolvedValue(null);
+      vi.mocked(repo.findById).mockResolvedValue(null as never);
 
       await expect(service.resetPassword("t", "NewPass123")).rejects.toMatchObject({
         code: "NOT_FOUND",

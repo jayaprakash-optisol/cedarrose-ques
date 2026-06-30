@@ -14,7 +14,13 @@ function renderField(question: Question, value = "", onChange = vi.fn()) {
 describe("QuestionField", () => {
   it("renders default text input", async () => {
     const user = userEvent.setup();
-    const { onChange } = renderField({ id: "q1", text: "Company name", type: "text", required: true });
+    const { onChange } = renderField({
+      id: "q1",
+      text: "Company name",
+      type: "text",
+      required: true,
+      prefill: false,
+    });
     const input = screen.getByPlaceholderText(/enter company name/i);
     await user.type(input, "Acme");
     expect(onChange).toHaveBeenCalled();
@@ -27,6 +33,7 @@ describe("QuestionField", () => {
       text: "Branch",
       type: "text",
       required: false,
+      prefill: false,
       repeater: true,
     });
 
@@ -41,6 +48,7 @@ describe("QuestionField", () => {
       text: "Services",
       type: "multiselect",
       required: false,
+      prefill: false,
       options: ["A", "B"],
     });
 
@@ -55,6 +63,7 @@ describe("QuestionField", () => {
       text: "Choice",
       type: "radio",
       required: true,
+      prefill: false,
       options: ["Yes", "No"],
     });
 
@@ -67,7 +76,7 @@ describe("QuestionField", () => {
 
     const dateChange = vi.fn();
     const { unmount: unmountDate } = renderField(
-      { id: "d", text: "Date", type: "date", required: true },
+      { id: "d", text: "Date", type: "date", required: true, prefill: false },
       "",
       dateChange,
     );
@@ -77,24 +86,40 @@ describe("QuestionField", () => {
     unmountDate();
 
     const numberChange = vi.fn();
-    renderField({ id: "n", text: "Count", type: "number", required: true }, "", numberChange);
+    renderField(
+      { id: "n", text: "Count", type: "number", required: true, prefill: false },
+      "",
+      numberChange,
+    );
     await user.type(screen.getAllByRole("spinbutton")[0], "5");
     expect(numberChange).toHaveBeenCalled();
 
     const urlChange = vi.fn();
-    renderField({ id: "u", text: "Website", type: "url", required: false }, "", urlChange);
+    renderField(
+      { id: "u", text: "Website", type: "url", required: false, prefill: false },
+      "",
+      urlChange,
+    );
     await user.type(screen.getByPlaceholderText("https://"), "https://acme.com");
     expect(urlChange).toHaveBeenCalled();
 
     const fileChange = vi.fn();
-    renderField({ id: "f", text: "Upload", type: "file", required: false }, "", fileChange);
+    renderField(
+      { id: "f", text: "Upload", type: "file", required: false, prefill: false },
+      "",
+      fileChange,
+    );
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     const file = new File(["x"], "doc.pdf", { type: "application/pdf" });
     await user.upload(fileInput, file);
     expect(fileChange).toHaveBeenCalledWith("doc.pdf");
 
     const toggleChange = vi.fn();
-    renderField({ id: "t", text: "Agree", type: "toggle", required: true }, "false", toggleChange);
+    renderField(
+      { id: "t", text: "Agree", type: "toggle", required: true, prefill: false },
+      "false",
+      toggleChange,
+    );
     await user.click(screen.getByRole("switch"));
     expect(toggleChange).toHaveBeenCalledWith("true");
 
@@ -105,6 +130,7 @@ describe("QuestionField", () => {
         text: "Address",
         type: "longtext",
         required: true,
+        prefill: false,
         sameAsToggleLabel: "Same as above",
         validation: { maxLength: 100 },
       },
@@ -117,13 +143,17 @@ describe("QuestionField", () => {
 
   it("removes repeater row and unchecks same-as toggle", async () => {
     const user = userEvent.setup();
-    const { onChange } = renderField({
-      id: "q2",
-      text: "Branch",
-      type: "text",
-      required: false,
-      repeater: true,
-    }, "Line1\nLine2");
+    const { onChange } = renderField(
+      {
+        id: "q2",
+        text: "Branch",
+        type: "text",
+        required: false,
+        prefill: false,
+        repeater: true,
+      },
+      "Line1\nLine2",
+    );
 
     const removeButtons = screen.getAllByRole("button", { name: /remove/i });
     await user.click(removeButtons[0]);
@@ -136,6 +166,7 @@ describe("QuestionField", () => {
         text: "Address",
         type: "longtext",
         required: false,
+        prefill: false,
         sameAsToggleLabel: "Same as above",
       },
       "Original",
@@ -153,7 +184,14 @@ describe("QuestionField", () => {
 
     const dropdownChange = vi.fn();
     renderField(
-      { id: "dd", text: "Type", type: "dropdown", required: true, options: ["A", "B"] },
+      {
+        id: "dd",
+        text: "Type",
+        type: "dropdown",
+        required: true,
+        prefill: false,
+        options: ["A", "B"],
+      },
       "",
       dropdownChange,
     );
@@ -163,7 +201,7 @@ describe("QuestionField", () => {
 
     const supportChange = vi.fn();
     const { unmount: unmountSupport } = renderField(
-      { id: "sd", text: "Document", type: "support_doc", required: true },
+      { id: "sd", text: "Document", type: "support_doc", required: true, prefill: false },
       "",
       supportChange,
     );
@@ -175,7 +213,7 @@ describe("QuestionField", () => {
 
     const esignChange = vi.fn();
     const { unmount: unmountEsign } = renderField(
-      { id: "es", text: "Sign", type: "esign", required: true },
+      { id: "es", text: "Sign", type: "esign", required: true, prefill: false },
       "false",
       esignChange,
     );
@@ -184,7 +222,14 @@ describe("QuestionField", () => {
     unmountEsign();
 
     renderField(
-      { id: "tx", text: "Name", type: "text", required: true, validation: { maxLength: 10 } },
+      {
+        id: "tx",
+        text: "Name",
+        type: "text",
+        required: true,
+        prefill: false,
+        validation: { maxLength: 10 },
+      },
       "abc",
       vi.fn(),
     );

@@ -49,7 +49,7 @@ describe("companies router", () => {
   });
 
   it("GET / lists companies for Admin", async () => {
-    vi.mocked(service.list).mockResolvedValue({ data: [{ companyId: "c-1" }], total: 1 });
+    vi.mocked(service.list).mockResolvedValue({ data: [{ companyId: "c-1" } as never], total: 1 });
     const app = createCompaniesApp(service, "Admin");
 
     const res = await request(app).get("/api/v1/companies");

@@ -7,7 +7,7 @@ export default {
   dbCredentials: {
     host: process.env.PGHOST || "localhost",
     user: process.env.PGUSER || "localdev",
-    password: process.env.PGPASSWORD || "admin123",
+    password: process.env.PGPASSWORD || "",
     database: process.env.PGDATABASE || "cedarrose_local",
     port: Number(process.env.PGPORT) || 5432,
     ssl: false,

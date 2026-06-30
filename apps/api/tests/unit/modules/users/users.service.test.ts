@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { subMinutes } from "date-fns";
 import { UsersService } from "../../../../src/modules/users/users.service.js";
+import type { UsersRepository } from "../../../../src/modules/users/users.repository.js";
 import { createMockUsersRepository } from "../../../helpers/mock-repositories.js";
 import { createMockEmailService } from "../../../helpers/mock-email-service.js";
 import { createMockDb } from "../../../helpers/mock-services.js";
@@ -16,7 +17,7 @@ describe("UsersService", () => {
     db = createMockDb();
     repo = createMockUsersRepository();
     email = createMockEmailService();
-    service = new UsersService(db as never, repo, email);
+    service = new UsersService(db as never, repo as unknown as UsersRepository, email);
   });
 
   describe("list", () => {

@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { CasesService } from "../../../../src/modules/cases/cases.service.js";
+import type { CasesRepository } from "../../../../src/modules/cases/cases.repository.js";
+import type { CompaniesRepository } from "../../../../src/modules/companies/companies.repository.js";
+import type { TemplatesRepository } from "../../../../src/modules/templates/templates.repository.js";
 import { WORKFLOW_STEP } from "../../../../src/config/workflow.js";
 import { env } from "../../../../src/config/env.js";
 import * as httpClient from "../../../../src/shared/utils/http-client.js";
@@ -46,9 +49,9 @@ describe("CasesService", () => {
     notificationsService = createMockNotificationsService();
     emailService = createMockEmailService();
     service = new CasesService(
-      casesRepo,
-      companiesRepo,
-      templatesRepo,
+      casesRepo as unknown as CasesRepository,
+      companiesRepo as unknown as CompaniesRepository,
+      templatesRepo as unknown as TemplatesRepository,
       auditService,
       notificationsService,
       emailService,

@@ -9,7 +9,7 @@ describe("NotificationsController", () => {
   let controller: NotificationsController;
   let res: ReturnType<typeof createMockResponse>;
 
-  const mockNotification = { id: "notif-1", message: "Case updated", read: false };
+  const mockNotification = { id: "notif-1", message: "Case updated", read: false } as never;
 
   beforeEach(() => {
     notificationsService = {

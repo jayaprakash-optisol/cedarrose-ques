@@ -126,9 +126,9 @@ describe("api mappers", () => {
   it("maps audit, notification, and platform config", () => {
     const audit = mapAuditEvent({
       auditId: "a1",
-      eventType: "CASE_CREATED",
+      eventType: "API Call",
       description: "Created",
-      status: "SUCCESS",
+      status: "Success",
       createdAt: "2026-01-01T00:00:00.000Z",
     });
     expect(audit.id).toBe("a1");
@@ -197,8 +197,8 @@ describe("api mappers", () => {
               fieldType: "table",
               mandatory: true,
               orderIndex: 0,
-              tableColumns: [{ label: "Name", type: "text", required: true }],
-              condition: { questionId: "q0", operator: "equals", value: "yes" },
+              tableColumns: [{ name: "Name", type: "text", required: true }],
+              condition: { enabled: true, fieldId: "q0", operator: "equals", value: "yes" },
             },
           ],
         },
@@ -231,6 +231,7 @@ describe("api mappers", () => {
               text: "Name",
               type: "text",
               required: true,
+              prefill: false,
               systemControlled: true,
               repeater: true,
               attachUpload: true,
@@ -238,7 +239,7 @@ describe("api mappers", () => {
               note: "Note",
               helpText: "Help",
               validation: { maxLength: 100 },
-              condition: { questionId: "q0", operator: "equals", value: "yes" },
+              condition: { enabled: true, fieldId: "q0", operator: "equals", value: "yes" },
               options: ["A"],
               columns: [{ name: "Col", type: "text", required: false }],
             },
