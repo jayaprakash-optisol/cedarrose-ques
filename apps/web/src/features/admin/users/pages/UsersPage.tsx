@@ -321,7 +321,6 @@ export default function UsersPage() {
         defaultRole={activeTab}
         onSave={(u) => {
           handleSaveUser(u, false);
-          setAddOpen(false);
           toast.success(`${u.name} added`);
         }}
       />
@@ -335,7 +334,6 @@ export default function UsersPage() {
         defaultRole={editUser?.role ?? activeTab}
         onSave={(u) => {
           handleSaveUser(u, true);
-          setEditUser(null);
           toast.success(`${u.name} updated`);
         }}
       />

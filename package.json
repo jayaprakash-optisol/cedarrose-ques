@@ -18,7 +18,8 @@
     "migrate:status": "npm run migrate:status -w cedarrose-opshub-api",
     "seed": "npm run seed -w cedarrose-opshub-api",
     "seed:clear": "npm run seed:clear -w cedarrose-opshub-api",
-    "test": "npm run test -w cedarrose-opshub-api"
+    "test": "npm run test -w cedarrose-opshub-api && npm run test -w cedarrose-opshub-web",
+    "test:coverage": "npm run test:coverage -w cedarrose-opshub-api && npm run test:coverage -w cedarrose-opshub-web"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

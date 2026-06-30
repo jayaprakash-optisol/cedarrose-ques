@@ -124,14 +124,6 @@ export default function ConfigPage() {
   );
   const [tier2Active, setTier2Active] = useState(true);
 
-  const [autoA, setAutoA] = useState(true);
-  const [manualB, setManualB] = useState(true);
-  const [alertCD, setAlertCD] = useState(true);
-
-  const [auditRetention, setAuditRetention] = useState(365);
-  const [exportFormat, setExportFormat] = useState("csv");
-  const [staleHours, setStaleHours] = useState(72);
-
   const milestones = [
     { label: "Dispatch", day: 0, fixed: true },
     { label: "Reminder 1", day: r1 },
