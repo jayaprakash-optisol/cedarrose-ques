@@ -10,6 +10,8 @@ export function createMockCasesRepository() {
     getNextCaseRef: vi.fn(),
     incrementReminders: vi.fn(),
     findByLinkHash: vi.fn(),
+    findByLinkTokenHash: vi.fn(),
+    isLinkExpired: vi.fn(),
     findExpiredActive: vi.fn(),
     findByStatuses: vi.fn(),
     findStaleInProgress: vi.fn(),

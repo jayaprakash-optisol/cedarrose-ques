@@ -65,11 +65,11 @@ export default function AuditLogPage() {
   };
 
   const exportCsv = () => {
-    const csv = ["Timestamp,Case,Order,Step,Type,Description,TriggeredBy,Status",
+    const csv = ["Timestamp,Case,Order,Step,Type,Description,TriggeredBy,Case status",
       ...grouped.map((e) => {
         const caseRecord = mockCases.find((m) => m.id === e.caseId);
         const { subject, orderId } = resolveAuditCaseLabels(e, caseRecord);
-        return [e.timestamp, subject, orderId, e.step, e.type, e.description, e.triggeredBy, e.status]
+        return [e.timestamp, subject, orderId, e.step, e.type, e.description, e.triggeredBy, caseRecord?.status ?? "—"]
           .map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
       })].join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
@@ -136,7 +136,7 @@ export default function AuditLogPage() {
                 <th className="px-3 py-3 font-medium">Type</th>
                 <th className="px-3 py-3 font-medium">Description</th>
                 <th className="px-3 py-3 font-medium">Triggered by</th>
-                <th className="px-3 py-3 font-medium">Status</th>
+                <th className="px-3 py-3 font-medium">Case status</th>
               </tr>
             </thead>
             <tbody>
@@ -172,12 +172,11 @@ export default function AuditLogPage() {
                       <td className="px-3 py-3">{e.description}</td>
                       <td className="px-3 py-3 text-muted-foreground">{e.triggeredBy}</td>
                       <td className="px-3 py-3">
-                        <span className={[
-                          "inline-flex px-2 py-0.5 rounded-full text-xs font-medium",
-                          e.status === "Success" ? "bg-status-completed-bg text-status-completed-fg" :
-                          e.status === "Failed" ? "bg-status-abandoned-bg text-status-abandoned-fg" :
-                          "bg-status-pending-bg text-status-pending-fg",
-                        ].join(" ")}>{e.status}</span>
+                        {caseRecord?.status ? (
+                          <StatusBadge status={caseRecord.status} />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </td>
                     </tr>
                     {isOpen && (

@@ -163,8 +163,9 @@ export const apiCasesService = {
     return mapCase(row, null, input.uid);
   },
 
-  async resendLink(id: string): Promise<void> {
-    await apiClient<ApiCase>(`/cases/${id}/resend-link`, { method: "PATCH" });
+  async resendLink(id: string): Promise<{ linkExpiry: string | null }> {
+    const row = await apiClient<ApiCase>(`/cases/${id}/resend-link`, { method: "PATCH" });
+    return { linkExpiry: row.linkExpiry ?? null };
   },
 };
 

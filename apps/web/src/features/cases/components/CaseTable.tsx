@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUpDown, AlertTriangle } from "lucide-react";
-import { format } from "date-fns";
+import { format, isPast } from "date-fns";
 import type { CaseRecord } from "@/types/case";
 import { RecipientBadge, StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -25,13 +25,18 @@ const STATUS_PRIORITY: Record<CaseRecord["status"], number> = {
 };
 
 
+function isLinkExpired(c: CaseRecord): boolean {
+  if (!c.linkExpiry) return false;
+  return isPast(new Date(c.linkExpiry));
+}
+
 function renderLinkExpiry(c: CaseRecord) {
   const muted = <span className="text-muted-foreground">—</span>;
   if (c.status === "COMPLETED" || c.status === "COMPLETED — MISSING DATA" || !c.linkExpiry) return muted;
   const expiry = new Date(c.linkExpiry);
-  const diffDays = Math.ceil((expiry.getTime() - Date.now()) / 86_400_000);
-  if (diffDays < 0) return muted;
+  if (isLinkExpired(c)) return muted;
   const label = format(expiry, "dd MMM yyyy");
+  const diffDays = Math.ceil((expiry.getTime() - Date.now()) / 86_400_000);
   if (diffDays <= 3) {
     return (
       <span className="inline-flex items-center gap-1.5 text-destructive font-medium">
@@ -80,14 +85,14 @@ function renderExpiresIn(c: CaseRecord) {
     "NOT SENT",
   ];
   if (naStatuses.includes(c.status) || !c.linkExpiry) {
-    if (c.status === "EXPIRED") return <span className="text-foreground/70">Expired</span>;
+    if (c.status === "EXPIRED" || isLinkExpired(c)) return <span className="text-foreground/70">Expired</span>;
     return muted;
   }
   const expiry = new Date(c.linkExpiry);
-  const diffDays = Math.ceil((expiry.getTime() - Date.now()) / 86_400_000);
-  if (diffDays < 0 || c.status === "EXPIRED") {
+  if (isLinkExpired(c) || c.status === "EXPIRED") {
     return <span className="text-foreground/70">Expired</span>;
   }
+  const diffDays = Math.ceil((expiry.getTime() - Date.now()) / 86_400_000);
   const label = `${diffDays}d`;
   if (diffDays <= 1) {
     return (
@@ -122,8 +127,11 @@ export function CaseTable({ cases, onRowClick, showOrderId = false }: Props) {
   const [resendCase, setResendCase] = useState<CaseRecord | null>(null);
   const [resentIds, setResentIds] = useState<Set<string>>(new Set());
 
-  const effectiveStatus = (c: CaseRecord): CaseRecord["status"] =>
-    resentIds.has(c.id) && c.status === "EXPIRED" ? "SENT" : c.status;
+  const effectiveStatus = (c: CaseRecord): CaseRecord["status"] => {
+    if (resentIds.has(c.id) && c.status === "EXPIRED") return "SENT";
+    if (isLinkExpired(c) && ["SENT", "OPENED", "IN PROGRESS"].includes(c.status)) return "EXPIRED";
+    return c.status;
+  };
 
 
   const sorted = useMemo(() => {

@@ -31,12 +31,12 @@ export function indexAuditEventsByCase(events: AuditEvent[]): Map<string, AuditE
   return map;
 }
 
-/** Earliest successful timestamp per workflow step (normalized to 15-step flow). */
+/** Earliest successful timestamp per workflow step (normalized to 14-step flow). */
 export function stepTimestampsFromEvents(events: AuditEvent[]): Record<number, string> {
   const result: Record<number, string> = {};
   for (const event of events) {
     if (!event.step || event.status !== "Success") continue;
-    const step = normalizeWorkflowStep(event.step);
+    const step = normalizeWorkflowStep(event.step, event.type);
     if (!step) continue;
     const existing = result[step];
     if (!existing || new Date(event.timestamp).getTime() < new Date(existing).getTime()) {

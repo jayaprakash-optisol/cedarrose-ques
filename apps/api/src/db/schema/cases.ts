@@ -28,7 +28,7 @@ export const cases = pgTable("cases", {
   apiPushAt: timestamp("ApiPushAt"),
   currentStep: integer("CurrentStep").notNull().default(1),
   linkTokenHash: text("LinkTokenHash"),
-  linkExpiry: timestamp("LinkExpiry"),
+  linkExpiry: timestamp("LinkExpiry", { withTimezone: true }),
   linkValidityHours: integer("LinkValidityHours").notNull().default(48),
   remindersSent: integer("RemindersSent").notNull().default(0),
   resentCount: integer("ResentCount").notNull().default(0),

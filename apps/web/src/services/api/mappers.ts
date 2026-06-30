@@ -298,7 +298,7 @@ export function mapCase(
     apiPushStatus: raw.apiPushStatus ?? undefined,
     companyData,
     link: {
-      sentAt: raw.dateReceived,
+      sentAt: raw.dateDispatched ?? raw.dateReceived,
       expiresAt: raw.linkExpiry ?? undefined,
       resentCount: raw.resentCount ?? 0,
     },
@@ -306,6 +306,7 @@ export function mapCase(
     currentStep: raw.currentStep,
     analyst: raw.analystName ?? "—",
     linkExpiry: raw.linkExpiry ?? null,
+    linkValidityHours: raw.linkValidityHours ?? 48,
     remindersSent: raw.remindersSent ?? null,
     stepTimestamps: raw.stepTimestamps,
     linkUrl: raw.linkUrl,

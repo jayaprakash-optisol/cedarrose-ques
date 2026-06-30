@@ -1,7 +1,7 @@
 import { Router } from "express";
 import type { CasesController } from "./cases.controller.js";
 import { validate } from "../../middleware/validate.js";
-import { createCaseSchema, researcherReviewSchema } from "./cases.schema.js";
+import { createCaseSchema } from "./cases.schema.js";
 import { authorize } from "../../middleware/authorize.js";
 import { emailActionLimit } from "../../middleware/rate-limit.js";
 
@@ -12,12 +12,6 @@ export function casesRouter(controller: CasesController): Router {
   router.get("/:id", controller.getById);
   router.post("/", emailActionLimit, validate(createCaseSchema), controller.create);
   router.patch("/:id/resend-link", emailActionLimit, controller.resendLink);
-  router.patch(
-    "/:id/researcher-review",
-    authorize("Researcher", "Admin"),
-    validate(researcherReviewSchema),
-    controller.researcherReview
-  );
   router.patch("/:id/api-push", authorize("Admin"), controller.apiPush);
   return router;
 }

@@ -5,7 +5,6 @@ import { randomBytes } from "node:crypto";
 import type { AuthRepository } from "./auth.repository.js";
 import type { EmailService } from "../../lib/email-service.js";
 import { env } from "../../config/env.js";
-import { ACCESS_TOKEN_EXPIRY, REFRESH_TOKEN_DAYS } from "../../config/constants.js";
 import { hashPassword, verifyPassword } from "../../shared/utils/crypto.js";
 import { AppError } from "../../shared/errors/AppError.js";
 import type { UserRow } from "../../db/schema/users.js";
@@ -18,9 +17,19 @@ export class AuthService {
 
   generateAccessToken(user: UserRow): string {
     return jwt.sign(
-      { sub: user.userId, email: user.email, role: user.role },
-      env.jwtSecretKey,
-      { expiresIn: ACCESS_TOKEN_EXPIRY }
+      {
+        sub: user.userId,
+        email: user.email,
+        role: user.role,
+        iss: env.jwtIssuer,
+        aud: env.jwtAudience,
+      },
+      env.jwtAccessPrivateKey,
+      {
+        algorithm: env.jwtAlgorithm,
+        expiresIn: env.jwtAccessTokenExpiry,
+        jwtid: uuidv4(),
+      } as jwt.SignOptions
     );
   }
 
@@ -38,7 +47,7 @@ export class AuthService {
 
   async generateRefreshToken(userId: string): Promise<string> {
     const rawToken = uuidv4();
-    const expiresAt = addDays(new Date(), REFRESH_TOKEN_DAYS);
+    const expiresAt = addDays(new Date(), env.jwtRefreshTokenDays);
     await this.authRepo.insertRefreshToken({
       userId,
       token: rawToken,

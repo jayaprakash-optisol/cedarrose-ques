@@ -222,7 +222,7 @@ describe("AuthService", () => {
     it("issues a signed JWT with user claims", () => {
       const user = createMockUser();
       const token = service.generateAccessToken(user);
-      const decoded = jwt.verify(token, env.jwtSecretKey) as { sub: string; email: string; role: string };
+      const decoded = jwt.verify(token, env.jwtAccessPublicKey) as { sub: string; email: string; role: string };
       expect(decoded.sub).toBe(user.userId);
       expect(decoded.email).toBe(user.email);
       expect(decoded.role).toBe(user.role);

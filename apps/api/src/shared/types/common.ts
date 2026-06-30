@@ -17,11 +17,21 @@ export interface JwtPayload {
   sub: string;
   email: string;
   role: string;
+  iss: string;
+  aud: string;
+  iat: number;
+  exp: number;
+  jti: string;
 }
 
 export interface QuestionnaireJwtPayload {
   sub: string;
   caseId: string;
+  iss: string;
+  aud: string;
+  iat: number;
+  exp: number;
+  jti: string;
 }
 
 export interface PaginationMeta {

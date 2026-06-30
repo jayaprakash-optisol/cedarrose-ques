@@ -163,7 +163,13 @@ export class CasesService {
       throw new AppError(403, "FORBIDDEN", "Not allowed to resend link for this case");
     }
 
+    const recipientEmail = c.company?.recipientEmails?.[0];
+    if (!recipientEmail) {
+      throw new AppError(400, "VALIDATION_ERROR", "No recipient email on file for this case");
+    }
+
     const linkData = generateSecureLink(c.linkValidityHours ?? 48);
+    const linkUrl = `${env.frontendUrl}/q/${linkData.rawToken}`;
     const updated = await this.casesRepo.update(caseId, {
       linkTokenHash: linkData.tokenHash,
       linkExpiry: linkData.expiresAt,
@@ -175,6 +181,17 @@ export class CasesService {
 
     await this.auditService.log({
       caseId,
+      step: WORKFLOW_STEP.GENERATE_LINK,
+      eventType: "Link Event",
+      description: "Secure link generated",
+      triggeredByUserId: requesterId,
+      status: "Success",
+    });
+
+    await this.emailService.sendQuestionnaireLink(recipientEmail, c.subjectName, linkUrl);
+
+    await this.auditService.log({
+      caseId,
       step: WORKFLOW_STEP.SEND_LINK,
       eventType: "Link Event",
       description: "Link resent",
@@ -182,44 +199,7 @@ export class CasesService {
       status: "Success",
     });
 
-    return { ...updated, rawToken: linkData.rawToken };
-  }
-
-  async researcherReview(
-    caseId: string,
-    decision: string,
-    notes: string | undefined,
-    researcherId: string
-  ) {
-    const c = await this.casesRepo.findById(caseId);
-    if (!c) throw new AppError(404, "CASE_NOT_FOUND", "Case not found");
-
-    if (!["COMPLETED", "COMPLETED — MISSING DATA"].includes(c.status)) {
-      throw new AppError(400, "INVALID_TRANSITION", "Case is not ready for researcher review");
-    }
-
-    const updated = await this.casesRepo.update(caseId, {
-      researcherStatus: decision,
-      researcherNotes: notes,
-      researcherReviewedAt: new Date(),
-      assignedResearcherId: researcherId,
-      apiPushStatus: decision === "Approved" ? "Pending" : c.apiPushStatus,
-    });
-
-    await this.auditService.log({
-      caseId,
-      step: WORKFLOW_STEP.RESEARCHER_REVIEW,
-      eventType: "Researcher Action",
-      description: `Researcher decision: ${decision}`,
-      triggeredByUserId: researcherId,
-      status: "Success",
-    });
-
-    if (decision === "Approved" && c.analystId) {
-      await this.notificationsService.notifyReviewApproved(caseId, c.analystId, notes);
-    }
-
-    return updated;
+    return { ...updated, linkUrl };
   }
 
   async apiPush(caseId: string) {

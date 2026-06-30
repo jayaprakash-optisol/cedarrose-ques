@@ -17,7 +17,6 @@ describe("CasesController", () => {
       getById: vi.fn(),
       createCase: vi.fn(),
       resendLink: vi.fn(),
-      researcherReview: vi.fn(),
       apiPush: vi.fn(),
       exportAll: vi.fn(),
     } as unknown as CasesService;
@@ -112,50 +111,6 @@ describe("CasesController", () => {
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({ data: mockCase, message: "Link resent" })
-      );
-    });
-  });
-
-  describe("researcherReview", () => {
-    it("submits researcher review", async () => {
-      const user = createMockUser();
-      vi.mocked(casesService.researcherReview).mockResolvedValue(mockCase);
-      const req = createMockRequest({
-        user,
-        params: { id: "case-1" },
-        body: { decision: "approve", notes: "looks good" },
-      });
-
-      await controller.researcherReview(req, res);
-
-      expect(casesService.researcherReview).toHaveBeenCalledWith(
-        "case-1",
-        "approve",
-        "looks good",
-        user.userId
-      );
-      expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ data: mockCase, message: "Review submitted" })
-      );
-    });
-
-    it("submits researcher review without notes", async () => {
-      const user = createMockUser();
-      vi.mocked(casesService.researcherReview).mockResolvedValue(mockCase);
-      const req = createMockRequest({
-        user,
-        params: { id: "case-1" },
-        body: { decision: "reject" },
-      });
-
-      await controller.researcherReview(req, res);
-
-      expect(casesService.researcherReview).toHaveBeenCalledWith(
-        "case-1",
-        "reject",
-        undefined,
-        user.userId,
       );
     });
   });

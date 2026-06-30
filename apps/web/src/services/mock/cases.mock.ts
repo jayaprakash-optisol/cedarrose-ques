@@ -18,7 +18,7 @@ function getCases(): CaseRecord[] {
 export interface CasesService {
   list(): Promise<CaseRecord[]>;
   getById(id: string): Promise<CaseRecord | undefined>;
-  resendLink(id: string): Promise<void>;
+  resendLink(id: string): Promise<{ linkExpiry: string | null }>;
   create(input: {
     orderId: string;
     uid?: string;
@@ -44,17 +44,21 @@ export const mockCasesService: CasesService = {
     const cases = getCases();
     const idx = cases.findIndex((c) => c.id === id);
     if (idx === -1) throw new Error("Case not found");
+    const validityHours = cases[idx].linkValidityHours ?? 48;
+    const linkExpiry = new Date(Date.now() + validityHours * 3600_000).toISOString();
     cases[idx] = {
       ...cases[idx],
       status: "SENT",
+      linkExpiry,
       link: {
         ...cases[idx].link,
         resentCount: cases[idx].link.resentCount + 1,
         sentAt: new Date().toISOString(),
-        expiresAt: new Date(Date.now() + 48 * 3600_000).toISOString(),
+        expiresAt: linkExpiry,
       },
     };
     casesCache = cases;
+    return { linkExpiry };
   },
   async create(input) {
     await delay(800);

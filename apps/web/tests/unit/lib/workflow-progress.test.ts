@@ -5,10 +5,11 @@ import type { CaseRecord } from "@/types/case";
 import { makeCase } from "../../helpers/mock-case";
 
 describe("workflow-progress", () => {
-  it("maps legacy 16-step numbers to 15-step flow", () => {
-    expect(normalizeWorkflowStep(16)).toBe(15);
-    expect(normalizeWorkflowStep(17)).toBe(15);
+  it("maps legacy 16-step numbers to 14-step flow", () => {
+    expect(normalizeWorkflowStep(16)).toBe(14);
+    expect(normalizeWorkflowStep(17)).toBe(14);
     expect(normalizeWorkflowStep(3)).toBe(3);
+    expect(normalizeWorkflowStep(13, "Researcher Action")).toBeNull();
     expect(normalizeWorkflowStep(0)).toBeNull();
     expect(normalizeWorkflowStep(null)).toBeNull();
   });
@@ -135,7 +136,7 @@ describe("workflow-progress", () => {
   });
 
   it("caps current step when workflow is complete", () => {
-    const events: AuditEvent[] = Array.from({ length: 15 }, (_, i) => ({
+    const events: AuditEvent[] = Array.from({ length: 14 }, (_, i) => ({
       id: String(i),
       timestamp: `2026-01-${String(i + 1).padStart(2, "0")}T10:00:00.000Z`,
       caseId: "c1",
@@ -148,7 +149,7 @@ describe("workflow-progress", () => {
       status: "Success" as const,
     }));
 
-    const progress = buildWorkflowProgress(makeCase({ currentStep: 15 }), events);
-    expect(progress.currentStep).toBeGreaterThanOrEqual(15);
+    const progress = buildWorkflowProgress(makeCase({ currentStep: 14 }), events);
+    expect(progress.currentStep).toBeGreaterThanOrEqual(14);
   });
 });

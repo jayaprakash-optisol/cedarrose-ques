@@ -68,6 +68,8 @@ export interface CaseRecord {
   currentStep: number;
   analyst: string;
   linkExpiry: string | null;
+  /** Hours the questionnaire link stays valid (24–72). Set when the case is created. */
+  linkValidityHours?: number;
   remindersSent: number | null;
   /** Maps step number (1–16) to ISO timestamp when that step completed. */
   stepTimestamps?: Record<number, string>;

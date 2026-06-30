@@ -65,18 +65,35 @@ describe("QuestionnaireService", () => {
     rawToken = generateSecureLink(48).rawToken;
   });
 
+  function mockActiveLink(c: ReturnType<typeof caseWithRecipient>) {
+    vi.mocked(casesRepo.findByLinkTokenHash).mockResolvedValue(c);
+    vi.mocked(casesRepo.isLinkExpired).mockResolvedValue(false);
+  }
+
   describe("verifyLink", () => {
     it("rejects invalid or expired links", async () => {
-      vi.mocked(casesRepo.findByLinkHash).mockResolvedValue(null);
+      vi.mocked(casesRepo.findByLinkTokenHash).mockResolvedValue(null);
       await expect(service.verifyLink("bad-token")).rejects.toMatchObject({
         statusCode: 400,
         message: "Invalid or expired link",
       });
     });
 
+    it("marks expired cases and rejects the link", async () => {
+      const c = caseWithRecipient({ status: "IN PROGRESS" });
+      vi.mocked(casesRepo.findByLinkTokenHash).mockResolvedValue(c);
+      vi.mocked(casesRepo.isLinkExpired).mockResolvedValue(true);
+
+      await expect(service.verifyLink(rawToken)).rejects.toMatchObject({
+        statusCode: 400,
+        message: "Invalid or expired link",
+      });
+      expect(casesRepo.update).toHaveBeenCalledWith(c.caseId, { status: "EXPIRED" });
+    });
+
     it("records first open and returns masked email", async () => {
       const c = caseWithRecipient({ firstOpenedAt: null });
-      vi.mocked(casesRepo.findByLinkHash).mockResolvedValue(c);
+      mockActiveLink(c);
       vi.mocked(casesRepo.findById).mockResolvedValue(c);
 
       const result = await service.verifyLink(rawToken);
@@ -94,7 +111,7 @@ describe("QuestionnaireService", () => {
 
     it("throws when no recipient email on file", async () => {
       const c = caseWithRecipient({ company: null });
-      vi.mocked(casesRepo.findByLinkHash).mockResolvedValue(c);
+      mockActiveLink(c);
       vi.mocked(casesRepo.findById).mockResolvedValue(c);
 
       await expect(service.verifyLink(rawToken)).rejects.toMatchObject({
@@ -106,7 +123,7 @@ describe("QuestionnaireService", () => {
   describe("requestOtp", () => {
     it("stores hashed otp and sends email", async () => {
       const c = caseWithRecipient();
-      vi.mocked(casesRepo.findByLinkHash).mockResolvedValue(c);
+      mockActiveLink(c);
       vi.mocked(casesRepo.findById).mockResolvedValue(c);
 
       await service.requestOtp(rawToken);
@@ -126,7 +143,7 @@ describe("QuestionnaireService", () => {
   describe("verifyOtp", () => {
     it("rejects expired otp", async () => {
       const c = caseWithRecipient();
-      vi.mocked(casesRepo.findByLinkHash).mockResolvedValue(c);
+      mockActiveLink(c);
       vi.mocked(questionnaireRepo.getOtp).mockResolvedValue({
         hash: "h",
         expiresAt: new Date(Date.now() - 1000),
@@ -140,7 +157,7 @@ describe("QuestionnaireService", () => {
 
     it("rejects too many attempts", async () => {
       const c = caseWithRecipient();
-      vi.mocked(casesRepo.findByLinkHash).mockResolvedValue(c);
+      mockActiveLink(c);
       vi.mocked(questionnaireRepo.getOtp).mockResolvedValue({
         hash: "h",
         expiresAt: new Date(Date.now() + 60000),
@@ -155,7 +172,7 @@ describe("QuestionnaireService", () => {
 
     it("increments attempts on invalid otp", async () => {
       const c = caseWithRecipient();
-      vi.mocked(casesRepo.findByLinkHash).mockResolvedValue(c);
+      mockActiveLink(c);
       vi.mocked(questionnaireRepo.getOtp).mockResolvedValue({
         hash: hashToken("999999"),
         expiresAt: new Date(Date.now() + 60000),
@@ -171,7 +188,7 @@ describe("QuestionnaireService", () => {
     it("returns session token on valid otp", async () => {
       const c = caseWithRecipient();
       const otp = "654321";
-      vi.mocked(casesRepo.findByLinkHash).mockResolvedValue(c);
+      mockActiveLink(c);
       vi.mocked(questionnaireRepo.getOtp).mockResolvedValue({
         hash: hashToken(otp),
         expiresAt: new Date(Date.now() + 60000),
@@ -182,7 +199,7 @@ describe("QuestionnaireService", () => {
 
       expect(questionnaireRepo.clearOtp).toHaveBeenCalledWith(c.caseId);
       expect(result.caseId).toBe(c.caseId);
-      const decoded = jwt.verify(result.sessionToken, env.questionnaireJwtSecret) as {
+      const decoded = jwt.verify(result.sessionToken, env.jwtQuestionnairePublicKey) as {
         caseId: string;
         sub: string;
       };
@@ -201,7 +218,7 @@ describe("QuestionnaireService", () => {
 
     it("throws when case has no template", async () => {
       const c = caseWithRecipient({ templateId: null });
-      const token = jwt.sign({ sub: rawToken, caseId: c.caseId }, env.questionnaireJwtSecret);
+      const token = jwt.sign({ sub: rawToken, caseId: c.caseId }, env.jwtQuestionnairePrivateKey, { algorithm: env.jwtAlgorithm });
       vi.mocked(casesRepo.findById).mockResolvedValue(c);
 
       await expect(service.getForm(`Bearer ${token}`)).rejects.toMatchObject({
@@ -211,7 +228,7 @@ describe("QuestionnaireService", () => {
 
     it("loads template, advances status, and returns form payload", async () => {
       const c = caseWithRecipient({ status: "SENT", templateId: "tpl-1" });
-      const token = jwt.sign({ sub: rawToken, caseId: c.caseId }, env.questionnaireJwtSecret);
+      const token = jwt.sign({ sub: rawToken, caseId: c.caseId }, env.jwtQuestionnairePrivateKey, { algorithm: env.jwtAlgorithm });
       const template = { templateId: "tpl-1", sections: [] };
       const responses = [{ mandatory: true, answer: "Yes" }];
       vi.mocked(casesRepo.findById).mockResolvedValue(c);
@@ -235,7 +252,7 @@ describe("QuestionnaireService", () => {
   describe("saveProgress", () => {
     it("upserts responses and updates completion", async () => {
       const c = caseWithRecipient({ templateId: "tpl-1" });
-      const token = jwt.sign({ sub: rawToken, caseId: c.caseId }, env.questionnaireJwtSecret);
+      const token = jwt.sign({ sub: rawToken, caseId: c.caseId }, env.jwtQuestionnairePrivateKey, { algorithm: env.jwtAlgorithm });
       const responses = [
         { mandatory: true, answer: "A" },
         { mandatory: true, answer: "" },
@@ -262,7 +279,7 @@ describe("QuestionnaireService", () => {
         templateId: "tpl-1",
         analystId: "11111111-1111-1111-1111-111111111111",
       });
-      const token = jwt.sign({ sub: rawToken, caseId: c.caseId }, env.questionnaireJwtSecret);
+      const token = jwt.sign({ sub: rawToken, caseId: c.caseId }, env.jwtQuestionnairePrivateKey, { algorithm: env.jwtAlgorithm });
       const responses = [
         { mandatory: true, answer: "" },
         { mandatory: false, answer: "opt" },
@@ -286,7 +303,7 @@ describe("QuestionnaireService", () => {
 
     it("marks fully completed when all mandatory answers present", async () => {
       const c = caseWithRecipient({ templateId: "tpl-1", analystId: null });
-      const token = jwt.sign({ sub: rawToken, caseId: c.caseId }, env.questionnaireJwtSecret);
+      const token = jwt.sign({ sub: rawToken, caseId: c.caseId }, env.jwtQuestionnairePrivateKey, { algorithm: env.jwtAlgorithm });
       const responses = [{ mandatory: true, answer: "done" }];
       const updated = { ...c, status: "COMPLETED" };
       vi.mocked(casesRepo.findById).mockResolvedValue(c);

@@ -40,17 +40,6 @@ export class CasesController {
     sendSuccess(res, data, 200, "Link resent");
   };
 
-  researcherReview = async (req: Request, res: Response) => {
-    const { decision, notes } = req.body as { decision: string; notes?: string };
-    const data = await this.casesService.researcherReview(
-      routeParam(req.params.id),
-      decision,
-      notes,
-      req.user!.userId
-    );
-    sendSuccess(res, data, 200, "Review submitted");
-  };
-
   apiPush = async (req: Request, res: Response) => {
     const data = await this.casesService.apiPush(routeParam(req.params.id));
     sendSuccess(res, data, 200, "API push triggered");

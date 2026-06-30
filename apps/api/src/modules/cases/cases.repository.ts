@@ -7,6 +7,7 @@ import { companies, companyRecipientEmails } from "../../db/schema/companies.js"
 import { questionnaireResponses } from "../../db/schema/questionnaire-responses.js";
 import { auditEvents } from "../../db/schema/audit-events.js";
 import { STATUS_PRIORITY } from "../../config/constants.js";
+import { normalizeWorkflowStep } from "../../config/workflow.js";
 import { generateSecureToken, hashToken } from "../../shared/utils/crypto.js";
 
 export interface CaseFilters {
@@ -53,15 +54,20 @@ async function loadStepTimestamps(
   caseId: string
 ): Promise<Record<number, string>> {
   const events = await db
-    .select({ step: auditEvents.step, createdAt: auditEvents.createdAt })
+    .select({
+      step: auditEvents.step,
+      eventType: auditEvents.eventType,
+      createdAt: auditEvents.createdAt,
+    })
     .from(auditEvents)
     .where(and(eq(auditEvents.caseId, caseId), eq(auditEvents.status, "Success")))
     .orderBy(auditEvents.createdAt);
 
   const result: Record<number, string> = {};
   for (const ev of events) {
-    if (ev.step !== null && !(ev.step in result)) {
-      result[ev.step] = ev.createdAt.toISOString();
+    const step = normalizeWorkflowStep(ev.step, ev.eventType);
+    if (step !== null && !(step in result)) {
+      result[step] = ev.createdAt.toISOString();
     }
   }
   return result;
@@ -220,6 +226,24 @@ export class CasesRepository {
       .where(eq(cases.caseId, caseId))
       .returning();
     return row;
+  }
+
+  async findByLinkTokenHash(tokenHash: string) {
+    const [row] = await this.db
+      .select()
+      .from(cases)
+      .where(eq(cases.linkTokenHash, tokenHash))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async isLinkExpired(caseId: string): Promise<boolean> {
+    const [row] = await this.db
+      .select({ expired: sql<boolean>`${cases.linkExpiry} IS NOT NULL AND ${cases.linkExpiry} <= now()` })
+      .from(cases)
+      .where(eq(cases.caseId, caseId))
+      .limit(1);
+    return row?.expired ?? false;
   }
 
   async findByLinkHash(tokenHash: string) {

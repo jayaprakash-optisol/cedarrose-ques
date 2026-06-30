@@ -30,8 +30,3 @@ export const RECIPIENT_TYPES = [
 ] as const;
 
 export const USER_ROLES = ["Researcher", "Reviewer", "Analyst", "Admin"] as const;
-
-export const BCRYPT_ROUNDS = 10;
-export const REFRESH_TOKEN_DAYS = 30;
-export const ACCESS_TOKEN_EXPIRY = "1d";
-export const QUESTIONNAIRE_TOKEN_EXPIRY = "15m";

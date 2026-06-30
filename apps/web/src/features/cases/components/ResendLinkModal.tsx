@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { casesService } from "@/services";
 import { ApiError } from "@/services/api/client";
 import { caseCompanyName, caseCrisUid } from "@/lib/case-display";
+import { formatLinkExpiryDate, formatLinkValidityLabel, projectedLinkExpiry } from "@/lib/link-validity";
 
 interface Props {
   case: CaseRecord;
@@ -18,10 +19,14 @@ interface Props {
 export function ResendLinkModal({ case: c, open, onClose, onConfirmed, onViewDetails }: Props) {
   const [state, setState] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
+  const [resentLinkExpiry, setResentLinkExpiry] = useState<string | null>(null);
   if (!open) return null;
 
   const email = c.companyData.recipientEmails[0] ?? "—";
-  const newExpiry = format(new Date(Date.now() + 10 * 86_400_000), "dd MMM yyyy");
+  const validityHours = c.linkValidityHours ?? 48;
+  const validityLabel = formatLinkValidityLabel(validityHours);
+  const projectedExpiry = projectedLinkExpiry(validityHours);
+  const successExpiry = resentLinkExpiry ? formatLinkExpiryDate(resentLinkExpiry) : projectedExpiry;
   const sentAt = c.link.sentAt ? format(new Date(c.link.sentAt), "dd MMM yyyy") : "—";
   const expiredOn = c.linkExpiry ? format(new Date(c.linkExpiry), "dd MMM yyyy") : "—";
 
@@ -29,7 +34,8 @@ export function ResendLinkModal({ case: c, open, onClose, onConfirmed, onViewDet
     setState("loading");
     setErrorMessage("");
     try {
-      await casesService.resendLink(c.id);
+      const result = await casesService.resendLink(c.id);
+      setResentLinkExpiry(result.linkExpiry);
       setState("success");
     } catch (err) {
       setState("error");
@@ -41,6 +47,7 @@ export function ResendLinkModal({ case: c, open, onClose, onConfirmed, onViewDet
     if (state === "success") onConfirmed();
     setState("idle");
     setErrorMessage("");
+    setResentLinkExpiry(null);
     onClose();
   };
 
@@ -58,7 +65,8 @@ export function ResendLinkModal({ case: c, open, onClose, onConfirmed, onViewDet
             <h3 className="text-lg font-semibold">Link resent successfully</h3>
             <p className="text-sm text-muted-foreground">
               A new questionnaire link has been sent to <span className="font-medium text-foreground">{email}</span>.
-              The link will expire on <span className="font-medium text-foreground">{newExpiry}</span>.
+              The link will expire on <span className="font-medium text-foreground">{successExpiry}</span>
+              {" "}(valid for {validityLabel}).
             </p>
             <Button variant="outline" className="w-full" onClick={handleClose}>Close</Button>
           </div>
@@ -95,7 +103,7 @@ export function ResendLinkModal({ case: c, open, onClose, onConfirmed, onViewDet
                 <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
                 <span>
                   The previous link has expired. A new tokenized link will be generated and sent to the email above.
-                  The expiry clock will reset to 10 days from today.
+                  The expiry clock will reset to {validityLabel} from now.
                 </span>
               </div>
             </div>

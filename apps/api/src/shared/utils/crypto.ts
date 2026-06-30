@@ -1,9 +1,9 @@
 import * as bcrypt from "bcryptjs";
 import { createHash, randomBytes, randomInt } from "node:crypto";
-import { BCRYPT_ROUNDS } from "../../config/constants.js";
+import { env } from "../../config/env.js";
 
 export async function hashPassword(plain: string): Promise<string> {
-  return bcrypt.hash(plain, BCRYPT_ROUNDS);
+  return bcrypt.hash(plain, env.bcryptRounds);
 }
 
 export async function verifyPassword(plain: string, hash: string): Promise<boolean> {

@@ -14,7 +14,9 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     }
 
     const token = authHeader.split(" ")[1];
-    const decoded = jwt.verify(token, env.jwtSecretKey) as JwtPayload;
+    const decoded = jwt.verify(token, env.jwtAccessPublicKey, {
+      algorithms: [env.jwtAlgorithm],
+    }) as JwtPayload;
 
     if (!decoded.sub || !decoded.email || !decoded.role) {
       return res.status(401).json({ success: false, message: "Invalid token format" });
@@ -40,4 +42,3 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     next(err);
   }
 }
-

@@ -13,7 +13,6 @@ function createMockCasesService(): CasesService {
     getById: vi.fn(),
     createCase: vi.fn(),
     resendLink: vi.fn(),
-    researcherReview: vi.fn(),
     apiPush: vi.fn(),
     exportAll: vi.fn(),
   } as unknown as CasesService;
@@ -91,22 +90,6 @@ describe("cases router", () => {
 
     expect(allowed.status).toBe(200);
     expect(allowed.headers["content-type"]).toContain("text/csv");
-    expect(denied.status).toBe(403);
-  });
-
-  it("PATCH /:id/researcher-review requires Researcher or Admin", async () => {
-    vi.mocked(service.researcherReview).mockResolvedValue({ caseId: "case-1" } as never);
-    const researcherApp = createCasesApp(service, "Researcher");
-    const analystApp = createCasesApp(service, "Analyst");
-
-    const allowed = await request(researcherApp)
-      .patch("/api/v1/cases/case-1/researcher-review")
-      .send({ decision: "Approved" });
-    const denied = await request(analystApp)
-      .patch("/api/v1/cases/case-1/researcher-review")
-      .send({ decision: "Approved" });
-
-    expect(allowed.status).toBe(200);
     expect(denied.status).toBe(403);
   });
 });

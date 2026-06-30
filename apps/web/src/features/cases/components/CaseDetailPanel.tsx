@@ -122,14 +122,6 @@ export function CaseDetailPanel({ case: selected, open, onOpenChange }: Props) {
               <Field label="Overall" value={`${completion.overallPct}%`} />
             </Section>
 
-            {(c.status === "COMPLETED" || c.status === "COMPLETED — MISSING DATA") && (
-              <Section title="Researcher review">
-                <Field label="Researcher" value={c.researcherName ?? "—"} />
-                <Field label="Decision" value={c.researcherDecision ?? "Pending"} />
-                <Field label="Reviewed" value={absTime(c.reviewDate)} />
-                {c.researcherNotes && <Field label="Notes" value={c.researcherNotes} />}
-              </Section>
-            )}
           </TabsContent>
 
           {showResponses && (

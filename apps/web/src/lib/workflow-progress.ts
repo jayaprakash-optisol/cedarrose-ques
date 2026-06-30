@@ -5,31 +5,40 @@ import { absTime } from "@/lib/format";
 
 export const WORKFLOW_STEP_COUNT = WORKFLOW_STEPS.length;
 
-/** Map legacy 16-step audit numbers to the current 15-step workflow. */
-export function normalizeWorkflowStep(step: number | null | undefined): number | null {
+/** Map legacy audit step numbers to the current 14-step workflow. */
+export function normalizeWorkflowStep(
+  step: number | null | undefined,
+  eventType?: AuditEvent["type"],
+): number | null {
   if (!step || step < 1) return null;
-  if (step <= WORKFLOW_STEP_COUNT) return step;
+  if (eventType === "Researcher Action") return null;
 
-  const legacyMap: Record<number, number> = {
-    1: 1,
-    2: 1,
-    3: 2,
-    4: 3,
-    5: 5,
-    6: 5,
-    7: 6,
-    8: 7,
-    9: 8,
-    10: 9,
-    11: 10,
-    12: 11,
-    13: 12,
-    14: 13,
-    15: 14,
-    16: 15,
-  };
+  let s = step;
+  if (s > 15) {
+    const legacy16: Record<number, number> = {
+      1: 1,
+      2: 1,
+      3: 2,
+      4: 3,
+      5: 5,
+      6: 5,
+      7: 6,
+      8: 7,
+      9: 8,
+      10: 9,
+      11: 10,
+      12: 11,
+      13: 12,
+      14: 13,
+      15: 14,
+      16: 15,
+    };
+    s = legacy16[s] ?? 15;
+  }
 
-  return legacyMap[step] ?? Math.min(step, WORKFLOW_STEP_COUNT);
+  if (s > 13) s -= 1;
+
+  return Math.min(s, WORKFLOW_STEP_COUNT);
 }
 
 function mergeStepTimestamp(
@@ -59,7 +68,7 @@ export function buildWorkflowProgress(
 
   for (const event of events) {
     if (event.status !== "Success" || !event.step) continue;
-    const step = normalizeWorkflowStep(event.step);
+    const step = normalizeWorkflowStep(event.step, event.type);
     if (step) mergeStepTimestamp(stepTimestamps, step, event.timestamp);
   }
 

@@ -224,8 +224,35 @@ describe("CasesService", () => {
       });
     });
 
-    it("allows admin to resend and returns raw token", async () => {
-      const existing = createMockCase({ resentCount: 1 });
+    it("rejects resend when no recipient email is on file", async () => {
+      vi.mocked(casesRepo.findById).mockResolvedValue({
+        ...createMockCase({ resentCount: 1 }),
+        analystName: "Test",
+        company: null,
+        stepTimestamps: {},
+      });
+      await expect(service.resendLink("case", "other-admin", "Admin")).rejects.toMatchObject({
+        statusCode: 400,
+        message: "No recipient email on file for this case",
+      });
+    });
+
+    it("allows admin to resend, emails recipient, and returns link URL", async () => {
+      const existing = {
+        ...createMockCase({ resentCount: 1 }),
+        analystName: "Test",
+        company: {
+          companyName: "Acme Ltd",
+          crisNumber: "CRIS-1001",
+          country: "GB",
+          riskRating: "Low",
+          incorporationDate: null,
+          legalStructure: null,
+          primaryIndustry: null,
+          recipientEmails: ["recipient@test.com"],
+        },
+        stepTimestamps: {},
+      };
       const updated = createMockCase({ status: "SENT", resentCount: 2 });
       vi.mocked(casesRepo.findById).mockResolvedValue(existing);
       vi.mocked(casesRepo.update).mockResolvedValue(updated);
@@ -240,55 +267,15 @@ describe("CasesService", () => {
           resentCount: 2,
         }),
       );
-      expect(result.rawToken).toBeTruthy();
+      expect(emailService.sendQuestionnaireLink).toHaveBeenCalledWith(
+        "recipient@test.com",
+        existing.subjectName,
+        expect.stringMatching(new RegExp(`^${env.frontendUrl}/q/`)),
+      );
+      expect(result.linkUrl).toMatch(new RegExp(`^${env.frontendUrl}/q/`));
       expect(auditService.log).toHaveBeenCalledWith(
         expect.objectContaining({ description: "Link resent" }),
       );
-    });
-  });
-
-  describe("researcherReview", () => {
-    it("rejects cases not ready for review", async () => {
-      vi.mocked(casesRepo.findById).mockResolvedValue(createMockCase({ status: "SENT" }));
-      await expect(
-        service.researcherReview("case", "Approved", undefined, requesterId),
-      ).rejects.toMatchObject({
-        statusCode: 400,
-        code: "INVALID_TRANSITION",
-      });
-    });
-
-    it("updates case and notifies analyst on approval", async () => {
-      const c = createMockCase({ status: "COMPLETED", analystId: requesterId });
-      const updated = { ...c, researcherStatus: "Approved" };
-      vi.mocked(casesRepo.findById).mockResolvedValue(c);
-      vi.mocked(casesRepo.update).mockResolvedValue(updated);
-
-      await service.researcherReview(c.caseId, "Approved", "All good", requesterId);
-
-      expect(casesRepo.update).toHaveBeenCalledWith(
-        c.caseId,
-        expect.objectContaining({
-          researcherStatus: "Approved",
-          researcherNotes: "All good",
-          apiPushStatus: "Pending",
-        }),
-      );
-      expect(notificationsService.notifyReviewApproved).toHaveBeenCalledWith(
-        c.caseId,
-        requesterId,
-        "All good",
-      );
-    });
-
-    it("does not notify analyst when decision is not Approved", async () => {
-      const c = createMockCase({ status: "COMPLETED", analystId: requesterId });
-      vi.mocked(casesRepo.findById).mockResolvedValue(c);
-      vi.mocked(casesRepo.update).mockResolvedValue(c);
-
-      await service.researcherReview(c.caseId, "Rejected", "Issues", requesterId);
-
-      expect(notificationsService.notifyReviewApproved).not.toHaveBeenCalled();
     });
   });
 

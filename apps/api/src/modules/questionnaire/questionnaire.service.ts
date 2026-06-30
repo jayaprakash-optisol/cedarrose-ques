@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { v4 as uuidv4 } from "uuid";
 import type { CasesRepository } from "../cases/cases.repository.js";
 import type { TemplatesRepository } from "../templates/templates.repository.js";
 import type { AuditService } from "../audit/audit.service.js";
@@ -7,7 +8,6 @@ import type { EmailService } from "../../lib/email-service.js";
 import type { QuestionnaireRepository } from "./questionnaire.repository.js";
 import { hashToken, generateOtp } from "../../shared/utils/crypto.js";
 import { env } from "../../config/env.js";
-import { QUESTIONNAIRE_TOKEN_EXPIRY } from "../../config/constants.js";
 import { WORKFLOW_STEP } from "../../config/workflow.js";
 import { AppError } from "../../shared/errors/AppError.js";
 
@@ -53,10 +53,23 @@ export class QuestionnaireService {
     return email;
   }
 
-  async verifyLink(rawToken: string) {
+  private async assertActiveLink(rawToken: string) {
     const tokenHash = hashToken(rawToken);
-    const c = await this.casesRepo.findByLinkHash(tokenHash);
+    const c = await this.casesRepo.findByLinkTokenHash(tokenHash);
     if (!c) throw new AppError(400, "VALIDATION_ERROR", "Invalid or expired link");
+
+    if (await this.casesRepo.isLinkExpired(c.caseId)) {
+      if (c.status !== "EXPIRED") {
+        await this.casesRepo.update(c.caseId, { status: "EXPIRED" });
+      }
+      throw new AppError(400, "VALIDATION_ERROR", "Invalid or expired link");
+    }
+
+    return c;
+  }
+
+  async verifyLink(rawToken: string) {
+    const c = await this.assertActiveLink(rawToken);
 
     if (!c.firstOpenedAt) {
       await this.casesRepo.update(c.caseId, { firstOpenedAt: new Date() });
@@ -82,9 +95,7 @@ export class QuestionnaireService {
   }
 
   async requestOtp(rawToken: string) {
-    const tokenHash = hashToken(rawToken);
-    const c = await this.casesRepo.findByLinkHash(tokenHash);
-    if (!c) throw new AppError(400, "VALIDATION_ERROR", "Invalid or expired link");
+    const c = await this.assertActiveLink(rawToken);
 
     const recipientEmail = await this.getPrimaryRecipientEmail(c.caseId);
     const otp = generateOtp(6);
@@ -102,9 +113,7 @@ export class QuestionnaireService {
   }
 
   async verifyOtp(rawToken: string, otp: string) {
-    const tokenHash = hashToken(rawToken);
-    const c = await this.casesRepo.findByLinkHash(tokenHash);
-    if (!c) throw new AppError(400, "VALIDATION_ERROR", "Invalid or expired link");
+    const c = await this.assertActiveLink(rawToken);
 
     const entry = await this.questionnaireRepo.getOtp(c.caseId);
     if (!entry || new Date() > entry.expiresAt) {
@@ -122,9 +131,18 @@ export class QuestionnaireService {
     await this.questionnaireRepo.clearOtp(c.caseId);
 
     const sessionToken = jwt.sign(
-      { sub: rawToken, caseId: c.caseId },
-      env.questionnaireJwtSecret,
-      { expiresIn: QUESTIONNAIRE_TOKEN_EXPIRY }
+      {
+        sub: rawToken,
+        caseId: c.caseId,
+        iss: env.jwtIssuer,
+        aud: env.jwtAudience,
+      },
+      env.jwtQuestionnairePrivateKey,
+      {
+        algorithm: env.jwtAlgorithm,
+        expiresIn: env.jwtQuestionnaireTokenExpiry,
+        jwtid: uuidv4(),
+      } as jwt.SignOptions
     );
 
     await this.auditService.log({
@@ -143,7 +161,9 @@ export class QuestionnaireService {
       throw new AppError(401, "UNAUTHORIZED", "Questionnaire session required");
     }
     const token = authHeader.split(" ")[1];
-    const decoded = jwt.verify(token, env.questionnaireJwtSecret) as { caseId: string; sub: string };
+    const decoded = jwt.verify(token, env.jwtQuestionnairePublicKey, {
+      algorithms: [env.jwtAlgorithm],
+    }) as { caseId: string; sub: string };
     const c = await this.casesRepo.findById(decoded.caseId);
     if (!c) throw new AppError(404, "CASE_NOT_FOUND", "Case not found");
     return c;
@@ -235,7 +255,9 @@ export class QuestionnaireService {
       dateSubmitted: new Date(),
       completionMandatory: mandatoryPct,
       completionOptional: optionalPct,
-      researcherStatus: "Awaiting Review",
+      researcherStatus: "Not Applicable",
+      apiPushStatus: "Pending",
+      currentStep: WORKFLOW_STEP.SUBMISSION_RECEIVED,
       lastActivity: new Date(),
     });
 
