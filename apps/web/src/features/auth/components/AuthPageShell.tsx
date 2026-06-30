@@ -57,3 +57,6 @@ export const authLabelClassName = "block text-[12px] font-medium text-[var(--col
 
 export const authButtonClassName =
   "w-full h-[46px] rounded-lg bg-[var(--color-cr-indigo)] text-white text-[15px] font-medium transition hover:bg-[var(--color-cr-indigo-hover)] active:scale-[0.98] disabled:opacity-90 disabled:cursor-not-allowed flex items-center justify-center";
+
+export const authLinkClassName =
+  "text-[var(--color-cr-indigo)] no-underline hover:underline";

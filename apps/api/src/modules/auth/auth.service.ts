@@ -78,16 +78,12 @@ export class AuthService {
 
   async generateResetToken(email: string) {
     const user = await this.authRepo.findByEmail(email);
-    if (!user) throw new AppError(404, "NOT_FOUND", "No account found with this email address");
-    if (user.status === "Pending") {
-      throw new AppError(403, "FORBIDDEN", "Your account is pending activation. Complete registration via invitation email.");
-    }
-    if (user.status === "Inactive") {
-      throw new AppError(403, "ACCOUNT_DISABLED", "Your account has been deactivated. Contact the administrator.");
-    }
+    if (!user) return;
+    if (user.status === "Pending" || user.status === "Inactive") return;
 
     const token = randomBytes(32).toString("hex");
     const expiresAt = addHours(new Date(), 1);
+    await this.authRepo.invalidateUnusedPasswordResetTokens(user.userId);
     await this.authRepo.insertPasswordResetToken({ userId: user.userId, token, expiresAt, used: false });
 
     try {
@@ -96,6 +92,13 @@ export class AuthService {
       await this.authRepo.deletePasswordResetToken(token);
       throw new AppError(500, "INTERNAL_SERVER_ERROR", "Error sending reset email");
     }
+  }
+
+  async verifyResetToken(token: string) {
+    const resetToken = await this.authRepo.findPasswordResetToken(token);
+    if (!resetToken) throw new AppError(400, "VALIDATION_ERROR", "Invalid or expired reset token");
+    if (resetToken.used) throw new AppError(400, "VALIDATION_ERROR", "This reset token has already been used");
+    if (new Date() > resetToken.expiresAt) throw new AppError(400, "VALIDATION_ERROR", "Reset token has expired");
   }
 
   async resetPassword(token: string, newPassword: string) {
@@ -112,6 +115,7 @@ export class AuthService {
 
     await this.authRepo.updatePassword(user.userId, await hashPassword(newPassword));
     await this.authRepo.markResetTokenUsed(token);
+    await this.authRepo.revokeAllUserRefreshTokens(user.userId);
   }
 
   async verifyInvitation(token: string) {

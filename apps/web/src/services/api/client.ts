@@ -117,6 +117,26 @@ export const apiAuthService = {
       body: JSON.stringify({ token, password }),
     });
   },
+
+  async forgotPassword(email: string): Promise<void> {
+    await apiClient<null>("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  },
+
+  async verifyResetToken(token: string): Promise<void> {
+    await apiClient<{ valid: boolean }>(
+      `/auth/verify-reset-token?token=${encodeURIComponent(token)}`,
+    );
+  },
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    await apiClient<null>("/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token, newPassword }),
+    });
+  },
 };
 
 export const apiCasesService = {

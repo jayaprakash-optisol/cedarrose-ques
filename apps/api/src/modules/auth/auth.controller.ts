@@ -121,6 +121,13 @@ export class AuthController {
     sendSuccess(res, data);
   };
 
+  verifyResetToken = async (req: Request, res: Response) => {
+    const token = req.query.token as string;
+    if (!token) return sendError(res, 400, "Token is required");
+    await this.authService.verifyResetToken(token);
+    sendSuccess(res, { valid: true });
+  };
+
   completeRegistration = async (req: Request, res: Response) => {
     const { token, password } = req.body as { token: string; password: string };
     await this.authService.completeRegistration(token, password);

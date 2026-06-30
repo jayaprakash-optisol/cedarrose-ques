@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useState, type FormEvent } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -11,6 +11,7 @@ import {
   authButtonClassName,
   authInputClassName,
   authLabelClassName,
+  authLinkClassName,
 } from "@/features/auth/components/AuthPageShell";
 
 export default function LoginPage() {
@@ -84,13 +85,9 @@ export default function LoginPage() {
         </div>
 
         <div className="mt-2 flex justify-end">
-          <a
-            href="#"
-            className="text-[12px] text-[var(--color-cr-indigo)] no-underline hover:underline"
-            onClick={(e) => e.preventDefault()}
-          >
+          <Link to="/forgot-password" className={`text-[12px] ${authLinkClassName}`}>
             Forgot password?
-          </a>
+          </Link>
         </div>
 
         <button type="submit" disabled={loading} className={`mt-6 ${authButtonClassName}`}>

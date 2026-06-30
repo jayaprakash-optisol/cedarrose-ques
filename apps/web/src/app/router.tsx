@@ -6,6 +6,8 @@ import { hasAppSelected } from "@/lib/app-selection";
 
 const LoginPage = lazy(() => import("@/features/auth/pages/LoginPage"));
 const CompleteRegistrationPage = lazy(() => import("@/features/auth/pages/CompleteRegistrationPage"));
+const ForgotPasswordPage = lazy(() => import("@/features/auth/pages/ForgotPasswordPage"));
+const ResetPasswordPage = lazy(() => import("@/features/auth/pages/ResetPasswordPage"));
 const QuestionnaireLandingPage = lazy(() => import("@/features/questionnaire/pages/QuestionnaireLandingPage"));
 const QuestionnaireOtpPage = lazy(() => import("@/features/questionnaire/pages/QuestionnaireOtpPage"));
 const QuestionnaireFormPage = lazy(() => import("@/features/questionnaire/pages/QuestionnaireFormPage"));
@@ -114,6 +116,22 @@ const router = createBrowserRouter([
     element: (
       <LazyPage>
         <CompleteRegistrationPage />
+      </LazyPage>
+    ),
+  },
+  {
+    path: "/forgot-password",
+    element: (
+      <LazyPage>
+        <ForgotPasswordPage />
+      </LazyPage>
+    ),
+  },
+  {
+    path: "/reset-password",
+    element: (
+      <LazyPage>
+        <ResetPasswordPage />
       </LazyPage>
     ),
   },

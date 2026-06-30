@@ -8,6 +8,9 @@ export interface AuthService {
   logout(): Promise<void>;
   verifyInvitation(token: string): Promise<InvitationInfo>;
   completeRegistration(token: string, password: string): Promise<void>;
+  forgotPassword(email: string): Promise<void>;
+  verifyResetToken(token: string): Promise<void>;
+  resetPassword(token: string, newPassword: string): Promise<void>;
 }
 
 export const mockAuthService: AuthService = {
@@ -33,6 +36,16 @@ export const mockAuthService: AuthService = {
     };
   },
   async completeRegistration() {
+    await delay(500);
+  },
+  async forgotPassword() {
+    await delay(400);
+  },
+  async verifyResetToken(token: string) {
+    await delay(200);
+    if (!token) throw new Error("Invalid or expired reset token");
+  },
+  async resetPassword() {
     await delay(500);
   },
 };

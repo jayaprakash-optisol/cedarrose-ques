@@ -116,6 +116,20 @@ export const authPaths: OpenAPIV3.PathsObject = {
       },
     },
   },
+  "/api/v1/auth/verify-reset-token": {
+    get: {
+      tags: ["Auth"],
+      summary: "Verify password reset token",
+      operationId: "authVerifyResetToken",
+      parameters: [
+        { name: "token", in: "query", required: true, schema: { type: "string" } },
+      ],
+      responses: {
+        "200": jsonSuccess("#/components/schemas/HealthResponse", "Token valid"),
+        "400": { $ref: "#/components/responses/ValidationError" },
+      },
+    },
+  },
   "/api/v1/auth/complete-registration": {
     post: {
       tags: ["Auth"],

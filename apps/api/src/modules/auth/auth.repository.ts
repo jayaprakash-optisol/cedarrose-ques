@@ -54,6 +54,13 @@ export class AuthRepository {
     await this.db.insert(passwordResetTokens).values(data);
   }
 
+  async invalidateUnusedPasswordResetTokens(userId: string) {
+    await this.db
+      .update(passwordResetTokens)
+      .set({ used: true })
+      .where(and(eq(passwordResetTokens.userId, userId), eq(passwordResetTokens.used, false)));
+  }
+
   async findPasswordResetToken(token: string) {
     const [row] = await this.db
       .select()

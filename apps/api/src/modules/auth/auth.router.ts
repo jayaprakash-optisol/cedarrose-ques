@@ -44,6 +44,7 @@ export function authRouter(controller: AuthController): Router {
     controller.resetPassword
   );
   router.get("/verify-invitation", authRegistrationLimit, controller.verifyInvitation);
+  router.get("/verify-reset-token", authPasswordResetLimit, controller.verifyResetToken);
   router.post(
     "/complete-registration",
     authRegistrationLimit,
