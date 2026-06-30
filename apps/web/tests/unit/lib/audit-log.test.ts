@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   groupAuditEventsByCase,
+  indexAuditEventsByCase,
   stepTimestampsFromEvents,
   resolveAuditCaseLabels,
 } from "@/lib/audit-log";
@@ -46,5 +47,45 @@ describe("audit-log utils", () => {
     });
     expect(labels.subject).toBe("Acme LLC");
     expect(labels.orderId).toBe("ORD-1");
+  });
+
+  it("assigns orphan key when caseId is missing in groupAuditEventsByCase", () => {
+    const orphan = event({ caseId: undefined, id: "orphan-1" });
+    const grouped = groupAuditEventsByCase([orphan]);
+    expect(grouped).toHaveLength(1);
+    expect(grouped[0].id).toBe("orphan-1");
+  });
+
+  it("indexes events by case including orphans", () => {
+    const e1 = event({ id: "a", caseId: "c1" });
+    const e2 = event({ id: "b", caseId: "c1" });
+    const orphan = event({ id: "c", caseId: undefined });
+    const map = indexAuditEventsByCase([e1, e2, orphan]);
+    expect(map.get("c1")).toHaveLength(2);
+    expect(map.get(`orphan:${orphan.id}`)).toHaveLength(1);
+  });
+
+  it("skips events with no step or non-Success status in stepTimestampsFromEvents", () => {
+    const map = stepTimestampsFromEvents([
+      event({ step: undefined, status: "Success" }),
+      event({ step: 3, status: "Failed" }),
+    ]);
+    expect(Object.keys(map)).toHaveLength(0);
+  });
+
+  it("falls back to event caseSubject when no case record provided", () => {
+    const labels = resolveAuditCaseLabels(event({ caseSubject: "Event Subject", caseOrderId: "ORD-X" }));
+    expect(labels.subject).toBe("Event Subject");
+    expect(labels.orderId).toBe("ORD-X");
+  });
+
+  it("falls back to caseRecord.subjectName when companyData has no name", () => {
+    const labels = resolveAuditCaseLabels(event({ caseSubject: "", caseOrderId: "" }), {
+      subjectName: "Fallback Name",
+      orderId: "ORD-F",
+      companyData: { companyName: "" } as never,
+    });
+    expect(labels.subject).toBe("Fallback Name");
+    expect(labels.orderId).toBe("ORD-F");
   });
 });

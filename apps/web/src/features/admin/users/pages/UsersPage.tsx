@@ -420,7 +420,7 @@ function UserModal({
   const [lastName, setLastName] = useState(initial.last);
   const [email, setEmail] = useState(editing?.email ?? "");
   const [userId] = useState(
-    editing?.id ?? `USR-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+    editing?.id ?? `USR-${crypto.randomUUID().slice(0, 4).toUpperCase()}`,
   );
   const [autoOn, setAutoOn] = useState(editingApps.includes("QA Automation Platform"));
   const [questOn, setQuestOn] = useState(

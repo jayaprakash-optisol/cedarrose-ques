@@ -14,4 +14,12 @@ describe("case-display", () => {
   it("falls back to cris uid fields", () => {
     expect(caseCrisUid({ uid: "", companyData: { registrationNumber: "CR-55" } as never })).toBe("CR-55");
   });
+
+  it("returns subjectName when companyData is absent", () => {
+    expect(caseCompanyName({ subjectName: "Plain Name", companyData: undefined as never })).toBe("Plain Name");
+  });
+
+  it("returns em-dash when uid and registrationNumber are both absent", () => {
+    expect(caseCrisUid({ uid: "", companyData: {} as never })).toBe("—");
+  });
 });

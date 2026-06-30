@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
-import { ChevronRight, Download, Search } from "lucide-react";
+import { Check, ChevronRight, Circle, Download, Loader2, Search } from "lucide-react";
 import type { AuditEvent, EventType } from "@/types/audit";
 import type { CaseRecord } from "@/types/case";
 import { auditService, casesService } from "@/services";
@@ -15,7 +15,6 @@ import { absTime } from "@/lib/format";
 import { groupAuditEventsByCase, indexAuditEventsByCase, resolveAuditCaseLabels } from "@/lib/audit-log";
 import { buildWorkflowProgress, normalizeWorkflowStep } from "@/lib/workflow-progress";
 import { toast } from "sonner";
-import { Check, Loader2, Circle } from "lucide-react";
 import { WORKFLOW_STEPS } from "@/config/workflow";
 import { StatusBadge } from "@/components/common/StatusBadge";
 

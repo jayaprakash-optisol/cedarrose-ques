@@ -11,6 +11,7 @@ const DISPATCHED_STATUSES = new Set([
   "COMPLETED — MISSING DATA",
   "EXPIRED",
 ]);
+const IN_FLIGHT_STATUSES = ["SENT", "OPENED", "IN PROGRESS"] as const;
 
 interface CaseTimingRow {
   caseId: string;
@@ -63,9 +64,6 @@ function average(values: number[]) {
 }
 
 function endTimestamp(row: CaseTimingRow, now: Date) {
-  if (row.status === "EXPIRED") {
-    return new Date(row.dateDispatched.getTime() + EXPIRED_CAP_DAYS * 24 * 60 * 60 * 1000);
-  }
   if (row.dateSubmitted) return row.dateSubmitted;
   return now;
 }
@@ -105,7 +103,7 @@ function displayStatus(status: string) {
   return map[status] ?? status;
 }
 
-function formatEndLabel(row: CaseTimingRow, now: Date) {
+function formatEndLabel(row: CaseTimingRow) {
   if (row.dateSubmitted) {
     return row.dateSubmitted.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
   }
@@ -113,13 +111,12 @@ function formatEndLabel(row: CaseTimingRow, now: Date) {
     const expiredAt = new Date(row.dateDispatched.getTime() + EXPIRED_CAP_DAYS * 24 * 60 * 60 * 1000);
     return expiredAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
   }
-  if (["SENT", "OPENED", "IN PROGRESS"].includes(row.status)) return "In progress";
-  return now.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  return "In progress";
 }
 
 function barState(days: number, status: string, overallAvg: number): CompletionStatsCompanyBar["state"] {
   if (status === "EXPIRED") return "expired";
-  if (["SENT", "OPENED", "IN PROGRESS"].includes(status)) return "over-progress";
+  if (IN_FLIGHT_STATUSES.includes(status)) return "over-progress";
   return days <= overallAvg ? "under" : "over-progress";
 }
 
@@ -160,7 +157,7 @@ function buildCompanyBars(rows: CaseTimingRow[], now: Date, overallAvg: number):
         month: "short",
         year: "numeric",
       }),
-      endAt: formatEndLabel(dominant, now),
+      endAt: formatEndLabel(dominant),
       caseCount: group.rows.length,
     });
   }

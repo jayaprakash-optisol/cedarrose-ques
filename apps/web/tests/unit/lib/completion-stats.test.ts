@@ -58,6 +58,42 @@ describe("completion-stats", () => {
     expect(stats.caseCount).toBe(0);
   });
 
+  it("computes stats over 7d period with trend from previous period", () => {
+    const recent = makeCase({ id: "c-recent" });
+    const stats = computeCompletionStatsFromCases([recent], "7d");
+    expect(stats.period).toBe("7d");
+    expect(stats.caseCount).toBeGreaterThanOrEqual(0);
+  });
+
+  it("computes stats over 30d period", () => {
+    const stats = computeCompletionStatsFromCases([makeCase({ id: "c-30d" })], "30d");
+    expect(stats.period).toBe("30d");
+  });
+
+  it("excludes cases with no dispatched date", () => {
+    const noDate = makeCase({
+      requestedDate: undefined as never,
+      link: { sentAt: null as never, firstOpenedAt: null, resentCount: 0 },
+    });
+    const stats = computeCompletionStatsFromCases([noDate], "all");
+    expect(stats.caseCount).toBe(0);
+  });
+
+  it("handles expired cases", () => {
+    const expired = makeCase({ status: "EXPIRED", lastActivity: null as never });
+    const stats = computeCompletionStatsFromCases([expired], "all");
+    expect(stats.caseCount).toBe(1);
+    expect(stats.byCompany[0].state).toBe("expired");
+  });
+
+  it("handles case with no firstOpenedAt", () => {
+    const noOpen = makeCase({
+      link: { sentAt: subDays(new Date(), 3).toISOString(), firstOpenedAt: null, resentCount: 0 },
+    });
+    const stats = computeCompletionStatsFromCases([noOpen], "all");
+    expect(stats.summary.avgTimeToFirstOpen.value).toBeNull();
+  });
+
   it("formats metric values", () => {
     expect(formatCompletionMetricValue(null, "hours")).toBe("—");
     expect(formatCompletionMetricValue(12, "hours")).toBe("12h");

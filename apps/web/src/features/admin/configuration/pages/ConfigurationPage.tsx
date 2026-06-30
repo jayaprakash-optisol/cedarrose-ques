@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { AlertCircle, AlertTriangle, ArrowUpCircle, Clock, Lock, MailWarning, Minus, Plus, XCircle } from "lucide-react";
+import { AlertTriangle, Minus, Plus } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

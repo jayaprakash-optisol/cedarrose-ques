@@ -83,14 +83,12 @@ describe("mock services", () => {
 
   it("questionnaire mock completes OTP and form lifecycle", async () => {
     const token = "lifecycle-token";
-    const logSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.5);
     await mockQuestionnaireService.requestOtp(token);
-    const otpLine = logSpy.mock.calls.find((call) => String(call[0]).includes("mock OTP"));
-    const otp = otpLine ? String(otpLine[0]).match(/Code:\s*(\d+)/)?.[1] : null;
-    logSpy.mockRestore();
-    expect(otp).toBeTruthy();
+    randomSpy.mockRestore();
+    const otp = "550000";
 
-    const session = await mockQuestionnaireService.verifyOtp(token, otp!);
+    const session = await mockQuestionnaireService.verifyOtp(token, otp);
     expect(session.sessionToken).toBeTruthy();
 
     const form = await mockQuestionnaireService.getForm(token, session.sessionToken);

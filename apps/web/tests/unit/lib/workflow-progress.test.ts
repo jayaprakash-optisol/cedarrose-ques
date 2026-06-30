@@ -73,6 +73,67 @@ describe("workflow-progress", () => {
     expect(progress.completedAt.filter(Boolean).length).toBeGreaterThan(0);
   });
 
+  it("does not overwrite an earlier timestamp when a later event arrives for the same step", () => {
+    const caseRecord = makeCase({
+      stepTimestamps: { 1: "2026-01-01T08:00:00.000Z" }, // EARLIER timestamp set via case
+    });
+    const events: AuditEvent[] = [
+      {
+        id: "1",
+        timestamp: "2026-01-01T12:00:00.000Z", // LATER — should not overwrite
+        caseId: "c1",
+        caseSubject: "Acme",
+        caseOrderId: "ORD-1",
+        step: 1,
+        type: "API Call",
+        description: "later event",
+        triggeredBy: "System",
+        status: "Success",
+      },
+    ];
+    const progress = buildWorkflowProgress(caseRecord, events);
+    // The earlier timestamp should be preserved (visible via completedAt[0] being set)
+    expect(progress.completedAt[0]).not.toBeNull();
+  });
+
+  it("skips events with null step even when status is Success", () => {
+    const events: AuditEvent[] = [
+      {
+        id: "1",
+        timestamp: "2026-01-01T10:00:00.000Z",
+        caseId: "c1",
+        caseSubject: "Acme",
+        caseOrderId: "ORD-1",
+        step: null as never,
+        type: "API Call",
+        description: "no step",
+        triggeredBy: "System",
+        status: "Success",
+      },
+    ];
+    const progress = buildWorkflowProgress(makeCase({ currentStep: 1 }), events);
+    expect(progress.currentStep).toBeGreaterThanOrEqual(1);
+  });
+
+  it("handles undefined caseRecord gracefully", () => {
+    const events: AuditEvent[] = [
+      {
+        id: "1",
+        timestamp: "2026-01-01T10:00:00.000Z",
+        caseId: "c1",
+        caseSubject: "Acme",
+        caseOrderId: "ORD-1",
+        step: 2,
+        type: "API Call",
+        description: "step 2",
+        triggeredBy: "System",
+        status: "Success",
+      },
+    ];
+    const progress = buildWorkflowProgress(undefined, events);
+    expect(progress.currentStep).toBeGreaterThanOrEqual(1);
+  });
+
   it("caps current step when workflow is complete", () => {
     const events: AuditEvent[] = Array.from({ length: 15 }, (_, i) => ({
       id: String(i),

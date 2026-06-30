@@ -536,6 +536,36 @@ describe("apiNotificationsService", () => {
     expect(saved[0]?.read).toBe(true);
   });
 
+  it("calls markAllRead when all notifications are unread", async () => {
+    mocks.fetch
+      .mockResolvedValueOnce(jsonResponse({ success: true, data: null })) // markAllRead
+      .mockResolvedValueOnce(
+        jsonResponse({
+          success: true,
+          data: [
+            {
+              notificationId: "n-1",
+              userId: "u-1",
+              type: "CASE_UPDATE",
+              title: "Unread",
+              body: "Body",
+              read: false,
+              createdAt: "2026-01-01T00:00:00.000Z",
+            },
+          ],
+        }),
+      ); // list
+
+    await apiNotificationsService.save([
+      { id: "n-1", type: "submission", title: "Unread", body: "B", time: "1h", read: false },
+    ]);
+
+    expect(mocks.fetch).toHaveBeenCalledWith(
+      "/api/v1/notifications/read-all",
+      expect.objectContaining({ method: "PATCH" }),
+    );
+  });
+
   it("marks only unread notifications when saving mixed read state", async () => {
     mocks.fetch
       .mockResolvedValueOnce(jsonResponse({ success: true, data: null }))

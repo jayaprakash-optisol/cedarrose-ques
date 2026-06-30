@@ -184,6 +184,11 @@ export const apiCompaniesService = {
   },
 };
 
+function buildUserPayload(user: User) {
+  const { firstName, lastName } = splitName(user.name);
+  return { firstName, lastName, email: user.email, role: toApiRole(user.role) };
+}
+
 export const apiUsersService = {
   async list(): Promise<User[]> {
     const rows = await fetchPaginated<ApiUser>("/admin/users");
@@ -203,15 +208,9 @@ export const apiUsersService = {
 
     for (const user of users) {
       if (isLocalUserId(user.id) || !currentById.has(user.id)) {
-        const { firstName, lastName } = splitName(user.name);
         await apiClient<ApiUser>("/admin/users/invite", {
           method: "POST",
-          body: JSON.stringify({
-            firstName,
-            lastName,
-            email: user.email,
-            role: toApiRole(user.role),
-          }),
+          body: JSON.stringify(buildUserPayload(user)),
         });
         continue;
       }
@@ -223,14 +222,10 @@ export const apiUsersService = {
         prev.role !== user.role ||
         prev.status !== user.status
       ) {
-        const { firstName, lastName } = splitName(user.name);
         await apiClient<ApiUser>(`/admin/users/${user.id}`, {
           method: "PATCH",
           body: JSON.stringify({
-            firstName,
-            lastName,
-            email: user.email,
-            role: toApiRole(user.role),
+            ...buildUserPayload(user),
             status: user.status === "Pending" ? "Pending" : user.status,
           }),
         });

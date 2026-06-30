@@ -82,8 +82,6 @@ export const mockQuestionnaireService: QuestionnaireService = {
     await delay(600);
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     sessionStore.set(token, { caseId: "c-001", otp, email: "supplier@acmetrading.ae" });
-    // Log OTP to console for development use
-    console.info(`[mock OTP] Token: ${token} | Email: supplier@acmetrading.ae | Code: ${otp}`);
   },
 
   async verifyOtp(token, otp) {
