@@ -12,6 +12,7 @@ const QuestionnaireLandingPage = lazy(() => import("@/features/questionnaire/pag
 const QuestionnaireOtpPage = lazy(() => import("@/features/questionnaire/pages/QuestionnaireOtpPage"));
 const QuestionnaireFormPage = lazy(() => import("@/features/questionnaire/pages/QuestionnaireFormPage"));
 const QuestionnaireExpiredPage = lazy(() => import("@/features/questionnaire/pages/QuestionnaireExpiredPage"));
+const QuestionnaireSessionExpiredPage = lazy(() => import("@/features/questionnaire/pages/QuestionnaireSessionExpiredPage"));
 const SelectAppPage = lazy(() => import("@/features/auth/pages/SelectAppPage"));
 const DashboardPage = lazy(() => import("@/features/dashboard/pages/DashboardPage"));
 const CasesPage = lazy(() => import("@/features/cases/pages/CasesPage"));
@@ -102,6 +103,10 @@ const router = createBrowserRouter([
   {
     path: "/q/:token/expired",
     element: <LazyPage><QuestionnaireExpiredPage /></LazyPage>,
+  },
+  {
+    path: "/q/:token/session-expired",
+    element: <LazyPage><QuestionnaireSessionExpiredPage /></LazyPage>,
   },
   {
     path: "/login",

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type DragEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -80,6 +80,14 @@ const FIELD_TYPES: { value: FieldType; label: string }[] = [
   { value: "url", label: "URL" },
   { value: "support_doc", label: "Document upload" },
 ];
+
+function reorderList<T>(items: T[], fromIndex: number, toIndex: number): T[] {
+  if (fromIndex === toIndex) return items;
+  const next = [...items];
+  const [moved] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, moved);
+  return next;
+}
 
 export default function FormBuilderPage() {
   const queryClient = useQueryClient();
@@ -555,6 +563,8 @@ function SectionCard({
   const [renameOpen, setRenameOpen] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
   const [renameVal, setRenameVal] = useState(section.title);
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const update = (patch: Partial<Section>) => onChange({ ...section, ...patch });
 
   const updateQuestion = (id: string, patch: Partial<Question>) => {
@@ -573,6 +583,13 @@ function SectionCard({
         { id, text: "", type: "text", required: false, prefill: false },
       ],
     });
+  };
+  const reorderQuestions = (fromIndex: number, toIndex: number) => {
+    update({ questions: reorderList(section.questions, fromIndex, toIndex) });
+  };
+  const clearDragState = () => {
+    setDraggingIndex(null);
+    setDragOverIndex(null);
   };
 
   return (
@@ -621,11 +638,22 @@ function SectionCard({
           {section.description && (
             <p className="text-xs text-muted-foreground">{section.description}</p>
           )}
-          {section.questions.map((q) => (
+          {section.questions.map((q, index) => (
             <QuestionCard
               key={q.id}
+              index={index}
               question={q}
               allQuestions={section.questions}
+              isDragging={draggingIndex === index}
+              isDragOver={dragOverIndex === index && draggingIndex !== index}
+              onDragStart={() => setDraggingIndex(index)}
+              onDragEnd={clearDragState}
+              onDragOverCard={() => setDragOverIndex(index)}
+              onDragLeaveCard={() => setDragOverIndex((current) => (current === index ? null : current))}
+              onDrop={(fromIndex) => {
+                reorderQuestions(fromIndex, index);
+                clearDragState();
+              }}
               onChange={(patch) => updateQuestion(q.id, patch)}
               onDelete={() => deleteQuestion(q.id)}
             />
@@ -667,13 +695,29 @@ function SectionCard({
 }
 
 function QuestionCard({
+  index,
   question,
   allQuestions,
+  isDragging,
+  isDragOver,
+  onDragStart,
+  onDragEnd,
+  onDragOverCard,
+  onDragLeaveCard,
+  onDrop,
   onChange,
   onDelete,
 }: {
+  index: number;
   question: Question;
   allQuestions: Question[];
+  isDragging?: boolean;
+  isDragOver?: boolean;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  onDragOverCard: () => void;
+  onDragLeaveCard: () => void;
+  onDrop: (fromIndex: number) => void;
   onChange: (patch: Partial<Question>) => void;
   onDelete: () => void;
 }) {
@@ -690,10 +734,44 @@ function QuestionCard({
     onChange({ columns: cols });
   };
 
+  const handleDragStart = (e: DragEvent<HTMLButtonElement>) => {
+    e.dataTransfer.setData("text/plain", String(index));
+    e.dataTransfer.effectAllowed = "move";
+    onDragStart();
+  };
+  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    onDragOverCard();
+  };
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const fromIndex = Number(e.dataTransfer.getData("text/plain"));
+    if (!Number.isNaN(fromIndex)) {
+      onDrop(fromIndex);
+    }
+  };
+
   return (
-    <div className="rounded-md border p-3 space-y-3 bg-background border-border">
+    <div
+      className={`rounded-md border p-3 space-y-3 bg-background transition-colors ${
+        isDragOver ? "border-navy border-dashed bg-navy-soft/30" : "border-border"
+      } ${isDragging ? "opacity-50" : ""}`}
+      onDragOver={handleDragOver}
+      onDragLeave={onDragLeaveCard}
+      onDrop={handleDrop}
+    >
       <div className="flex items-start gap-2">
-        <GripVertical className="h-4 w-4 text-muted-foreground mt-2.5 shrink-0 cursor-grab" />
+        <button
+          type="button"
+          draggable
+          onDragStart={handleDragStart}
+          onDragEnd={onDragEnd}
+          className="mt-2 shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing touch-none"
+          aria-label="Drag to reorder question"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
         <div className="flex-1 space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
             {question.required ? (

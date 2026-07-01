@@ -156,14 +156,32 @@ export class QuestionnaireService {
     return { sessionToken, caseId: c.caseId };
   }
 
-  private async getCaseFromSession(authHeader?: string) {
+  private verifySessionToken(authHeader?: string) {
     if (!authHeader?.startsWith("Bearer ")) {
       throw new AppError(401, "UNAUTHORIZED", "Questionnaire session required");
     }
     const token = authHeader.split(" ")[1];
-    const decoded = jwt.verify(token, env.jwtQuestionnairePublicKey, {
-      algorithms: [env.jwtAlgorithm],
-    }) as { caseId: string; sub: string };
+    try {
+      return jwt.verify(token, env.jwtQuestionnairePublicKey, {
+        algorithms: [env.jwtAlgorithm],
+      }) as { caseId: string; sub: string };
+    } catch (err) {
+      if (err instanceof jwt.TokenExpiredError) {
+        throw new AppError(
+          401,
+          "SESSION_EXPIRED",
+          "Your session has expired. Please open the questionnaire link from your email again.",
+        );
+      }
+      if (err instanceof jwt.JsonWebTokenError) {
+        throw new AppError(401, "UNAUTHORIZED", "Invalid questionnaire session");
+      }
+      throw err;
+    }
+  }
+
+  private async getCaseFromSession(authHeader?: string) {
+    const decoded = this.verifySessionToken(authHeader);
     const c = await this.casesRepo.findById(decoded.caseId);
     if (!c) throw new AppError(404, "CASE_NOT_FOUND", "Case not found");
     return c;

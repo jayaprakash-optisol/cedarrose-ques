@@ -216,6 +216,21 @@ describe("QuestionnaireService", () => {
       });
     });
 
+    it("returns SESSION_EXPIRED when jwt has expired", async () => {
+      const c = caseWithRecipient();
+      const token = jwt.sign(
+        { sub: rawToken, caseId: c.caseId },
+        env.jwtQuestionnairePrivateKey,
+        { algorithm: env.jwtAlgorithm, expiresIn: -1 },
+      );
+
+      await expect(service.getForm(`Bearer ${token}`)).rejects.toMatchObject({
+        statusCode: 401,
+        code: "SESSION_EXPIRED",
+        message: "Your session has expired. Please open the questionnaire link from your email again.",
+      });
+    });
+
     it("throws when case has no template", async () => {
       const c = caseWithRecipient({ templateId: null });
       const token = jwt.sign({ sub: rawToken, caseId: c.caseId }, env.jwtQuestionnairePrivateKey, { algorithm: env.jwtAlgorithm });

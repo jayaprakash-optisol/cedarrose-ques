@@ -4,6 +4,11 @@ import { ArrowLeft, ArrowRight, Info, X, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 import { questionnaireService } from "@/services";
 import type { FormResponse, QSessionState, QuestionnaireFormData } from "@/types/questionnaire";
+import {
+  clearQuestionnaireSessionToken,
+  isSessionExpiredError,
+  questionnaireSessionKey,
+} from "@/lib/questionnaire-session";
 import type { Section } from "@/types/template";
 import { QuestionnaireShell } from "../components/QuestionnaireShell";
 import { SectionNavigator } from "../components/SectionNavigator";
@@ -11,7 +16,7 @@ import { QuestionField } from "../components/QuestionField";
 import { SaveIndicator } from "../components/SaveIndicator";
 import { Button } from "@/components/ui/button";
 
-const SESSION_KEY = (t: string) => `q_session_${t}`;
+const SESSION_KEY = questionnaireSessionKey;
 
 // ---------------------------------------------------------------------------
 // Debounce helper
@@ -82,6 +87,23 @@ export default function QuestionnaireFormPage() {
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [showRestoredBanner, setShowRestoredBanner] = useState(false);
 
+  const redirectToSessionExpired = useCallback(() => {
+    if (!token) return;
+    clearQuestionnaireSessionToken(token);
+    navigate(`/q/${token}/session-expired`, { replace: true });
+  }, [token, navigate]);
+
+  const handleQuestionnaireError = useCallback(
+    (err: unknown) => {
+      if (isSessionExpiredError(err)) {
+        redirectToSessionExpired();
+        return true;
+      }
+      return false;
+    },
+    [redirectToSessionExpired],
+  );
+
   // Load session
   useEffect(() => {
     if (!token) return;
@@ -115,11 +137,12 @@ export default function QuestionnaireFormPage() {
           setShowRestoredBanner(true);
         }
       })
-      .catch(() => {
+      .catch((err) => {
+        if (handleQuestionnaireError(err)) return;
         toast.error("Failed to load the form. Please refresh the page.");
       })
       .finally(() => setLoading(false));
-  }, [token, session]);
+  }, [token, session, handleQuestionnaireError]);
 
   // Persist save
   const persistSave = useCallback(
@@ -135,13 +158,15 @@ export default function QuestionnaireFormPage() {
         const updated: QSessionState = { ...session, savedAt: now.toISOString() };
         sessionStorage.setItem(SESSION_KEY(token), JSON.stringify(updated));
         setSession(updated);
-      } catch {
-        // Silent fail — don't disrupt user
+      } catch (err) {
+        if (!handleQuestionnaireError(err)) {
+          // Silent fail — don't disrupt user
+        }
       } finally {
         setIsSaving(false);
       }
     },
-    [token, session, formData]
+    [token, session, formData, handleQuestionnaireError]
   );
 
   const debouncedSave = useDebouncedCallback(persistSave, 2000);
@@ -164,8 +189,10 @@ export default function QuestionnaireFormPage() {
       await questionnaireService.submit(token, session.sessionToken);
       setSubmitted(true);
       sessionStorage.removeItem(SESSION_KEY(token));
-    } catch {
-      toast.error("Submission failed. Please try again.");
+    } catch (err) {
+      if (!handleQuestionnaireError(err)) {
+        toast.error("Submission failed. Please try again.");
+      }
     } finally {
       setSubmitting(false);
     }

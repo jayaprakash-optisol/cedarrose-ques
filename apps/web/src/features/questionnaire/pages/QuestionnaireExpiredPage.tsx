@@ -3,7 +3,7 @@ import { QuestionnaireShell } from "../components/QuestionnaireShell";
 
 export default function QuestionnaireExpiredPage() {
   return (
-    <QuestionnaireShell>
+    <QuestionnaireShell title="Credit Information Request Questionnaire">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-lg px-8 py-12 text-center">
         {/* Icon */}
         <div className="flex justify-center mb-6">
@@ -16,25 +16,22 @@ export default function QuestionnaireExpiredPage() {
         </div>
 
         <h2 className="text-xl font-bold mb-3" style={{ color: "#1E2561" }}>
-          This link has expired
+          This link is no longer valid
         </h2>
-        <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
-          The secure link you followed is no longer valid. Links expire after the validity period
-          set by your requester.
-        </p>
-        <p className="text-sm text-muted-foreground">
-          If you believe this is an error, please contact the sender and request a new link.
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          The page you opened is not active. Please open the secure questionnaire link directly
+          from the email Cedar Rose sent you.
         </p>
 
         <div
           className="mt-8 rounded-lg px-4 py-3 text-xs text-left"
           style={{ backgroundColor: "#FFF7ED", color: "#92400E" }}
         >
-          <strong>Why did this happen?</strong>
-          <ul className="mt-1 list-disc list-inside space-y-1 text-xs">
-            <li>The link may have been open for longer than the allowed time.</li>
-            <li>Each link can only be used once after OTP verification.</li>
-            <li>Links are invalidated if a new one is issued for the same case.</li>
+          <p className="font-semibold mb-2">What to do next</p>
+          <ul className="list-disc pl-5 space-y-1.5 leading-snug">
+            <li>Return to your inbox and find the questionnaire email from Cedar Rose.</li>
+            <li>Click the secure link in that message. Do not use an old bookmark or copied URL.</li>
+            <li>Complete verification with the one-time code sent to your email.</li>
           </ul>
         </div>
       </div>
