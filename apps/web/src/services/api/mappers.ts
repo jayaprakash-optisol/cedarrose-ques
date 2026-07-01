@@ -106,6 +106,7 @@ export interface ApiAuditEvent {
   status: AuditEvent["status"];
   payload?: Record<string, unknown> | null;
   createdAt: string;
+  caseStatus?: string | null;
 }
 
 export interface ApiNotification {
@@ -364,6 +365,7 @@ export function mapAuditEvent(e: ApiAuditEvent): AuditEvent {
     description: e.description,
     triggeredBy: e.triggeredBy ?? "System",
     status: e.status,
+    caseStatus: e.caseStatus ?? undefined,
     payload: e.payload ?? undefined,
   };
 }

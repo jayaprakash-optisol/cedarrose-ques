@@ -1,4 +1,4 @@
-import { eq, and, or, ilike, count, lt, inArray, sql, desc } from "drizzle-orm";
+import { eq, and, or, ilike, count, lt, inArray, sql, desc, gte, lte } from "drizzle-orm";
 import { addHours } from "date-fns";
 import type { DrizzleDB } from "../../config/database.js";
 import { cases } from "../../db/schema/cases.js";
@@ -16,9 +16,13 @@ export interface CaseFilters {
   country?: string;
   analystId?: string;
   search?: string;
+  from?: Date;
+  to?: Date;
   offset: number;
   limit: number;
 }
+
+const EXPORT_BATCH_SIZE = 500;
 
 type CaseRow = typeof cases.$inferSelect;
 type CompanyRow = typeof companies.$inferSelect;
@@ -145,21 +149,29 @@ export class CasesRepository {
     );
   }
 
-  async findAll(filters: CaseFilters) {
+  private buildCaseConditions(filters: Omit<CaseFilters, "offset" | "limit">) {
     const conditions = [];
     if (filters.status) conditions.push(eq(cases.status, filters.status));
     if (filters.recipientType) conditions.push(eq(cases.recipientType, filters.recipientType));
     if (filters.country) conditions.push(eq(cases.country, filters.country));
     if (filters.analystId) conditions.push(eq(cases.analystId, filters.analystId));
+    if (filters.from) conditions.push(gte(cases.dateReceived, filters.from));
+    if (filters.to) conditions.push(lte(cases.dateReceived, filters.to));
     if (filters.search) {
+      const term = `%${filters.search}%`;
       conditions.push(
         or(
-          ilike(cases.subjectName, `%${filters.search}%`),
-          ilike(cases.orderId, `%${filters.search}%`)
+          ilike(cases.subjectName, term),
+          ilike(cases.orderId, term),
+          ilike(companies.crisNumber, term)
         )!
       );
     }
+    return conditions;
+  }
 
+  async findAll(filters: CaseFilters) {
+    const conditions = this.buildCaseConditions(filters);
     const where = conditions.length ? and(...conditions) : undefined;
 
     const priorityCases = Object.entries(STATUS_PRIORITY)
@@ -282,6 +294,19 @@ export class CasesRepository {
     const c = await this.findById(caseId);
     if (!c) return;
     await this.update(caseId, { remindersSent: (c.remindersSent ?? 0) + 1 });
+  }
+
+  async *exportBatches(
+    filters: Omit<CaseFilters, "offset" | "limit">
+  ): AsyncGenerator<CaseWithAnalyst[]> {
+    let offset = 0;
+    while (true) {
+      const { data } = await this.findAll({ ...filters, offset, limit: EXPORT_BATCH_SIZE });
+      if (!data.length) break;
+      yield data;
+      if (data.length < EXPORT_BATCH_SIZE) break;
+      offset += EXPORT_BATCH_SIZE;
+    }
   }
 }
 

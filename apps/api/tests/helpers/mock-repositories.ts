@@ -49,7 +49,8 @@ export function createMockAuditRepository() {
   return {
     insert: vi.fn(),
     findAll: vi.fn(),
-    exportAll: vi.fn(),
+    findGroupedByCase: vi.fn(),
+    exportBatches: vi.fn(),
   };
 }
 

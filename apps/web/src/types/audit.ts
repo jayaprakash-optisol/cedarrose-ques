@@ -19,5 +19,17 @@ export interface AuditEvent {
   description: string;
   triggeredBy: string;
   status: EventStatus;
+  caseStatus?: string;
   payload?: Record<string, unknown>;
+}
+
+export interface AuditListParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  caseId?: string;
+  type?: string;
+  from?: string;
+  to?: string;
+  grouped?: boolean;
 }

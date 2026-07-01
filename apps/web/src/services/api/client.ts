@@ -10,6 +10,11 @@ import type { InvitationInfo, NotificationPreferences } from "@/types/user";
 import type { SaveSettingsInput, SettingsService } from "../mock/settings.mock";
 import type { RecipientType } from "@/types/case";
 import { env } from "@/config/env";
+import { apiListWithMeta, downloadApiCsv } from "./listing";
+import { DEFAULT_PAGE_SIZE } from "@/types/pagination";
+import type { PaginatedResult } from "@/types/pagination";
+import type { AuditListParams } from "@/types/audit";
+import type { CaseListParams } from "@/types/case";
 import { ApiError, type ApiEnvelope } from "./errors";
 import {
   mapAuditEvent,
@@ -71,8 +76,34 @@ export async function apiClient<T>(path: string, init?: RequestInit): Promise<T>
 }
 
 async function fetchPaginated<T>(path: string, limit = 100): Promise<T[]> {
-  const first = await apiClient<T[]>(`${path}${path.includes("?") ? "&" : "?"}page=1&limit=${limit}`);
-  return first ?? [];
+  const { data } = await apiListWithMeta<T>(path, { page: 1, limit });
+  return data;
+}
+
+function toCaseListQuery(params: CaseListParams = {}) {
+  return {
+    page: params.page ?? 1,
+    limit: params.limit ?? DEFAULT_PAGE_SIZE,
+    search: params.search,
+    status: params.status && params.status !== "All" ? params.status : undefined,
+    recipientType:
+      params.recipientType && params.recipientType !== "All" ? params.recipientType : undefined,
+    from: params.from,
+    to: params.to,
+  };
+}
+
+function toAuditListQuery(params: AuditListParams = {}) {
+  return {
+    page: params.page ?? 1,
+    limit: params.limit ?? DEFAULT_PAGE_SIZE,
+    search: params.search,
+    caseId: params.caseId,
+    type: params.type && params.type !== "All" ? params.type : undefined,
+    from: params.from,
+    to: params.to,
+    grouped: params.grouped === false ? "false" : undefined,
+  };
 }
 
 export interface CreateCaseInput {
@@ -174,9 +205,13 @@ export const apiSettingsService: SettingsService = {
 };
 
 export const apiCasesService = {
-  async list(): Promise<CaseRecord[]> {
-    const rows = await fetchPaginated<ApiCase>("/cases");
-    return rows.map((c) => mapCase(c));
+  async list(params: CaseListParams = {}): Promise<PaginatedResult<CaseRecord>> {
+    const result = await apiListWithMeta<ApiCase>("/cases", toCaseListQuery(params));
+    return { ...result, data: result.data.map((c) => mapCase(c)) };
+  },
+
+  async exportCsv(params: Omit<CaseListParams, "page" | "limit"> = {}): Promise<void> {
+    await downloadApiCsv("/cases/export", toCaseListQuery(params), "cedarrose-cases.csv");
   },
 
   async getById(id: string): Promise<CaseRecord | undefined> {
@@ -204,11 +239,13 @@ export const apiCasesService = {
 };
 
 export const apiAuditService = {
-  async list(params?: { caseId?: string }): Promise<AuditEvent[]> {
-    const qs = new URLSearchParams({ page: "1", limit: "500" });
-    if (params?.caseId) qs.set("caseId", params.caseId);
-    const rows = await apiClient<ApiAuditEvent[]>(`/audit-log?${qs}`);
-    return rows.map(mapAuditEvent);
+  async list(params: AuditListParams = {}): Promise<PaginatedResult<AuditEvent>> {
+    const result = await apiListWithMeta<ApiAuditEvent>("/audit-log", toAuditListQuery(params));
+    return { ...result, data: result.data.map(mapAuditEvent) };
+  },
+
+  async exportCsv(params: Omit<AuditListParams, "page" | "limit" | "grouped"> = {}): Promise<void> {
+    await downloadApiCsv("/audit-log/export", toAuditListQuery(params), "cedarrose-audit-log.csv");
   },
 };
 

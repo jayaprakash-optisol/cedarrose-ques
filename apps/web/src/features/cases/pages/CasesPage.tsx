@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Download, Search } from "lucide-react";
@@ -7,62 +7,80 @@ import { casesService } from "@/services";
 import { AppShell } from "@/components/layout/AppShell";
 import { CaseTable } from "@/features/cases/components/CaseTable";
 import { CaseDetailPanel } from "@/features/cases/components/CaseDetailPanel";
+import { ListPagination } from "@/components/common/ListPagination";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateField } from "@/components/ui/date-field";
-import { caseCompanyName } from "@/lib/case-display";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { DEFAULT_PAGE_SIZE } from "@/types/pagination";
 import { toast } from "sonner";
 
 
 export default function AllCasesPage() {
   const [searchParams] = useSearchParams();
   const caseIdParam = searchParams.get("caseId");
-  const { data: mockCases = [] } = useQuery<CaseRecord[]>({
-    queryKey: ["cases"],
-    queryFn: () => casesService.list(),
-  });
 
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<CaseStatus | "All">("All");
   const [type, setType] = useState<RecipientType | "All">("All");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
   const [selected, setSelected] = useState<CaseRecord | null>(null);
+  const [exporting, setExporting] = useState(false);
+
+  const debouncedSearch = useDebouncedValue(q);
 
   useEffect(() => {
-    if (!caseIdParam || !mockCases.length) return;
-    const found = mockCases.find((c) => c.id === caseIdParam);
+    setPage(1);
+  }, [debouncedSearch, status, type, from, to]);
+
+  const listParams = useMemo(
+    () => ({
+      page,
+      limit,
+      search: debouncedSearch || undefined,
+      status,
+      recipientType: type,
+      from: from || undefined,
+      to: to || undefined,
+    }),
+    [page, limit, debouncedSearch, status, type, from, to],
+  );
+
+  const { data: result, isFetching } = useQuery({
+    queryKey: ["cases", listParams],
+    queryFn: () => casesService.list(listParams),
+    placeholderData: (prev) => prev,
+  });
+
+  const cases = result?.data ?? [];
+  const meta = result?.meta ?? { page, limit, total: 0 };
+
+  useEffect(() => {
+    if (!caseIdParam || !cases.length) return;
+    const found = cases.find((c) => c.id === caseIdParam);
     if (found) setSelected(found);
-  }, [caseIdParam, mockCases]);
+  }, [caseIdParam, cases]);
 
-  const filtered = useMemo(() => {
-    return mockCases.filter((c) => {
-      if (q) {
-        const needle = q.toLowerCase();
-        if (![caseCompanyName(c), c.orderId, c.uid].some((v) => v.toLowerCase().includes(needle))) return false;
-      }
-      if (status !== "All" && c.status !== status) return false;
-      if (type !== "All" && c.recipientType !== type) return false;
-      const t = new Date(c.requestedDate).getTime();
-      if (from && t < new Date(from).getTime()) return false;
-      if (to && t > new Date(to).getTime() + 86_400_000) return false;
-      return true;
-    });
-  }, [q, status, type, from, to, mockCases]);
-
-  const exportCsv = () => {
-    const header = ["Order ID", "Company name", "Country", "Recipient", "Status", "Mandatory", "Requested", "Last Activity", "Researcher"];
-    const rows = filtered.map((c) => [
-      c.orderId, caseCompanyName(c), c.country, c.recipientType, c.status,
-      `${c.completionMandatory.done}/${c.completionMandatory.total}`,
-      c.requestedDate, c.lastActivity, c.researcherStatus,
-    ]);
-    const csv = [header, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-    const a = document.createElement("a");
-    a.href = url; a.download = "cedarrose-cases.csv"; a.click(); URL.revokeObjectURL(url);
-    toast.success(`Exported ${filtered.length} cases.`);
+  const exportCsv = async () => {
+    try {
+      setExporting(true);
+      await casesService.exportCsv({
+        search: debouncedSearch || undefined,
+        status,
+        recipientType: type,
+        from: from || undefined,
+        to: to || undefined,
+      });
+      toast.success("Cases exported.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Export failed.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -70,7 +88,10 @@ export default function AllCasesPage() {
       <div className="space-y-5">
         <div>
           <h2 className="text-xl font-semibold tracking-tight">All cases</h2>
-          <p className="text-sm text-muted-foreground">{filtered.length} of {mockCases.length} cases shown</p>
+          <p className="text-sm text-muted-foreground">
+            {meta.total} case{meta.total === 1 ? "" : "s"} total
+            {isFetching ? " · Loading…" : ""}
+          </p>
         </div>
 
         <div className="rounded-[10px] border border-[#EDF2F7] bg-white p-4">
@@ -99,7 +120,7 @@ export default function AllCasesPage() {
               </Select>
             </div>
             <div style={{ width: 180 }}>
-              <label className="block text-[12px] font-medium text-[#4A5568] mb-1.5">Analyst</label>
+              <label className="block text-[12px] font-medium text-[#4A5568] mb-1.5">Recipient</label>
               <Select value={type} onValueChange={(v) => setType(v as RecipientType | "All")}>
                 <SelectTrigger className="h-11 rounded-lg border-[#CBD5E0] bg-white text-[14px] text-[#2D3748] focus:border-[#2B3178] focus:ring-[#2B3178]"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -118,13 +139,28 @@ export default function AllCasesPage() {
               <DateField value={to} onChange={setTo} minDate={from || undefined} />
             </div>
             <div>
-              <Button variant="outline" onClick={exportCsv} className="h-11 rounded-lg"><Download className="h-4 w-4 mr-1" /> CSV</Button>
+              <Button
+                variant="outline"
+                onClick={exportCsv}
+                disabled={exporting}
+                className="h-11 rounded-lg"
+              >
+                <Download className="h-4 w-4 mr-1" /> CSV
+              </Button>
             </div>
           </div>
         </div>
 
+        <CaseTable cases={cases} onRowClick={setSelected} showOrderId />
 
-        <CaseTable cases={filtered} onRowClick={setSelected} showOrderId />
+        <ListPagination
+          meta={meta}
+          onPageChange={setPage}
+          onPageSizeChange={(next) => {
+            setLimit(next);
+            setPage(1);
+          }}
+        />
       </div>
 
       <CaseDetailPanel case={selected} open={!!selected} onOpenChange={(o) => !o && setSelected(null)} />

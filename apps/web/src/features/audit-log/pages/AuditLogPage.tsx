@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
@@ -7,75 +7,106 @@ import type { AuditEvent, EventType } from "@/types/audit";
 import type { CaseRecord } from "@/types/case";
 import { auditService, casesService } from "@/services";
 import { AppShell } from "@/components/layout/AppShell";
+import { ListPagination } from "@/components/common/ListPagination";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateField } from "@/components/ui/date-field";
 import { absTime } from "@/lib/format";
-import { groupAuditEventsByCase, indexAuditEventsByCase, resolveAuditCaseLabels } from "@/lib/audit-log";
+import { indexAuditEventsByCase, resolveAuditCaseLabels } from "@/lib/audit-log";
 import { buildWorkflowProgress, normalizeWorkflowStep } from "@/lib/workflow-progress";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { DEFAULT_PAGE_SIZE } from "@/types/pagination";
 import { toast } from "sonner";
 import { WORKFLOW_STEPS } from "@/config/workflow";
 import { StatusBadge } from "@/components/common/StatusBadge";
 
 const search = z.object({ caseId: z.string().optional() });
 
-
 const EVENT_TYPES: (EventType | "All")[] = ["All", "API Call", "Link Event", "Authentication", "Form Activity", "Researcher Action", "API Push"];
 
 export default function AuditLogPage() {
   const [searchParams] = useSearchParams();
   const sp = search.parse({ caseId: searchParams.get("caseId") ?? undefined });
-  const { data: mockAuditLog = [] } = useQuery<AuditEvent[]>({
-    queryKey: ["audit-log"],
-    queryFn: () => auditService.list(),
-  });
-  const { data: mockCases = [] } = useQuery<CaseRecord[]>({
-    queryKey: ["cases"],
-    queryFn: () => casesService.list(),
-  });
 
   const [q, setQ] = useState("");
   const [type, setType] = useState<EventType | "All">("All");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
-  const filtered = useMemo(() => {
-    return mockAuditLog.filter((e) => {
-      if (sp.caseId && e.caseId !== sp.caseId) return false;
-      if (q) {
-        const caseRecord = mockCases.find((m) => m.id === e.caseId);
-        const { subject, orderId } = resolveAuditCaseLabels(e, caseRecord);
-        if (!`${subject} ${orderId}`.toLowerCase().includes(q.toLowerCase())) return false;
-      }
-      if (type !== "All" && e.type !== type) return false;
-      const t = new Date(e.timestamp).getTime();
-      if (from && t < new Date(from).getTime()) return false;
-      if (to && t > new Date(to).getTime() + 86_400_000) return false;
-      return true;
-    });
-  }, [q, type, from, to, sp.caseId, mockAuditLog, mockCases]);
+  const debouncedSearch = useDebouncedValue(q);
 
-  const grouped = useMemo(() => groupAuditEventsByCase(filtered), [filtered]);
-  const eventsByCase = useMemo(() => indexAuditEventsByCase(filtered), [filtered]);
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, type, from, to, sp.caseId]);
+
+  const listParams = useMemo(
+    () => ({
+      page,
+      limit,
+      search: debouncedSearch || undefined,
+      type: type === "All" ? undefined : type,
+      from: from || undefined,
+      to: to || undefined,
+      caseId: sp.caseId,
+      grouped: true as const,
+    }),
+    [page, limit, debouncedSearch, type, from, to, sp.caseId],
+  );
+
+  const { data: result, isFetching } = useQuery({
+    queryKey: ["audit-log", listParams],
+    queryFn: () => auditService.list(listParams),
+    placeholderData: (prev) => prev,
+  });
+
+  const grouped = result?.data ?? [];
+  const meta = result?.meta ?? { page, limit, total: 0 };
+
+  const expandedCaseId = expanded && !expanded.startsWith("orphan:") ? expanded : null;
+
+  const { data: expandedAuditResult } = useQuery({
+    queryKey: ["audit-log", "case", expandedCaseId],
+    queryFn: () =>
+      auditService.list({ caseId: expandedCaseId!, grouped: false, limit: 500, page: 1 }),
+    enabled: !!expandedCaseId,
+  });
+
+  const { data: expandedCase } = useQuery({
+    queryKey: ["case", expandedCaseId],
+    queryFn: () => casesService.getById(expandedCaseId!),
+    enabled: !!expandedCaseId,
+  });
+
+  const eventsByCase = useMemo(() => {
+    if (!expandedCaseId || !expandedAuditResult) return new Map<string, AuditEvent[]>();
+    return indexAuditEventsByCase(expandedAuditResult.data);
+  }, [expandedCaseId, expandedAuditResult]);
 
   const toggle = (id: string) => {
     setExpanded((prev) => (prev === id ? null : id));
   };
 
-  const exportCsv = () => {
-    const csv = ["Timestamp,Case,Order,Step,Type,Description,TriggeredBy,Case status",
-      ...grouped.map((e) => {
-        const caseRecord = mockCases.find((m) => m.id === e.caseId);
-        const { subject, orderId } = resolveAuditCaseLabels(e, caseRecord);
-        return [e.timestamp, subject, orderId, e.step, e.type, e.description, e.triggeredBy, caseRecord?.status ?? "—"]
-          .map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
-      })].join("\n");
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-    const a = document.createElement("a");
-    a.href = url; a.download = "cedarrose-audit-log.csv"; a.click(); URL.revokeObjectURL(url);
-    toast.success("Audit log exported.");
+  const exportCsv = async () => {
+    try {
+      setExporting(true);
+      await auditService.exportCsv({
+        search: debouncedSearch || undefined,
+        type: type === "All" ? undefined : type,
+        from: from || undefined,
+        to: to || undefined,
+        caseId: sp.caseId,
+      });
+      toast.success("Audit log exported.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Export failed.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -84,9 +115,9 @@ export default function AuditLogPage() {
         <div>
           <h2 className="text-xl font-semibold tracking-tight">Audit log</h2>
           <p className="text-sm text-muted-foreground">
-            {grouped.length} case{grouped.length === 1 ? "" : "s"}
-            {filtered.length !== grouped.length ? ` · ${filtered.length} events` : ""}
+            {meta.total} case{meta.total === 1 ? "" : "s"}
             {sp.caseId ? " · filtered by case" : ""}
+            {isFetching ? " · Loading…" : ""}
           </p>
         </div>
 
@@ -120,7 +151,14 @@ export default function AuditLogPage() {
               <DateField value={to} onChange={setTo} minDate={from || undefined} />
             </div>
             <div className="ml-auto">
-              <Button variant="outline" onClick={exportCsv} className="h-11 rounded-lg"><Download className="h-4 w-4 mr-1" /> Export CSV</Button>
+              <Button
+                variant="outline"
+                onClick={exportCsv}
+                disabled={exporting}
+                className="h-11 rounded-lg"
+              >
+                <Download className="h-4 w-4 mr-1" /> Export CSV
+              </Button>
             </div>
           </div>
         </div>
@@ -143,12 +181,18 @@ export default function AuditLogPage() {
               {grouped.length === 0 ? (
                 <tr><td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">No events match the current filters.</td></tr>
               ) : grouped.map((e) => {
-                const rowKey = e.caseId || e.id;
+                const rowKey = e.caseId || `orphan:${e.id}`;
                 const isOpen = expanded === rowKey;
-                const caseRecord = mockCases.find((m) => m.id === e.caseId);
-                const { subject, orderId } = resolveAuditCaseLabels(e, caseRecord);
-                const caseEvents = eventsByCase.get(rowKey) ?? [e];
-                const timeline = buildWorkflowProgress(caseRecord, caseEvents);
+                const { subject, orderId } = resolveAuditCaseLabels(e);
+                const caseEvents = isOpen ? (eventsByCase.get(rowKey) ?? [e]) : [e];
+                const caseRecord: Pick<CaseRecord, "status"> | undefined = expandedCase?.status
+                  ? expandedCase
+                  : e.caseStatus
+                    ? ({ status: e.caseStatus as CaseRecord["status"] })
+                    : undefined;
+                const timeline = isOpen && expandedCase
+                  ? buildWorkflowProgress(expandedCase, caseEvents)
+                  : null;
                 return (
                   <FragmentRow key={rowKey}>
                     <tr className="border-t border-border hover:bg-secondary/40 cursor-pointer" onClick={() => toggle(rowKey)}>
@@ -179,14 +223,14 @@ export default function AuditLogPage() {
                         )}
                       </td>
                     </tr>
-                    {isOpen && (
+                    {isOpen && timeline && (
                       <tr key={`${rowKey}-detail`} className="border-t border-border bg-card">
                         <td />
                         <td colSpan={7} className="px-0 py-0">
                           <WorkflowTimelinePanel
                             title={subject}
                             orderId={orderId}
-                            status={caseRecord?.status}
+                            status={expandedCase?.status}
                             currentStep={timeline.currentStep}
                             completedAt={timeline.completedAt}
                           />
@@ -199,6 +243,15 @@ export default function AuditLogPage() {
             </tbody>
           </table>
         </div>
+
+        <ListPagination
+          meta={meta}
+          onPageChange={setPage}
+          onPageSizeChange={(next) => {
+            setLimit(next);
+            setPage(1);
+          }}
+        />
       </div>
     </AppShell>
   );

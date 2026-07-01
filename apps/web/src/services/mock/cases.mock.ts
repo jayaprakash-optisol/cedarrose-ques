@@ -1,7 +1,9 @@
-import type { CaseRecord } from "@/types";
+import type { CaseRecord, CaseListParams } from "@/types";
+import type { PaginatedResult } from "@/types/pagination";
 import casesData from "@/mocks/data/cases.json";
 import { delay, normalizeMockDates } from "./utils";
 import { mockTemplatesService } from "./templates.mock";
+import { filterCases, paginate, exportCasesCsv, downloadMockCsv } from "./listing";
 
 let casesCache: CaseRecord[] | null = null;
 
@@ -17,7 +19,8 @@ function getCases(): CaseRecord[] {
 }
 
 export interface CasesService {
-  list(): Promise<CaseRecord[]>;
+  list(params?: CaseListParams): Promise<PaginatedResult<CaseRecord>>;
+  exportCsv(params?: Omit<CaseListParams, "page" | "limit">): Promise<void>;
   getById(id: string): Promise<CaseRecord | undefined>;
   resendLink(id: string): Promise<{ linkExpiry: string | null }>;
   create(input: {
@@ -32,10 +35,30 @@ export interface CasesService {
 }
 
 export const mockCasesService: CasesService = {
-  async list() {
+  async list(params = {}) {
     await delay();
-    return getCases();
+    const filtered = filterCases(getCases(), {
+      search: params.search,
+      status: params.status,
+      recipientType: params.recipientType,
+      from: params.from,
+      to: params.to,
+    });
+    return paginate(filtered, params.page, params.limit);
   },
+
+  async exportCsv(params = {}) {
+    await delay(200);
+    const filtered = filterCases(getCases(), {
+      search: params.search,
+      status: params.status,
+      recipientType: params.recipientType,
+      from: params.from,
+      to: params.to,
+    });
+    downloadMockCsv(exportCasesCsv(filtered), "cedarrose-cases.csv");
+  },
+
   async getById(id) {
     await delay(150);
     return getCases().find((c) => c.id === id);
@@ -77,7 +100,6 @@ export const mockCasesService: CasesService = {
     const cases = getCases();
     const nextNum = cases.length + 1;
     const newId = `c-${String(nextNum).padStart(3, "0")}`;
-    // Generate a mock token that the QuestionnaireLandingPage mock accepts (any non-"expired" string)
     const mockToken = `mock-${newId}-${Date.now()}`;
     const created: CaseRecord = {
       ...cases[0],

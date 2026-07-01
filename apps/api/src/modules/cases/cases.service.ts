@@ -243,8 +243,12 @@ export class CasesService {
     }
   }
 
-  async exportAll() {
-    const { data } = await this.casesRepo.findAll({ offset: 0, limit: 10000 });
+  async exportAll(filters: Parameters<CasesRepository["findAll"]>[0]) {
+    const { data } = await this.casesRepo.findAll({ ...filters, offset: 0, limit: 10000 });
     return data;
+  }
+
+  exportBatches(filters: Omit<Parameters<CasesRepository["findAll"]>[0], "offset" | "limit">) {
+    return this.casesRepo.exportBatches(filters);
   }
 }

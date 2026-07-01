@@ -189,7 +189,7 @@ describe("AuditService", () => {
     it("enriches audit rows with case and user data", async () => {
       const c = createMockCase();
       const user = createMockUser();
-      vi.mocked(auditRepo.findAll).mockResolvedValue({
+      vi.mocked(auditRepo.findGroupedByCase).mockResolvedValue({
         data: [
           {
             auditId: "a5",
@@ -204,6 +204,7 @@ describe("AuditService", () => {
             status: "Success",
             payload: null,
             createdAt: new Date(),
+            caseStatus: c.status,
           },
         ],
         total: 1,
@@ -243,18 +244,8 @@ describe("AuditService", () => {
       });
       vi.mocked(usersRepo.findById).mockResolvedValue(null);
 
-      const result = await service.list({ offset: 0, limit: 10 });
+      const result = await service.list({ offset: 0, limit: 10, grouped: false });
       expect(result.data[0].triggeredBy).toBe("System");
-    });
-  });
-
-  describe("export", () => {
-    it("returns enriched events for export", async () => {
-      vi.mocked(auditRepo.findAll).mockResolvedValue({ data: [], total: 0 });
-      await expect(service.export({})).resolves.toEqual([]);
-      expect(auditRepo.findAll).toHaveBeenCalledWith(
-        expect.objectContaining({ offset: 0, limit: 10000 }),
-      );
     });
   });
 });

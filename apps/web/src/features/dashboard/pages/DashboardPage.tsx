@@ -31,11 +31,12 @@ import { isStale } from "@/lib/format";
 
 
 export default function OverviewPage() {
-  const { data: cases = [] } = useQuery<CaseRecord[]>({
-    queryKey: ["cases"],
-    queryFn: () => casesService.list(),
+  const { data: casesResult } = useQuery({
+    queryKey: ["cases", "dashboard-summary"],
+    queryFn: () => casesService.list({ page: 1, limit: 100 }),
     refetchInterval: 30_000,
   });
+  const cases = casesResult?.data ?? [];
 
   const total = cases.length;
   const completed = cases.filter((c) => c.status === "COMPLETED").length;

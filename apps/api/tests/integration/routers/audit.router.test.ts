@@ -10,7 +10,7 @@ import { createMockUser } from "../../helpers/mock-user.js";
 function createMockAuditService(): AuditService {
   return {
     list: vi.fn(),
-    export: vi.fn(),
+    exportBatches: vi.fn(),
     log: vi.fn(),
   } as unknown as AuditService;
 }
@@ -52,15 +52,23 @@ describe("audit router", () => {
   });
 
   it("GET /export returns csv for Admin", async () => {
-    vi.mocked(service.export).mockResolvedValue([
-      {
-        createdAt: "2026-01-01",
-        eventType: "CaseCreated",
-        description: "Created",
-        status: "Success",
-        caseId: "case-1",
-      },
-    ] as never);
+    async function* batches() {
+      yield [
+        {
+          createdAt: new Date("2026-01-01"),
+          eventType: "CaseCreated",
+          description: "Created",
+          status: "Success",
+          caseId: "case-1",
+          caseSubject: "Acme",
+          caseOrderId: "ORD-1",
+          step: 1,
+          triggeredBy: "Admin",
+          caseStatus: "SENT",
+        },
+      ];
+    }
+    vi.mocked(service.exportBatches).mockReturnValue(batches());
     const app = createAuditApp(service, "Admin");
 
     const res = await request(app).get("/api/v1/audit/export");

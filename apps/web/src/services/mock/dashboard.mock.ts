@@ -10,7 +10,7 @@ export interface DashboardService {
 export const mockDashboardService: DashboardService = {
   async getCompletionStats(period) {
     await delay(200);
-    const cases = await mockCasesService.list();
+    const { data: cases } = await mockCasesService.list({ limit: 1000 });
     return computeCompletionStatsFromCases(cases, period);
   },
 };

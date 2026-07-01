@@ -1,4 +1,4 @@
-import type { AuditRepository } from "./audit.repository.js";
+import type { AuditRepository, AuditRowWithCaseStatus } from "./audit.repository.js";
 import type { CasesRepository } from "../cases/cases.repository.js";
 import type { UsersRepository } from "../users/users.repository.js";
 import type { auditEvents } from "../../db/schema/audit-events.js";
@@ -6,6 +6,10 @@ import { WORKFLOW_STEP_COUNT } from "../../config/workflow.js";
 
 type AuditInsert = typeof auditEvents.$inferInsert;
 type AuditRow = typeof auditEvents.$inferSelect;
+
+export type AuditListFilters = Parameters<AuditRepository["findAll"]>[0] & {
+  grouped?: boolean;
+};
 
 export class AuditService {
   constructor(
@@ -74,6 +78,17 @@ export class AuditService {
     });
   }
 
+  private attachCaseStatus(
+    events: AuditRow[],
+    rows: AuditRowWithCaseStatus[]
+  ): (AuditRow & { caseStatus?: string | null })[] {
+    const statusByAuditId = new Map(rows.map((row) => [row.auditId, row.caseStatus]));
+    return events.map((event) => ({
+      ...event,
+      caseStatus: statusByAuditId.get(event.auditId) ?? null,
+    }));
+  }
+
   async log(event: AuditInsert) {
     const enriched = await this.enrichEvent(event);
     const row = await this.auditRepo.insert(enriched);
@@ -94,14 +109,27 @@ export class AuditService {
     return row;
   }
 
-  async list(filters: Parameters<AuditRepository["findAll"]>[0]) {
-    const { data, total } = await this.auditRepo.findAll(filters);
+  async list(filters: AuditListFilters) {
+    const { grouped = true, ...repoFilters } = filters;
+
+    if (repoFilters.caseId || grouped === false) {
+      const { data, total } = await this.auditRepo.findAll(repoFilters);
+      const enriched = await this.enrichEvents(data);
+      return { data: enriched, total };
+    }
+
+    const { data, total } = await this.auditRepo.findGroupedByCase(repoFilters);
     const enriched = await this.enrichEvents(data);
-    return { data: enriched, total };
+    return { data: this.attachCaseStatus(enriched, data), total };
   }
 
-  async export(filters: Parameters<AuditRepository["exportAll"]>[0]) {
-    const { data } = await this.auditRepo.findAll({ ...filters, offset: 0, limit: 10000 });
-    return this.enrichEvents(data);
+  async *exportBatches(filters: Omit<AuditListFilters, "offset" | "limit" | "grouped">) {
+    for await (const batch of this.auditRepo.exportBatches(filters)) {
+      const enriched = await this.enrichEvents(batch);
+      yield enriched.map((row, index) => ({
+        ...row,
+        caseStatus: batch[index]?.caseStatus ?? null,
+      }));
+    }
   }
 }

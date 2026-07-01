@@ -29,11 +29,12 @@ export function CaseDetailPanel({ case: selected, open, onOpenChange }: Props) {
     enabled: open && !!caseId,
   });
 
-  const { data: auditEvents = [] } = useQuery({
+  const { data: auditResult } = useQuery({
     queryKey: ["audit-log", "case", caseId],
-    queryFn: () => auditService.list({ caseId }),
+    queryFn: () => auditService.list({ caseId: caseId!, grouped: false, limit: 500, page: 1 }),
     enabled: open && !!caseId,
   });
+  const auditEvents = auditResult?.data ?? [];
 
   useEffect(() => {
     if (detail) {

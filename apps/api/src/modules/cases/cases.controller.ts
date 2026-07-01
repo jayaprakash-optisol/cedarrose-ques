@@ -1,23 +1,65 @@
 import type { Request, Response } from "express";
 import type { CasesService } from "./cases.service.js";
 import { parsePagination, paginationMeta, sanitizeCsvCell } from "../../shared/utils/pagination.js";
+import { parseDateQuery, parseOptionalString } from "../../shared/utils/list-query.js";
 import { sendSuccess } from "../../shared/utils/response.js";
 import { routeParam } from "../../shared/utils/route-param.js";
+import type { CaseWithAnalyst } from "./cases.repository.js";
+
+function parseCaseListQuery(query: Record<string, unknown>) {
+  const { page, limit, offset } = parsePagination(query);
+  return {
+    page,
+    limit,
+    offset,
+    filters: {
+      status: parseOptionalString(query.status),
+      recipientType: parseOptionalString(query.recipientType),
+      country: parseOptionalString(query.country),
+      analystId: parseOptionalString(query.analystId),
+      search: parseOptionalString(query.search),
+      from: parseDateQuery(query.from),
+      to: parseDateQuery(query.to, true),
+      offset,
+      limit,
+    },
+  };
+}
+
+function parseCaseExportQuery(query: Record<string, unknown>) {
+  return {
+    status: parseOptionalString(query.status),
+    recipientType: parseOptionalString(query.recipientType),
+    country: parseOptionalString(query.country),
+    analystId: parseOptionalString(query.analystId),
+    search: parseOptionalString(query.search),
+    from: parseDateQuery(query.from),
+    to: parseDateQuery(query.to, true),
+  };
+}
+
+function caseCsvRow(row: CaseWithAnalyst): string {
+  return [
+    row.orderId,
+    row.subjectName,
+    row.country,
+    row.recipientType,
+    row.status,
+    `${row.completionMandatory}%`,
+    row.dateReceived.toISOString(),
+    row.lastActivity?.toISOString() ?? "",
+    row.researcherStatus ?? "",
+  ]
+    .map((c) => sanitizeCsvCell(String(c ?? "")))
+    .join(",");
+}
 
 export class CasesController {
   constructor(private readonly casesService: CasesService) {}
 
   list = async (req: Request, res: Response) => {
-    const { page, limit, offset } = parsePagination(req.query as Record<string, unknown>);
-    const { data, total } = await this.casesService.list({
-      status: req.query.status as string | undefined,
-      recipientType: req.query.recipientType as string | undefined,
-      country: req.query.country as string | undefined,
-      analystId: req.query.analystId as string | undefined,
-      search: req.query.search as string | undefined,
-      offset,
-      limit,
-    });
+    const { page, limit, filters } = parseCaseListQuery(req.query as Record<string, unknown>);
+    const { data, total } = await this.casesService.list(filters);
     sendSuccess(res, data, 200, undefined, paginationMeta(page, limit, total));
   };
 
@@ -45,18 +87,20 @@ export class CasesController {
     sendSuccess(res, data, 200, "API push triggered");
   };
 
-  exportCsv = async (_req: Request, res: Response) => {
-    const rows = await this.casesService.exportAll();
-    const header = "caseRef,orderId,subjectName,status,country\n";
-    const body = rows
-      .map((r) =>
-        [r.caseRef, r.orderId, r.subjectName, r.status, r.country]
-          .map((c) => sanitizeCsvCell(String(c ?? "")))
-          .join(",")
-      )
-      .join("\n");
+  exportCsv = async (req: Request, res: Response) => {
+    const filters = parseCaseExportQuery(req.query as Record<string, unknown>);
+    const header =
+      "Order ID,Company name,Country,Recipient,Status,Mandatory,Requested,Last Activity,Researcher\n";
     res.setHeader("Content-Type", "text/csv");
     res.setHeader("Content-Disposition", "attachment; filename=cases.csv");
-    res.send(header + body);
+    res.write(header);
+
+    for await (const batch of this.casesService.exportBatches(filters)) {
+      for (const row of batch) {
+        res.write(`${caseCsvRow(row)}\n`);
+      }
+    }
+
+    res.end();
   };
 }

@@ -18,11 +18,12 @@ describe("CasesController", () => {
       createCase: vi.fn(),
       resendLink: vi.fn(),
       apiPush: vi.fn(),
-      exportAll: vi.fn(),
+      exportBatches: vi.fn(),
     } as unknown as CasesService;
 
     controller = new CasesController(casesService);
     res = createMockResponse();
+    vi.mocked(res.write).mockImplementation(() => true);
   });
 
   describe("list", () => {
@@ -45,7 +46,7 @@ describe("CasesController", () => {
       );
     });
 
-    it("forwards all list filters from query string", async () => {
+    it("forwards date filters from query string", async () => {
       vi.mocked(casesService.list).mockResolvedValue({ data: [], total: 0 });
       const req = createMockRequest({
         query: {
@@ -53,6 +54,8 @@ describe("CasesController", () => {
           country: "GB",
           analystId: "analyst-1",
           search: "Acme",
+          from: "2026-01-01",
+          to: "2026-01-31",
         },
       });
 
@@ -64,6 +67,8 @@ describe("CasesController", () => {
           country: "GB",
           analystId: "analyst-1",
           search: "Acme",
+          from: expect.any(Date),
+          to: expect.any(Date),
         }),
       );
     });
@@ -132,45 +137,33 @@ describe("CasesController", () => {
   });
 
   describe("exportCsv", () => {
-    it("exports cases as CSV", async () => {
-      vi.mocked(casesService.exportAll).mockResolvedValue([
-        {
-          caseRef: "CR-001",
-          orderId: "ORD-1",
-          subjectName: "Acme",
-          status: "Open",
-          country: "US",
-        },
-      ] as never);
-      const req = createMockRequest();
+    it("streams cases as CSV", async () => {
+      async function* batches() {
+        yield [
+          {
+            orderId: "ORD-1",
+            subjectName: "Acme",
+            country: "US",
+            recipientType: "Supplier",
+            status: "Open",
+            completionMandatory: 80,
+            dateReceived: new Date("2026-01-01T00:00:00.000Z"),
+            lastActivity: new Date("2026-01-02T00:00:00.000Z"),
+            researcherStatus: "Not Applicable",
+          },
+        ];
+      }
+      vi.mocked(casesService.exportBatches).mockReturnValue(batches());
+      const req = createMockRequest({ query: { search: "Acme" } });
 
       await controller.exportCsv(req, res);
 
+      expect(casesService.exportBatches).toHaveBeenCalledWith(
+        expect.objectContaining({ search: "Acme" }),
+      );
       expect(res.setHeader).toHaveBeenCalledWith("Content-Type", "text/csv");
-      expect(res.setHeader).toHaveBeenCalledWith(
-        "Content-Disposition",
-        "attachment; filename=cases.csv"
-      );
-      expect(res.send).toHaveBeenCalledWith(
-        "caseRef,orderId,subjectName,status,country\nCR-001,ORD-1,Acme,Open,US"
-      );
-    });
-
-    it("sanitizes null csv cells", async () => {
-      vi.mocked(casesService.exportAll).mockResolvedValue([
-        {
-          caseRef: "CR-002",
-          orderId: null,
-          subjectName: "Beta",
-          status: "Open",
-          country: null,
-        },
-      ] as never);
-      const req = createMockRequest();
-
-      await controller.exportCsv(req, res);
-
-      expect(res.send).toHaveBeenCalledWith("caseRef,orderId,subjectName,status,country\nCR-002,,Beta,Open,");
+      expect(res.write).toHaveBeenCalledWith(expect.stringContaining("Order ID,Company name"));
+      expect(res.end).toHaveBeenCalled();
     });
   });
 });

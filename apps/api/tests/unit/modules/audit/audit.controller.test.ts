@@ -9,22 +9,28 @@ describe("AuditController", () => {
   let res: ReturnType<typeof createMockResponse>;
 
   const mockEntry = {
-    createdAt: "2026-01-01T00:00:00.000Z",
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
     eventType: "CASE_CREATED",
     description: "Case created",
     status: "Success",
     caseId: "case-1",
+    caseSubject: "Acme",
+    caseOrderId: "ORD-1",
+    step: 1,
+    triggeredBy: "Admin",
+    caseStatus: "SENT",
   } as never;
 
   beforeEach(() => {
     auditService = {
       log: vi.fn(),
       list: vi.fn(),
-      export: vi.fn(),
+      exportBatches: vi.fn(),
     } as unknown as AuditService;
 
     controller = new AuditController(auditService);
     res = createMockResponse();
+    vi.mocked(res.write).mockImplementation(() => true);
   });
 
   describe("list", () => {
@@ -53,10 +59,11 @@ describe("AuditController", () => {
       );
     });
 
-    it("passes optional date and status filters", async () => {
+    it("passes search and date filters", async () => {
       vi.mocked(auditService.list).mockResolvedValue({ data: [], total: 0 });
       const req = createMockRequest({
         query: {
+          search: "Acme",
           status: "Failed",
           from: "2026-01-01",
           to: "2026-01-31",
@@ -67,6 +74,7 @@ describe("AuditController", () => {
 
       expect(auditService.list).toHaveBeenCalledWith(
         expect.objectContaining({
+          search: "Acme",
           status: "Failed",
           from: expect.any(Date),
           to: expect.any(Date),
@@ -76,24 +84,21 @@ describe("AuditController", () => {
   });
 
   describe("exportCsv", () => {
-    it("exports audit log as CSV", async () => {
-      vi.mocked(auditService.export).mockResolvedValue([mockEntry]);
-      const req = createMockRequest({ query: { caseId: "case-1" } });
+    it("streams audit log as CSV", async () => {
+      async function* batches() {
+        yield [mockEntry];
+      }
+      vi.mocked(auditService.exportBatches).mockReturnValue(batches());
 
+      const req = createMockRequest({ query: { caseId: "case-1", search: "Acme" } });
       await controller.exportCsv(req, res);
 
-      expect(auditService.export).toHaveBeenCalledWith(
-        expect.objectContaining({ caseId: "case-1" })
+      expect(auditService.exportBatches).toHaveBeenCalledWith(
+        expect.objectContaining({ caseId: "case-1", search: "Acme" })
       );
       expect(res.setHeader).toHaveBeenCalledWith("Content-Type", "text/csv");
-      expect(res.setHeader).toHaveBeenCalledWith(
-        "Content-Disposition",
-        "attachment; filename=audit-log.csv"
-      );
-      expect(res.send).toHaveBeenCalledWith(
-        expect.stringContaining("createdAt,eventType,description,status,caseId")
-      );
-      expect(res.send).toHaveBeenCalledWith(expect.stringContaining("CASE_CREATED"));
+      expect(res.write).toHaveBeenCalledWith(expect.stringContaining("Timestamp,Case,Order"));
+      expect(res.end).toHaveBeenCalled();
     });
   });
 });

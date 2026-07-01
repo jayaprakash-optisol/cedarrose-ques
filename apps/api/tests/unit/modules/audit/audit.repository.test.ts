@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { AuditRepository } from "../../../../src/modules/audit/audit.repository.js";
 import { createMockDrizzle } from "../../../helpers/mock-drizzle.js";
 
@@ -45,6 +45,7 @@ describe("AuditRepository", () => {
         caseId: auditRow.caseId!,
         type: "CaseCreated",
         status: "Success",
+        search: "ORD",
         from: new Date("2026-01-01"),
         to: new Date("2026-01-31"),
         offset: 0,
@@ -58,8 +59,12 @@ describe("AuditRepository", () => {
     await expect(repo.findAll({ offset: 0, limit: 20 })).resolves.toEqual({ data: [], total: 0 });
   });
 
-  it("exportAll delegates to findAll with large limit", async () => {
-    db.queueResults([auditRow], [{ total: 1 }]);
-    await expect(repo.exportAll({ caseId: auditRow.caseId! })).resolves.toEqual([auditRow]);
+  it("exportBatches yields mapped rows with case status", async () => {
+    db.queueResults([auditRow], [{ total: 1 }], [{ caseId: auditRow.caseId!, status: "SENT" }]);
+    const batches = [];
+    for await (const batch of repo.exportBatches({ caseId: auditRow.caseId! })) {
+      batches.push(batch);
+    }
+    expect(batches).toEqual([[{ ...auditRow, caseStatus: "SENT" }]]);
   });
 });

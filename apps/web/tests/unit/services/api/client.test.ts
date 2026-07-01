@@ -169,10 +169,13 @@ describe("apiCasesService", () => {
   });
 
   it("lists cases with pagination", async () => {
-    mocks.fetch.mockResolvedValue(jsonResponse({ success: true, data: [apiCase] }));
-    const cases = await apiCasesService.list();
-    expect(cases).toHaveLength(1);
-    expect(cases[0].id).toBe("c-1");
+    mocks.fetch.mockResolvedValue(
+      jsonResponse({ success: true, data: [apiCase], meta: { page: 1, limit: 20, total: 1 } }),
+    );
+    const result = await apiCasesService.list();
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].id).toBe("c-1");
+    expect(result.meta.total).toBe(1);
   });
 
   it("gets case by id and returns undefined on 404", async () => {
@@ -228,10 +231,12 @@ describe("apiAuditService", () => {
             createdAt: "2026-01-01T00:00:00.000Z",
           },
         ],
+        meta: { page: 1, limit: 20, total: 1 },
       }),
     );
-    const events = await apiAuditService.list({ caseId: "c-1" });
-    expect(events[0].id).toBe("a-1");
+    const result = await apiAuditService.list({ caseId: "c-1", grouped: false });
+    expect(result.data[0].id).toBe("a-1");
+    expect(result.meta.total).toBe(1);
   });
 });
 

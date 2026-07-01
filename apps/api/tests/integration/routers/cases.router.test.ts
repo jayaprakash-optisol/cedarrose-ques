@@ -14,7 +14,7 @@ function createMockCasesService(): CasesService {
     createCase: vi.fn(),
     resendLink: vi.fn(),
     apiPush: vi.fn(),
-    exportAll: vi.fn(),
+    exportBatches: vi.fn(),
   } as unknown as CasesService;
 }
 
@@ -81,7 +81,10 @@ describe("cases router", () => {
   });
 
   it("GET /export requires Admin or Analyst role", async () => {
-    vi.mocked(service.exportAll).mockResolvedValue([]);
+    async function* batches() {
+      yield [];
+    }
+    vi.mocked(service.exportBatches).mockReturnValue(batches());
     const analystApp = createCasesApp(service, "Analyst");
     const researcherApp = createCasesApp(service, "Researcher");
 

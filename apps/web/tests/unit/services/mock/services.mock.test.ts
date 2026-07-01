@@ -12,9 +12,9 @@ import { mockQuestionnaireService } from "@/services/mock/questionnaire.mock";
 
 describe("mock services", () => {
   it("lists mock cases", async () => {
-    const cases = await mockCasesService.list();
-    expect(Array.isArray(cases)).toBe(true);
-    expect(cases.length).toBeGreaterThan(0);
+    const result = await mockCasesService.list();
+    expect(Array.isArray(result.data)).toBe(true);
+    expect(result.data.length).toBeGreaterThan(0);
   });
 
   it("looks up mock company by uid", async () => {
@@ -35,8 +35,8 @@ describe("mock services", () => {
   });
 
   it("audit mock returns events", async () => {
-    const events = await mockAuditService.list();
-    expect(events.length).toBeGreaterThan(0);
+    const result = await mockAuditService.list();
+    expect(result.data.length).toBeGreaterThan(0);
   });
 
   it("notifications mock supports read operations", async () => {
@@ -111,7 +111,7 @@ describe("mock services", () => {
   });
 
   it("cases mock supports getById, resendLink, and create", async () => {
-    const cases = await mockCasesService.list();
+    const { data: cases } = await mockCasesService.list();
     const first = cases[0];
     const found = await mockCasesService.getById(first.id);
     expect(found?.id).toBe(first.id);

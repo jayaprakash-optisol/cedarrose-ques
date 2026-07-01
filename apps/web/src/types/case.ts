@@ -76,3 +76,13 @@ export interface CaseRecord {
   /** Returned once on case creation — the full /q/:token URL for the recipient. */
   linkUrl?: string | null;
 }
+
+export interface CaseListParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: CaseStatus | "All";
+  recipientType?: RecipientType | "All";
+  from?: string;
+  to?: string;
+}

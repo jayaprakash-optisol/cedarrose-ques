@@ -26,8 +26,13 @@ describe("services index", () => {
     expect(questionnaireService).toBeDefined();
   });
 
-  it("mock casesService.list returns an array", async () => {
-    const cases = await casesService.list();
-    expect(Array.isArray(cases)).toBe(true);
+  it("mock casesService.list returns paginated data", async () => {
+    const result = await casesService.list();
+    expect(Array.isArray(result.data)).toBe(true);
+    expect(result.meta).toMatchObject({
+      page: expect.any(Number),
+      limit: expect.any(Number),
+      total: expect.any(Number),
+    });
   });
 });
