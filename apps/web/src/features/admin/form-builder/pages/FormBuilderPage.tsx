@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -55,6 +55,7 @@ import {
 } from "@/components/ui/popover";
 import { templatesService } from "@/services";
 import { ApiError } from "@/services/api/client";
+import { cn } from "@/lib/utils";
 import type {
   FieldType,
   Question,
@@ -89,6 +90,66 @@ function reorderList<T>(items: T[], fromIndex: number, toIndex: number): T[] {
   return next;
 }
 
+const DRAG_SHIFT_PX = 16;
+const EDGE_DROP_ZONE_PX = 56;
+
+function getDragShift(index: number, dragFrom: number | null, insertIndex: number | null) {
+  if (dragFrom === null || insertIndex === null || dragFrom === insertIndex) return 0;
+  if (dragFrom < insertIndex && index > dragFrom && index < insertIndex) return -DRAG_SHIFT_PX;
+  if (dragFrom > insertIndex && index >= insertIndex && index < dragFrom) return DRAG_SHIFT_PX;
+  return 0;
+}
+
+/** Returns where the dragged item would be inserted (0 … questionCount). */
+function resolveInsertIndex(container: HTMLElement | null, clientY: number): number {
+  const cards = Array.from(container?.querySelectorAll<HTMLElement>("[data-question-id]") ?? []);
+  if (cards.length === 0) return 0;
+
+  const first = cards[0].getBoundingClientRect();
+  if (clientY <= first.top + EDGE_DROP_ZONE_PX) return 0;
+
+  const last = cards[cards.length - 1].getBoundingClientRect();
+  if (clientY >= last.bottom - EDGE_DROP_ZONE_PX) return cards.length;
+
+  for (let i = 0; i < cards.length; i++) {
+    const rect = cards[i].getBoundingClientRect();
+    if (clientY < rect.top + rect.height / 2) return i;
+  }
+  return cards.length;
+}
+
+function captureFlipPositions(container: HTMLElement | null) {
+  const positions = new Map<string, number>();
+  container?.querySelectorAll("[data-question-id]").forEach((el) => {
+    const id = el.getAttribute("data-question-id");
+    if (id) positions.set(id, (el as HTMLElement).offsetTop);
+  });
+  return positions;
+}
+
+function playFlipAnimation(container: HTMLElement | null, previous: Map<string, number>) {
+  container?.querySelectorAll("[data-question-id]").forEach((el) => {
+    const id = el.getAttribute("data-question-id");
+    if (!id) return;
+    const prevTop = previous.get(id);
+    if (prevTop === undefined) return;
+    const node = el as HTMLElement;
+    const delta = prevTop - node.offsetTop;
+    if (Math.abs(delta) < 1) return;
+    node.style.transform = `translateY(${delta}px)`;
+    node.style.transition = "none";
+    requestAnimationFrame(() => {
+      node.style.transition = "transform 220ms cubic-bezier(0.2, 0, 0, 1)";
+      node.style.transform = "";
+    });
+    const cleanup = () => {
+      node.style.transition = "";
+      node.removeEventListener("transitionend", cleanup);
+    };
+    node.addEventListener("transitionend", cleanup);
+  });
+}
+
 export default function FormBuilderPage() {
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -116,11 +177,14 @@ export default function FormBuilderPage() {
     }
   }, [templateList, selectedId]);
 
+  const loadedTemplateIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (loadedTemplate) {
+    if (!loadedTemplate || !selectedId || loadedTemplate.id !== selectedId) return;
+    if (loadedTemplateIdRef.current !== selectedId) {
       setDraft(structuredClone(loadedTemplate));
+      loadedTemplateIdRef.current = selectedId;
     }
-  }, [loadedTemplate]);
+  }, [loadedTemplate, selectedId]);
 
   const library = templateList;
 
@@ -544,6 +608,62 @@ function AddSectionDialog({
   );
 }
 
+function QuestionDropEdge({
+  position,
+  active,
+  style,
+}: {
+  position: "top" | "bottom";
+  active: boolean;
+  style: CSSProperties;
+}) {
+  const Icon = position === "top" ? ArrowUp : ArrowDown;
+  const label = position === "top" ? "Drop at top" : "Drop at bottom";
+
+  return (
+    <div
+      style={style}
+      className={cn(
+        "pointer-events-none absolute left-4 right-4 z-20 flex items-center justify-center gap-2 rounded-md border-2 border-dashed px-4 text-xs font-medium",
+        "transition-all ease-out duration-200",
+        active
+          ? "border-navy bg-navy-soft/80 text-navy shadow-[0_0_0_3px_rgba(43,49,120,0.12)]"
+          : "border-border/60 bg-secondary/30 text-muted-foreground/90"
+      )}
+    >
+      <Icon className={cn("h-3.5 w-3.5 shrink-0", active && "animate-bounce")} />
+      <span>{label}</span>
+    </div>
+  );
+}
+
+function getDropOverlayPositions(container: HTMLElement | null) {
+  const cards = Array.from(container?.querySelectorAll<HTMLElement>("[data-question-id]") ?? []);
+  if (!container || cards.length === 0) {
+    return { top: 0, bottom: 0, marker: 0 };
+  }
+  const containerTop = container.getBoundingClientRect().top;
+  const first = cards[0].getBoundingClientRect();
+  const last = cards[cards.length - 1].getBoundingClientRect();
+  return {
+    top: first.top - containerTop - 4,
+    bottom: last.bottom - containerTop + 4,
+    marker: 0,
+  };
+}
+
+function getInsertMarkerTop(container: HTMLElement | null, insertIdx: number): number {
+  const cards = Array.from(container?.querySelectorAll<HTMLElement>("[data-question-id]") ?? []);
+  if (!container || cards.length === 0) return 0;
+  const containerTop = container.getBoundingClientRect().top;
+  if (insertIdx <= 0) return cards[0].getBoundingClientRect().top - containerTop - 2;
+  if (insertIdx >= cards.length) {
+    const last = cards[cards.length - 1].getBoundingClientRect();
+    return last.bottom - containerTop + 2;
+  }
+  return cards[insertIdx].getBoundingClientRect().top - containerTop - 2;
+}
+
 function SectionCard({
   section,
   isFirst,
@@ -564,7 +684,14 @@ function SectionCard({
   const [removeOpen, setRemoveOpen] = useState(false);
   const [renameVal, setRenameVal] = useState(section.title);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [insertIndex, setInsertIndex] = useState<number | null>(null);
+  const [dropOverlay, setDropOverlay] = useState<{
+    top: number;
+    bottom: number;
+    marker: number;
+  } | null>(null);
+  const questionListRef = useRef<HTMLDivElement>(null);
+  const dragFromRef = useRef<number | null>(null);
   const update = (patch: Partial<Section>) => onChange({ ...section, ...patch });
 
   const updateQuestion = (id: string, patch: Partial<Question>) => {
@@ -584,13 +711,41 @@ function SectionCard({
       ],
     });
   };
-  const reorderQuestions = (fromIndex: number, toIndex: number) => {
+  const reorderQuestions = (fromIndex: number, targetInsertIndex: number) => {
+    let toIndex = targetInsertIndex;
+    if (fromIndex < targetInsertIndex) toIndex -= 1;
+    if (fromIndex === toIndex) return;
+    const previous = captureFlipPositions(questionListRef.current);
     update({ questions: reorderList(section.questions, fromIndex, toIndex) });
+    requestAnimationFrame(() => playFlipAnimation(questionListRef.current, previous));
   };
   const clearDragState = () => {
+    dragFromRef.current = null;
     setDraggingIndex(null);
-    setDragOverIndex(null);
+    setInsertIndex(null);
+    setDropOverlay(null);
   };
+  const handleListDragOver = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (dragFromRef.current === null) return;
+    e.dataTransfer.dropEffect = "move";
+    const nextInsert = resolveInsertIndex(questionListRef.current, e.clientY);
+    setInsertIndex(nextInsert);
+    const positions = getDropOverlayPositions(questionListRef.current);
+    setDropOverlay({
+      ...positions,
+      marker: getInsertMarkerTop(questionListRef.current, nextInsert),
+    });
+  };
+  const handleListDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const fromIndex = dragFromRef.current;
+    if (fromIndex === null) return;
+    reorderQuestions(fromIndex, resolveInsertIndex(questionListRef.current, e.clientY));
+    clearDragState();
+  };
+  const dragActive = draggingIndex !== null;
+  const showDropUi = dragActive && insertIndex !== null && dropOverlay !== null;
 
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="rounded-lg border border-border bg-card border-l-4 border-l-navy">
@@ -628,7 +783,34 @@ function SectionCard({
         </DropdownMenu>
       </div>
       <CollapsibleContent>
-        <div className="px-4 pb-4 space-y-3">
+        <div
+          ref={questionListRef}
+          className="relative px-4 pb-4 space-y-3"
+          onDragOver={handleListDragOver}
+          onDrop={handleListDrop}
+        >
+          {showDropUi && section.questions.length > 0 && (
+            <>
+              <QuestionDropEdge
+                position="top"
+                active={insertIndex === 0}
+                style={{ top: dropOverlay.top, height: EDGE_DROP_ZONE_PX }}
+              />
+              <QuestionDropEdge
+                position="bottom"
+                active={insertIndex === section.questions.length}
+                style={{ top: dropOverlay.bottom, height: EDGE_DROP_ZONE_PX }}
+              />
+              {insertIndex !== null &&
+                insertIndex > 0 &&
+                insertIndex < section.questions.length && (
+                  <div
+                    className="pointer-events-none absolute left-4 right-4 z-30 h-1 rounded-full bg-navy shadow-[0_0_0_3px_rgba(43,49,120,0.15)] transition-all duration-150"
+                    style={{ top: dropOverlay.marker }}
+                  />
+                )}
+            </>
+          )}
           {section.banner && (
             <div className="flex items-start gap-2 rounded-md bg-blue-50 border border-blue-200 text-blue-800 px-3 py-2 text-xs">
               <Info className="h-4 w-4 shrink-0 mt-0.5" />
@@ -645,15 +827,13 @@ function SectionCard({
               question={q}
               allQuestions={section.questions}
               isDragging={draggingIndex === index}
-              isDragOver={dragOverIndex === index && draggingIndex !== index}
-              onDragStart={() => setDraggingIndex(index)}
-              onDragEnd={clearDragState}
-              onDragOverCard={() => setDragOverIndex(index)}
-              onDragLeaveCard={() => setDragOverIndex((current) => (current === index ? null : current))}
-              onDrop={(fromIndex) => {
-                reorderQuestions(fromIndex, index);
-                clearDragState();
+              shiftY={getDragShift(index, draggingIndex, insertIndex)}
+              dragActive={dragActive}
+              onDragStart={() => {
+                dragFromRef.current = index;
+                setDraggingIndex(index);
               }}
+              onDragEnd={clearDragState}
               onChange={(patch) => updateQuestion(q.id, patch)}
               onDelete={() => deleteQuestion(q.id)}
             />
@@ -699,12 +879,10 @@ function QuestionCard({
   question,
   allQuestions,
   isDragging,
-  isDragOver,
+  shiftY,
+  dragActive,
   onDragStart,
   onDragEnd,
-  onDragOverCard,
-  onDragLeaveCard,
-  onDrop,
   onChange,
   onDelete,
 }: {
@@ -712,15 +890,15 @@ function QuestionCard({
   question: Question;
   allQuestions: Question[];
   isDragging?: boolean;
-  isDragOver?: boolean;
+  shiftY?: number;
+  dragActive?: boolean;
   onDragStart: () => void;
   onDragEnd: () => void;
-  onDragOverCard: () => void;
-  onDragLeaveCard: () => void;
-  onDrop: (fromIndex: number) => void;
   onChange: (patch: Partial<Question>) => void;
   onDelete: () => void;
 }) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const dragGhostRef = useRef<HTMLElement | null>(null);
   const [optInput, setOptInput] = useState("");
   const [showHelp, setShowHelp] = useState(!!question.helpText);
   const [confirmDel, setConfirmDel] = useState(false);
@@ -735,43 +913,61 @@ function QuestionCard({
   };
 
   const handleDragStart = (e: DragEvent<HTMLButtonElement>) => {
-    e.dataTransfer.setData("text/plain", String(index));
     e.dataTransfer.effectAllowed = "move";
-    onDragStart();
-  };
-  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    onDragOverCard();
-  };
-  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const fromIndex = Number(e.dataTransfer.getData("text/plain"));
-    if (!Number.isNaN(fromIndex)) {
-      onDrop(fromIndex);
+    e.dataTransfer.setData("text/plain", String(index));
+    if (cardRef.current) {
+      const ghost = cardRef.current.cloneNode(true) as HTMLElement;
+      ghost.style.width = `${cardRef.current.offsetWidth}px`;
+      ghost.style.position = "absolute";
+      ghost.style.top = "-9999px";
+      ghost.style.left = "-9999px";
+      ghost.style.opacity = "0.95";
+      ghost.style.transform = "rotate(1deg) scale(1.02)";
+      ghost.style.boxShadow = "0 12px 28px rgba(43, 49, 120, 0.18)";
+      ghost.style.borderRadius = "0.375rem";
+      document.body.appendChild(ghost);
+      e.dataTransfer.setDragImage(ghost, 24, 20);
+      dragGhostRef.current = ghost;
     }
+    requestAnimationFrame(() => onDragStart());
+  };
+  const handleDragEnd = () => {
+    if (dragGhostRef.current) {
+      document.body.removeChild(dragGhostRef.current);
+      dragGhostRef.current = null;
+    }
+    onDragEnd();
   };
 
   return (
     <div
-      className={`rounded-md border p-3 space-y-3 bg-background transition-colors ${
-        isDragOver ? "border-navy border-dashed bg-navy-soft/30" : "border-border"
-      } ${isDragging ? "opacity-50" : ""}`}
-      onDragOver={handleDragOver}
-      onDragLeave={onDragLeaveCard}
-      onDrop={handleDrop}
+      ref={cardRef}
+      data-question-id={question.id}
+      style={{ transform: shiftY ? `translateY(${shiftY}px)` : undefined }}
+      className={cn(
+        "relative flex items-start gap-2 rounded-md border p-3 bg-background",
+        "transition-[transform,box-shadow,opacity,border-color,background-color] duration-200 ease-out",
+        isDragging && "opacity-50 border-dashed border-navy/50 bg-navy-soft/25 shadow-md ring-2 ring-navy/10",
+        !isDragging && "border-border"
+      )}
     >
+      <button
+        type="button"
+        draggable
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        className={cn(
+          "mt-0.5 shrink-0 rounded p-1 text-muted-foreground touch-none",
+          "transition-[color,transform,background-color] duration-150",
+          "hover:text-foreground hover:bg-secondary/80",
+          "cursor-grab active:cursor-grabbing active:scale-110 active:text-navy"
+        )}
+        aria-label="Drag to reorder question"
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+      <div className={cn("flex-1 min-w-0 space-y-3", dragActive && "pointer-events-none")}>
       <div className="flex items-start gap-2">
-        <button
-          type="button"
-          draggable
-          onDragStart={handleDragStart}
-          onDragEnd={onDragEnd}
-          className="mt-2 shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing touch-none"
-          aria-label="Drag to reorder question"
-        >
-          <GripVertical className="h-4 w-4" />
-        </button>
         <div className="flex-1 space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
             {question.required ? (
@@ -1055,6 +1251,7 @@ function QuestionCard({
       {question.note && (
         <div className="pl-6 text-xs text-muted-foreground italic">{question.note}</div>
       )}
+      </div>
     </div>
   );
 }
