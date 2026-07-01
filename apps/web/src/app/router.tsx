@@ -30,7 +30,7 @@ function PageLoader() {
   );
 }
 
-function LazyPage({ children }: { children: React.ReactNode }) {
+function LazyPage({ children }: { readonly children: React.ReactNode }) {
   return <Suspense fallback={<PageLoader />}>{children}</Suspense>;
 }
 
