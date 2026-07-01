@@ -1,12 +1,14 @@
 import { Link, useSearchParams } from "react-router-dom";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { Loader2, Check, AlertCircle, ArrowLeft, Copy, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
-import { companiesService, casesService } from "@/services";
+import { companiesService, casesService, templatesService } from "@/services";
 import { ApiError } from "@/services/api/client";
 import { COUNTRIES } from "@/config/workflow";
 import type { CaseRecord, CompanyData, RecipientType } from "@/types/case";
+import type { Template } from "@/types/template";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,12 +26,9 @@ const search = z.object({
 
 type Step = "A" | "B" | "C";
 
-const TEMPLATE_QS: Record<RecipientType, string[]> = {
-  Supplier: ["Confirm legal entity name *", "Beneficial owners (>25%) *", "Sanctions screening *", "AML / CTF policy *", "ISO certifications *", "ESG framework"],
-  Customer: ["Primary contact *", "Annual purchase volume *", "Payment terms *", "Service quality feedback *", "NPS rating"],
-  Partner: ["Legal name *", "Joint product lines *", "Revenue share *", "Conflict of interest disclosure *", "Press approval"],
-  "Business Analytics Report": ["Reporting entity name *", "Reporting period *", "Revenue figures *", "Key performance indicators *", "Market segmentation", "Forward-looking statements"],
-};
+function getActiveTemplateForRecipient(templates: Template[], recipientType: RecipientType) {
+  return templates.find((t) => t.recipientType === recipientType && t.status === "Active");
+}
 
 export default function NewRequestPage() {
   const [searchParams] = useSearchParams();
@@ -55,6 +54,27 @@ export default function NewRequestPage() {
   const [auth, setAuth] = useState<"OTP" | "Password" | "One-time link">("OTP");
   const [expiry, setExpiry] = useState("48");
   const autoFetchAttempted = useRef(false);
+
+  const { data: templates = [] } = useQuery({
+    queryKey: ["templates"],
+    queryFn: () => templatesService.list(),
+  });
+
+  const activeTemplate = useMemo(
+    () => getActiveTemplateForRecipient(templates, recipientType),
+    [templates, recipientType],
+  );
+
+  const { data: templateDetail } = useQuery({
+    queryKey: ["templates", activeTemplate?.id],
+    queryFn: () => templatesService.getById(activeTemplate!.id),
+    enabled: !!activeTemplate?.id && step === "B",
+  });
+
+  const templateQuestions = useMemo(
+    () => templateDetail?.sections.flatMap((section) => section.questions) ?? [],
+    [templateDetail],
+  );
 
   const fetchData = async () => {
     if (!orderId || !subject || !uid.trim()) {
@@ -86,6 +106,12 @@ export default function NewRequestPage() {
 
   const send = async () => {
     if (!company) return;
+    if (!activeTemplate) {
+      toast.error(
+        `No active template is available for ${recipientType}. Add and activate a template in Form Builder before sending.`,
+      );
+      return;
+    }
     setSending(true);
     try {
       const result = await casesService.create({
@@ -101,7 +127,11 @@ export default function NewRequestPage() {
       setStep("C");
       toast.success("Secure link sent to recipient.");
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : "Failed to create case.");
+      if (e instanceof ApiError && e.code === "TEMPLATE_NOT_AVAILABLE") {
+        toast.error(e.message);
+      } else {
+        toast.error(e instanceof ApiError ? e.message : "Failed to create case.");
+      }
     } finally {
       setSending(false);
     }
@@ -205,20 +235,46 @@ export default function NewRequestPage() {
                 </RadioGroup>
               </div>
 
+              {!activeTemplate && (
+                <div className="rounded-md bg-status-pending-bg text-status-pending-fg p-3 text-sm flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <p>
+                    No active questionnaire template is configured for <strong>{recipientType}</strong>.
+                    Add and activate one in Form Builder before you can send a link.
+                  </p>
+                </div>
+              )}
+
               <Collapsible>
-                <CollapsibleTrigger className="text-sm text-navy hover:underline">
-                  Preview {recipientType} template ({TEMPLATE_QS[recipientType].length} questions)
+                <CollapsibleTrigger
+                  className="text-sm text-navy hover:underline disabled:text-muted-foreground disabled:no-underline disabled:cursor-not-allowed"
+                  disabled={!activeTemplate}
+                >
+                  {activeTemplate
+                    ? `Preview ${recipientType} template (${templateQuestions.length} questions)`
+                    : `No ${recipientType} template available`}
                 </CollapsibleTrigger>
                 <CollapsibleContent className="mt-2">
-                  <ul className="text-sm space-y-1 bg-secondary/50 rounded-md p-3">
-                    {TEMPLATE_QS[recipientType].map((q) => (
-                      <li key={q}>
-                        {q.endsWith("*") ? (
-                          <><span className="text-status-abandoned-fg mr-1">*</span>{q.replace(/\s\*$/, "")}</>
-                        ) : q}
-                      </li>
-                    ))}
-                  </ul>
+                  {activeTemplate ? (
+                    <ul className="text-sm space-y-1 bg-secondary/50 rounded-md p-3">
+                      {templateQuestions.map((q) => (
+                        <li key={q.id}>
+                          {q.required ? (
+                            <>
+                              <span className="text-status-abandoned-fg mr-1">*</span>
+                              {q.text || "Untitled question"}
+                            </>
+                          ) : (
+                            q.text || "Untitled question"
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-muted-foreground bg-secondary/50 rounded-md p-3">
+                      Create an active template for this recipient type in Form Builder to preview questions here.
+                    </p>
+                  )}
                 </CollapsibleContent>
               </Collapsible>
 
@@ -246,7 +302,11 @@ export default function NewRequestPage() {
 
               <div className="flex justify-between pt-2">
                 <Button variant="outline" onClick={() => setStep("A")}><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>
-                <Button onClick={send} disabled={!company || sending} className="bg-navy hover:bg-navy/90 text-white">
+                <Button
+                  onClick={send}
+                  disabled={!company || sending || !activeTemplate}
+                  className="bg-navy hover:bg-navy/90 text-white"
+                >
                   {sending ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Sending…
@@ -274,7 +334,7 @@ export default function NewRequestPage() {
               <Read label="Subject" value={subject} />
               <Read label="Expires in" value={`${expiry} hours`} />
               <Read label="Auth method" value={auth} />
-              <Read label="Template" value={`${recipientType} questionnaire`} />
+              <Read label="Template" value={activeTemplate?.name ?? `${recipientType} questionnaire`} />
             </div>
 
             {/* Questionnaire link — shown once at creation */}

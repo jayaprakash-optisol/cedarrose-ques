@@ -1,6 +1,7 @@
 import type { CaseRecord } from "@/types";
 import casesData from "@/mocks/data/cases.json";
 import { delay, normalizeMockDates } from "./utils";
+import { mockTemplatesService } from "./templates.mock";
 
 let casesCache: CaseRecord[] | null = null;
 
@@ -62,6 +63,17 @@ export const mockCasesService: CasesService = {
   },
   async create(input) {
     await delay(800);
+    if (input.recipientEmail) {
+      const templates = await mockTemplatesService.list();
+      const active = templates.find(
+        (t) => t.recipientType === input.recipientType && t.status === "Active",
+      );
+      if (!active) {
+        throw new Error(
+          `No active questionnaire template is available for recipient type "${input.recipientType}".`,
+        );
+      }
+    }
     const cases = getCases();
     const nextNum = cases.length + 1;
     const newId = `c-${String(nextNum).padStart(3, "0")}`;

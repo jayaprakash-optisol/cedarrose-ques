@@ -66,6 +66,14 @@ export class CasesService {
       templateId = template?.templateId;
     }
 
+    if (dto.recipientEmail && !templateId) {
+      throw new AppError(
+        400,
+        "TEMPLATE_NOT_AVAILABLE",
+        `No active questionnaire template is available for recipient type "${dto.recipientType}". Add and activate a template in Form Builder before sending.`
+      );
+    }
+
     const status = determineInitialStatus(!!dto.recipientEmail, !!dto.uid);
     const caseRef = await this.casesRepo.getNextCaseRef();
     const validityHours = dto.linkValidityHours ?? 48;

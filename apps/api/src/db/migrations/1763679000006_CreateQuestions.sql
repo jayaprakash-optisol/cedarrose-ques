@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS questions (
   "Label"               TEXT NOT NULL,
   "FieldType"           VARCHAR(20) NOT NULL CHECK ("FieldType" IN (
     'text','longtext','number','date','dropdown','radio',
-    'multiselect','file','table','esign','toggle','url','support_doc'
+    'multiselect','file','table','esign','toggle','url'
   )),
   "Mandatory"           BOOLEAN NOT NULL DEFAULT FALSE,
   "Prefill"             BOOLEAN NOT NULL DEFAULT FALSE,

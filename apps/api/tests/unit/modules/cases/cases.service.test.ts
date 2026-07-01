@@ -177,7 +177,21 @@ describe("CasesService", () => {
     });
 
     it("generates link, sends email, and returns linkUrl when recipient email provided", async () => {
-      const created = createMockCase({ status: "SENT" });
+      const template = {
+        templateId: "33333333-3333-3333-3333-333333333333",
+        name: "Supplier",
+        status: "Active",
+        recipientType: "Supplier",
+        version: 1,
+        createdBy: requesterId,
+        updatedBy: requesterId,
+        description: null,
+        lastEditedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const created = createMockCase({ status: "SENT", templateId: template.templateId });
+      vi.mocked(templatesRepo.findActiveByRecipientType).mockResolvedValue(template);
       vi.mocked(casesRepo.getNextCaseRef).mockResolvedValue("c-005");
       vi.mocked(casesRepo.create).mockResolvedValue(created);
       vi.mocked(casesRepo.findById).mockResolvedValue(created);
@@ -190,6 +204,7 @@ describe("CasesService", () => {
       expect(casesRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
           status: "SENT",
+          templateId: template.templateId,
           linkTokenHash: expect.any(String),
           linkExpiry: expect.any(Date),
           dateDispatched: expect.any(Date),
@@ -203,6 +218,20 @@ describe("CasesService", () => {
         expect.objectContaining({ step: WORKFLOW_STEP.SEND_LINK }),
       );
       expect(result.linkUrl).toMatch(new RegExp(`^${env.frontendUrl}/q/`));
+    });
+
+    it("rejects send when no active template exists for recipient type", async () => {
+      vi.mocked(templatesRepo.findActiveByRecipientType).mockResolvedValue(null);
+
+      await expect(
+        service.createCase({ ...baseDto, recipientEmail: "recipient@test.com" }, requesterId),
+      ).rejects.toMatchObject({
+        statusCode: 400,
+        code: "TEMPLATE_NOT_AVAILABLE",
+      });
+
+      expect(casesRepo.create).not.toHaveBeenCalled();
+      expect(emailService.sendQuestionnaireLink).not.toHaveBeenCalled();
     });
   });
 

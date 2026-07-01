@@ -445,13 +445,18 @@ function formatTemplateDate(iso: string): string {
   });
 }
 
+function normalizeFieldType(type: string): Question["type"] {
+  if (type === "support_doc") return "file";
+  return type as Question["type"];
+}
+
 function mapTableColumns(
   cols?: Array<{ name?: string; label?: string; key?: string; type?: string; required?: boolean }>
 ): Question["columns"] | undefined {
   if (!cols?.length) return undefined;
   return cols.map((c) => ({
     name: c.name ?? c.label ?? c.key ?? "Column",
-    type: (c.type ?? "text") as Question["type"],
+    type: normalizeFieldType(c.type ?? "text"),
     required: c.required ?? false,
   }));
 }
@@ -460,7 +465,7 @@ function mapQuestion(q: ApiTemplateQuestion, index: number): Question {
   return {
     id: q.questionId ?? `q-${index}`,
     text: q.label ?? "",
-    type: q.fieldType,
+    type: normalizeFieldType(q.fieldType),
     required: q.mandatory,
     prefill: q.prefill ?? false,
     options: q.options ?? undefined,

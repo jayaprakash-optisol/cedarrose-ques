@@ -175,8 +175,8 @@ export function QuestionField({ question, value, onChange, disabled }: Props) {
     );
   }
 
-  // ---------- File / support_doc ----------
-  if (question.type === "file" || question.type === "support_doc") {
+  // ---------- File ----------
+  if (question.type === "file") {
     return (
       <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
         <p className="text-sm text-muted-foreground mb-2">Drag & drop a file or</p>

@@ -12,8 +12,7 @@ export type FieldType =
   | "table"
   | "esign"
   | "toggle"
-  | "url"
-  | "support_doc";
+  | "url";
 
 export interface TableColumn {
   name: string;

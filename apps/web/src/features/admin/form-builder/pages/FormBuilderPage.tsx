@@ -79,7 +79,6 @@ const FIELD_TYPES: { value: FieldType; label: string }[] = [
   { value: "esign", label: "E-signature" },
   { value: "toggle", label: "Toggle (yes/no)" },
   { value: "url", label: "URL" },
-  { value: "support_doc", label: "Document upload" },
 ];
 
 function reorderList<T>(items: T[], fromIndex: number, toIndex: number): T[] {
@@ -1107,12 +1106,10 @@ function QuestionCard({
         </div>
       )}
 
-      {/* Upload preview for file / support document */}
-      {(question.type === "file" || question.type === "support_doc") && (
+      {/* Upload preview for file */}
+      {question.type === "file" && (
         <div className="pl-6">
-          <label className="text-xs text-muted-foreground">
-            {question.type === "support_doc" ? "Document upload" : "File upload"}
-          </label>
+          <label className="text-xs text-muted-foreground">File upload</label>
           <div className="mt-1.5 flex items-center justify-between gap-3 rounded-md border border-dashed border-border bg-secondary/30 px-3 py-3">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Upload className="h-4 w-4" />
