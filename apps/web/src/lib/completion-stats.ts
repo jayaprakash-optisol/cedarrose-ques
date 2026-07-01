@@ -87,7 +87,7 @@ function firstOpenHours(row: CaseTimingRow) {
 }
 
 function shortCompanyName(name: string) {
-  const first = name.trim().split(/\s+/)[0] ?? name;
+  const first = name.trim().split(/\s+/)[0];
   return first.length > 14 ? `${first.slice(0, 12)}…` : first;
 }
 
@@ -100,7 +100,7 @@ function displayStatus(status: string) {
     SENT: "Sent",
     OPENED: "Opened",
   };
-  return map[status] ?? status;
+  return map[status];
 }
 
 function formatEndLabel(row: CaseTimingRow) {

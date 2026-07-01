@@ -11,6 +11,7 @@ export default defineConfig({
   },
   define: {
     "import.meta.env.VITE_API_BASE_URL": JSON.stringify("/api/v1"),
+    "import.meta.env.VITE_QA_AUTOMATION_URL": JSON.stringify("https://qa.example.com"),
   },
   test: {
     name: "web",
@@ -23,23 +24,24 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "lcov", "html"],
       reportsDirectory: "./coverage",
-      include: [
-        "src/lib/**/*.ts",
-        "src/services/**/*.ts",
-        "src/config/**/*.ts",
-      ],
+      include: ["src/**/*.{ts,tsx}"],
       exclude: [
+        "src/main.tsx",
+        "src/styles.css",
+        "src/**/index.ts",
         "src/services/index.ts",
         "src/services/types.ts",
         "src/config/env.ts",
-        "src/lib/workflow-completion.ts",
+        "src/types/**",
+        "src/components/ui/**",
       ],
       thresholds: {
-        lines: 90,
-        functions: 90,
-        branches: 85,
-        statements: 90,
+        lines: 100,
+        functions: 100,
+        branches: 95,
+        statements: 100,
       },
     },
   },
 });
+

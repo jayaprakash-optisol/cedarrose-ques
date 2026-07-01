@@ -570,7 +570,6 @@ export function mapTemplate(t: ApiTemplate, editor?: string): Template {
 
 export function splitName(name: string): { firstName: string; lastName: string } {
   const parts = name.trim().split(/\s+/);
-  if (parts.length === 0) return { firstName: "User", lastName: "" };
   if (parts.length === 1) return { firstName: parts[0], lastName: "" };
   return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
 }
