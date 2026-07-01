@@ -141,8 +141,9 @@ function buildCompanyBars(rows: CaseTimingRow[], now: Date, overallAvg: number):
   for (const group of groups.values()) {
     const dayValues = group.rows.map((r) => turnaroundDays(r, now));
     const avgDays = Math.round((dayValues.reduce((s, v) => s + v, 0) / dayValues.length) * 10) / 10;
-    const dominant = group.rows.reduce((best, row) =>
-      turnaroundDays(row, now) >= turnaroundDays(best, now) ? row : best
+    const dominant = group.rows.reduce<CaseTimingRow>(
+      (best, row) => (turnaroundDays(row, now) >= turnaroundDays(best, now) ? row : best),
+      group.rows[0],
     );
 
     bars.push({

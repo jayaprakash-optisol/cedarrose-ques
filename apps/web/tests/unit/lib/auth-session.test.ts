@@ -25,7 +25,7 @@ vi.mock("@/services", () => ({
 }));
 
 vi.mock("@/config/env", () => ({
-  env: { useMock: false, apiBaseUrl: "/api/v1" },
+  env: { apiBaseUrl: "/api/v1" },
 }));
 
 vi.mock("@/lib/app-selection", () => ({
@@ -105,6 +105,30 @@ describe("auth-session", () => {
 
       expect(mocks.login).toHaveBeenCalledWith("a@b.com", "pass", false);
       expect(setQueryData).toHaveBeenCalledWith(CURRENT_USER_QUERY_KEY, user);
+    });
+
+    it("removes non-current-user queries via the predicate", async () => {
+      const user = {
+        id: "1",
+        email: "a@b.com",
+        name: "A",
+        role: "analyst" as const,
+        title: "Analyst",
+        initials: "TA",
+      };
+      mocks.login.mockResolvedValue(user);
+      mocks.getCurrentUser.mockResolvedValue(user);
+
+      const queryClient = new QueryClient();
+      queryClient.setQueryData(["cases"], [{ id: "c1" }]);
+      queryClient.setQueryData(CURRENT_USER_QUERY_KEY, { stale: true });
+      const removeQueries = vi.spyOn(queryClient, "removeQueries");
+
+      await completeLogin(queryClient, "a@b.com", "pass");
+
+      expect(removeQueries).toHaveBeenCalled();
+      expect(queryClient.getQueryData(["cases"])).toBeUndefined();
+      expect(queryClient.getQueryData(CURRENT_USER_QUERY_KEY)).toEqual(user);
     });
 
     it("skips verified refresh when fetch returns null", async () => {

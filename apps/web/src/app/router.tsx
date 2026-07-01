@@ -1,7 +1,6 @@
 import { lazy, Suspense } from "react";
 import { createBrowserRouter, Navigate, Outlet, RouterProvider, useLocation } from "react-router-dom";
 import { useAuth } from "./auth-context";
-import { env } from "@/config/env";
 import { hasAppSelected } from "@/lib/app-selection";
 
 const LoginPage = lazy(() => import("@/features/auth/pages/LoginPage"));
@@ -38,8 +37,6 @@ function LazyPage({ children }: { children: React.ReactNode }) {
 function AuthGuard() {
   const { user, isLoading, isAuthenticated, isBootstrapping } = useAuth();
   const location = useLocation();
-
-  if (env.useMock) return <Outlet />;
 
   if (isBootstrapping || isLoading) return <PageLoader />;
   if (!isAuthenticated || !user) {

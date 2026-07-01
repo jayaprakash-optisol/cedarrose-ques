@@ -2,20 +2,19 @@
 
 Part of the **cedarrose-opshub** monorepo (`apps/web`). See the [root README](../../README.md) for install and `npm run dev` from the monorepo root.
 
-Production-grade React SPA migrated from the Lovable TanStack Start template. UI and behavior match the original OpsHub dashboard; data is served from JSON fixtures until the backend is ready.
+Production-grade React SPA for the CedarRose OpsHub dashboard. All data is loaded from the Express API via the service layer in `src/services/`.
 
 ## Quick start (from monorepo root)
 
 ```bash
 npm install
-npm run dev:web
+npm run dev
 ```
 
-Or from this directory:
+Or web only (requires API at http://localhost:3000):
 
 ```bash
-npm install
-npm run dev
+npm run dev:web
 ```
 
 App runs at http://localhost:5174
@@ -26,8 +25,8 @@ Copy `.env.example` to `.env`:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `VITE_USE_MOCK` | `true` | Use JSON fixtures from `src/mocks/data/` |
-| `VITE_API_BASE_URL` | `http://localhost:3000/api` | API base URL when mock mode is off |
+| `VITE_API_BASE_URL` | `/api/v1` | API base URL (relative in dev so Vite proxies to the API) |
+| `VITE_QA_AUTOMATION_URL` | _(empty)_ | Optional external QA automation app URL |
 
 ## Routes
 
@@ -48,24 +47,11 @@ Copy `.env.example` to `.env`:
 src/
   app/           # Router, providers, auth context
   components/    # Layout, common, shadcn/ui
-  config/        # Env and workflow constants
+  config/        # Env, workflow constants, static lists
   features/      # Feature pages and components
-  mocks/data/    # JSON test fixtures
-  services/      # API-ready service layer (mock + API stubs)
+  services/      # API client and service facades
   types/         # Shared TypeScript types
 ```
-
-## API integration (later)
-
-Set `VITE_USE_MOCK=false` and implement the `api/*.service.ts` stubs in `src/services/api/client.ts`. Components use services only — no changes required in UI code.
-
-Suggested endpoints:
-
-- `GET /cases`, `GET /cases/:id`, `POST /cases/:id/resend-link`
-- `GET /audit-log`
-- `GET /companies/:uid`
-- `GET/PUT /admin/users`, `GET/PUT /admin/templates`, `GET/PUT /admin/config`
-- `GET /notifications`
 
 ## Build
 

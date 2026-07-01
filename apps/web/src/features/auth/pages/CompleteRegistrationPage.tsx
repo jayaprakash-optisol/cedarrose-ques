@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type SubmitEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff, CheckCircle2, AlertCircle } from "lucide-react";
 import { authService } from "@/services";
@@ -58,7 +58,7 @@ export default function CompleteRegistrationPage() {
     };
   }, [token]);
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: SubmitEvent) {
     e.preventDefault();
     setError("");
 
@@ -166,9 +166,12 @@ export default function CompleteRegistrationPage() {
 
       <form onSubmit={handleSubmit} className="mt-6">
         <div>
-          <label className={authLabelClassName}>New password</label>
+          <label htmlFor="reg-password" className={authLabelClassName}>
+            New password
+          </label>
           <div className="relative">
             <input
+              id="reg-password"
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -190,9 +193,12 @@ export default function CompleteRegistrationPage() {
         </div>
 
         <div className="mt-4">
-          <label className={authLabelClassName}>Confirm password</label>
+          <label htmlFor="reg-confirm" className={authLabelClassName}>
+            Confirm password
+          </label>
           <div className="relative">
             <input
+              id="reg-confirm"
               type={showConfirm ? "text" : "password"}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}

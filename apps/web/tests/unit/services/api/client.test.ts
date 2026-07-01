@@ -3,6 +3,7 @@ import {
   ApiError,
   apiClient,
   apiAuthService,
+  apiSettingsService,
   apiCasesService,
   apiAuditService,
   apiCompaniesService,
@@ -88,6 +89,17 @@ describe("apiClient", () => {
       code: "AUTH",
       message: "Unauthorized",
       status: 401,
+    });
+  });
+
+  it("throws ApiError with default code/message when error envelope is missing fields", async () => {
+    mocks.fetch.mockResolvedValue(
+      jsonResponse({ success: false, error: {} }, 403, "Forbidden"),
+    );
+    await expect(apiClient("/protected")).rejects.toMatchObject({
+      code: "ERROR",
+      message: "Forbidden",
+      status: 403,
     });
   });
 
@@ -178,6 +190,42 @@ describe("apiCasesService", () => {
     expect(result.meta.total).toBe(1);
   });
 
+  it("exports cases as CSV", async () => {
+    mocks.fetch.mockResolvedValue({
+      status: 200,
+      statusText: "OK",
+      ok: true,
+      blob: vi.fn().mockResolvedValue(new Blob(["csv"])),
+    } as unknown as Response);
+
+    await apiCasesService.exportCsv({ status: "SENT" });
+    expect(mocks.fetch).toHaveBeenCalledWith(
+      "/api/v1/cases/export?page=1&limit=20&status=SENT",
+      expect.objectContaining({ credentials: "include" }),
+    );
+  });
+
+  it("sends recipientType only when not 'All'", async () => {
+    mocks.fetch.mockResolvedValue(
+      jsonResponse({ success: true, data: [apiCase], meta: { page: 1, limit: 20, total: 1 } }),
+    );
+    await apiCasesService.list({ recipientType: "All" });
+    expect(mocks.fetch).toHaveBeenCalledWith(
+      "/api/v1/cases?page=1&limit=20",
+      expect.anything(),
+    );
+
+    mocks.fetch.mockReset();
+    mocks.fetch.mockResolvedValue(
+      jsonResponse({ success: true, data: [apiCase], meta: { page: 1, limit: 20, total: 1 } }),
+    );
+    await apiCasesService.list({ recipientType: "Customer" });
+    expect(mocks.fetch).toHaveBeenCalledWith(
+      "/api/v1/cases?page=1&limit=20&recipientType=Customer",
+      expect.anything(),
+    );
+  });
+
   it("gets case by id and returns undefined on 404", async () => {
     mocks.fetch.mockResolvedValue(jsonResponse({ success: true, data: apiCase }));
     const found = await apiCasesService.getById("c-1");
@@ -237,6 +285,42 @@ describe("apiAuditService", () => {
     const result = await apiAuditService.list({ caseId: "c-1", grouped: false });
     expect(result.data[0].id).toBe("a-1");
     expect(result.meta.total).toBe(1);
+  });
+
+  it("sends type only when not 'All' and grouped=false", async () => {
+    mocks.fetch.mockResolvedValue(
+      jsonResponse({ success: true, data: [], meta: { page: 1, limit: 20, total: 0 } }),
+    );
+    await apiAuditService.list({ type: "All" });
+    expect(mocks.fetch).toHaveBeenCalledWith(
+      "/api/v1/audit-log?page=1&limit=20",
+      expect.anything(),
+    );
+
+    mocks.fetch.mockReset();
+    mocks.fetch.mockResolvedValue(
+      jsonResponse({ success: true, data: [], meta: { page: 1, limit: 20, total: 0 } }),
+    );
+    await apiAuditService.list({ type: "API Call", grouped: false });
+    expect(mocks.fetch).toHaveBeenCalledWith(
+      "/api/v1/audit-log?page=1&limit=20&type=API+Call&grouped=false",
+      expect.anything(),
+    );
+  });
+
+  it("exports audit log as CSV", async () => {
+    mocks.fetch.mockResolvedValue({
+      status: 200,
+      statusText: "OK",
+      ok: true,
+      blob: vi.fn().mockResolvedValue(new Blob(["csv"])),
+    } as unknown as Response);
+
+    await apiAuditService.exportCsv({ caseId: "c-1" });
+    expect(mocks.fetch).toHaveBeenCalledWith(
+      "/api/v1/audit-log/export?page=1&limit=20&caseId=c-1",
+      expect.objectContaining({ credentials: "include" }),
+    );
   });
 });
 
@@ -331,6 +415,61 @@ describe("apiUsersService", () => {
     expect(saved[0].name).toBe("Updated Admin");
   });
 
+  it("patches existing users when only role changes", async () => {
+    const uuid = "00000000-0000-0000-0000-000000000001";
+    const existingApiUser = { ...apiUser, userId: uuid };
+    const updatedUser = { ...existingApiUser, role: "Reviewer" };
+    mocks.fetch
+      .mockResolvedValueOnce(jsonResponse({ success: true, data: [existingApiUser] }))
+      .mockResolvedValueOnce(jsonResponse({ success: true, data: updatedUser }))
+      .mockResolvedValueOnce(jsonResponse({ success: true, data: [updatedUser] }));
+
+    const saved = await apiUsersService.save([
+      {
+        id: uuid,
+        name: existingApiUser.firstName + " " + existingApiUser.lastName,
+        email: existingApiUser.email,
+        role: "reviewer",
+        status: "Active",
+        totalReports: null,
+        score: null,
+        lastSubmission: null,
+      },
+    ]);
+    expect(saved[0].role).toBe("reviewer");
+    expect(mocks.fetch).toHaveBeenCalledWith(
+      `/api/v1/admin/users/${uuid}`,
+      expect.objectContaining({ method: "PATCH" }),
+    );
+  });
+
+  it("patches existing users when status is 'Pending'", async () => {
+    const uuid = "00000000-0000-0000-0000-000000000002";
+    const existingApiUser = { ...apiUser, userId: uuid, status: "Active" };
+    const updatedUser = { ...existingApiUser, status: "Pending" };
+    mocks.fetch
+      .mockResolvedValueOnce(jsonResponse({ success: true, data: [existingApiUser] }))
+      .mockResolvedValueOnce(jsonResponse({ success: true, data: updatedUser }))
+      .mockResolvedValueOnce(jsonResponse({ success: true, data: [updatedUser] }));
+
+    await apiUsersService.save([
+      {
+        id: uuid,
+        name: existingApiUser.firstName + " " + existingApiUser.lastName,
+        email: existingApiUser.email,
+        role: "admin",
+        status: "Pending",
+        totalReports: null,
+        score: null,
+        lastSubmission: null,
+      },
+    ]);
+    expect(mocks.fetch).toHaveBeenCalledWith(
+      `/api/v1/admin/users/${uuid}`,
+      expect.objectContaining({ method: "PATCH" }),
+    );
+  });
+
   it("deletes users removed from save payload", async () => {
     mocks.fetch
       .mockResolvedValueOnce(jsonResponse({ success: true, data: [apiUser] }))
@@ -415,6 +554,50 @@ describe("apiTemplatesService", () => {
       },
     ]);
     expect(updated[0].id).toBe(remoteId);
+  });
+});
+
+describe("apiSettingsService", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", mocks.fetch);
+    mocks.fetch.mockReset();
+  });
+
+  it("get returns user and preferences", async () => {
+    mocks.fetch.mockResolvedValue(jsonResponse({ success: true, data: apiUser }));
+    const result = await apiSettingsService.get();
+    expect(result.user.email).toBe("admin@cedarrose.local");
+    expect(result.preferences).toBeDefined();
+  });
+
+  it("save with name splits and PATCHes /auth/me", async () => {
+    mocks.fetch.mockResolvedValue(jsonResponse({ success: true, data: apiUser }));
+    await apiSettingsService.save({ name: "Admin User" });
+    expect(mocks.fetch).toHaveBeenCalledWith(
+      "/api/v1/auth/me",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({ firstName: "Admin", lastName: "User" }),
+      }),
+    );
+  });
+
+  it("save with preferences only omits firstName/lastName", async () => {
+    mocks.fetch.mockResolvedValue(jsonResponse({ success: true, data: apiUser }));
+    await apiSettingsService.save({ preferences: { notifyOnSubmission: false } });
+    const call = mocks.fetch.mock.calls[0];
+    const body = JSON.parse(call[1].body);
+    expect(body).toEqual({ notifyOnSubmission: false });
+    expect(body.firstName).toBeUndefined();
+  });
+
+  it("changePassword posts to the change-password endpoint", async () => {
+    mocks.fetch.mockResolvedValue(jsonResponse({ success: true, data: { message: "ok" } }));
+    await apiSettingsService.changePassword("old1234", "new1234", "new1234");
+    expect(mocks.fetch).toHaveBeenCalledWith(
+      "/api/v1/auth/change-password",
+      expect.objectContaining({ method: "POST" }),
+    );
   });
 });
 

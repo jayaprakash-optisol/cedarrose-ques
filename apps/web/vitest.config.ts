@@ -10,7 +10,6 @@ export default defineConfig({
     },
   },
   define: {
-    "import.meta.env.VITE_USE_MOCK": JSON.stringify("true"),
     "import.meta.env.VITE_API_BASE_URL": JSON.stringify("/api/v1"),
   },
   test: {
@@ -30,8 +29,8 @@ export default defineConfig({
         "src/config/**/*.ts",
       ],
       exclude: [
-        "src/services/mock/**",
         "src/services/index.ts",
+        "src/services/types.ts",
         "src/config/env.ts",
         "src/lib/workflow-completion.ts",
       ],

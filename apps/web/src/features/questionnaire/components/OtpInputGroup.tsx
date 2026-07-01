@@ -30,7 +30,7 @@ export function OtpInputGroup({ value, onChange, disabled, hasError }: Props) {
   function handlePaste(e: React.ClipboardEvent) {
     e.preventDefault();
     const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
-    const next = Array(6).fill("");
+    const next = new Array(6).fill("");
     for (let i = 0; i < pasted.length; i++) next[i] = pasted[i];
     onChange(next);
     const lastFilled = Math.min(pasted.length, 5);

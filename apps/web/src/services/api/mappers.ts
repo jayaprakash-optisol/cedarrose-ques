@@ -234,7 +234,7 @@ export function mapCurrentUser(u: ApiUser): CurrentUser {
 
 export function mapUser(u: ApiUser): User {
   const score =
-    u.score == null ? null : typeof u.score === "string" ? parseFloat(u.score) : u.score;
+    u.score == null ? null : typeof u.score === "string" ? Number.parseFloat(u.score) : u.score;
   return {
     id: u.userId,
     name: `${u.firstName} ${u.lastName}`.trim(),

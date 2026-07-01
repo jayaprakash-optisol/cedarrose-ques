@@ -44,7 +44,7 @@ export function DateField({
           selected={date}
           onSelect={(d) => onChange(d ? format(d, "yyyy-MM-dd") : "")}
           disabled={min ? { before: min } : undefined}
-          initialFocus
+          autoFocus
           className={cn("p-3 pointer-events-auto")}
         />
       </PopoverContent>

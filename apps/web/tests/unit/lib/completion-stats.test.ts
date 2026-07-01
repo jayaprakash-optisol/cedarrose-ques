@@ -94,6 +94,50 @@ describe("completion-stats", () => {
     expect(stats.summary.avgTimeToFirstOpen.value).toBeNull();
   });
 
+  it("treats in-progress cases as still in flight (no dateSubmitted, not EXPIRED)", () => {
+    const inProgress = makeCase({
+      status: "IN PROGRESS",
+      link: { sentAt: subDays(new Date(), 5).toISOString(), firstOpenedAt: subDays(new Date(), 4).toISOString(), resentCount: 0 },
+    });
+    const stats = computeCompletionStatsFromCases([inProgress], "all");
+    expect(stats.caseCount).toBe(1);
+    expect(stats.byCompany[0].state).toBe("over-progress");
+  });
+
+  it("computes trend when both current and previous periods have data", () => {
+    const recent = makeCase({
+      id: "c-recent",
+      status: "COMPLETED",
+      link: {
+        sentAt: subDays(new Date(), 1).toISOString(),
+        firstOpenedAt: subDays(new Date(), 1).toISOString(),
+        resentCount: 0,
+      },
+      lastActivity: subDays(new Date(), 1).toISOString(),
+      requestedDate: subDays(new Date(), 1).toISOString(),
+    });
+    const older = makeCase({
+      id: "c-older",
+      status: "COMPLETED",
+      link: {
+        sentAt: subDays(new Date(), 10).toISOString(),
+        firstOpenedAt: subDays(new Date(), 9).toISOString(),
+        resentCount: 0,
+      },
+      lastActivity: subDays(new Date(), 9).toISOString(),
+      requestedDate: subDays(new Date(), 10).toISOString(),
+    });
+    const stats = computeCompletionStatsFromCases([recent, older], "30d");
+    expect(stats.summary.avgTimeToFirstOpen.value).not.toBeNull();
+    expect(stats.summary.avgTimeToComplete.value).not.toBeNull();
+    expect(stats.summary.avgTotalTurnaround.value).not.toBeNull();
+  });
+
+  it("formats trend with days unit", () => {
+    expect(formatCompletionTrend(-2, "days")).toContain("2d");
+    expect(formatCompletionTrend(2, "days")).toContain("2d");
+  });
+
   it("formats metric values", () => {
     expect(formatCompletionMetricValue(null, "hours")).toBe("—");
     expect(formatCompletionMetricValue(12, "hours")).toBe("12h");
@@ -105,7 +149,9 @@ describe("completion-stats", () => {
     expect(formatCompletionTrend(null, "days")).toBe("No prior period data");
     expect(formatCompletionTrend(0, "days")).toBe("No change vs previous period");
     expect(formatCompletionTrend(-1.5, "days")).toContain("↓");
+    expect(formatCompletionTrend(1.5, "days")).toContain("↑");
     expect(trendIsNegative(-1)).toBe(true);
     expect(trendIsNegative(1)).toBe(false);
+    expect(trendIsNegative(null)).toBe(false);
   });
 });

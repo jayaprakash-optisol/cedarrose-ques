@@ -1,6 +1,6 @@
 import { apiClient } from "./client";
 import { mapQuestionnaireFormData, type ApiQuestionnaireFormPayload } from "./mappers";
-import type { QuestionnaireService } from "../mock/questionnaire.mock";
+import type { QuestionnaireService } from "../types";
 import type {
   LinkVerifyResult,
   QuestionnaireSession,

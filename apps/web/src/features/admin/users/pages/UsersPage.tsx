@@ -107,7 +107,7 @@ export default function UsersPage() {
     const lines = [header.join(",")].concat(
       rows.map((u) =>
         [u.id, u.name, u.email, u.totalReports ?? "—", u.score == null ? "—" : `${u.score}%`, u.lastSubmission ?? "N/A", u.status]
-          .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+          .map((v) => `"${String(v).replaceAll('"', '""')}"`)
           .join(","),
       ),
     );

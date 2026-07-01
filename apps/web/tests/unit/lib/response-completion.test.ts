@@ -56,4 +56,14 @@ describe("response-completion", () => {
     expect(result.mandatoryPct).toBe(100);
     expect(result.optionalPct).toBe(0);
   });
+
+  it("returns 0% for mandatory and 0 for optional when only optional responses are present", () => {
+    const result = resolveCaseCompletion({
+      responses: [{ question: "Q1", answer: "yes", mandatory: false }],
+      completionMandatory: { done: 0, total: 0 },
+      completionOptional: { done: 0, total: 0 },
+    });
+    expect(result.mandatoryPct).toBe(0);
+    expect(result.optionalPct).toBe(100);
+  });
 });

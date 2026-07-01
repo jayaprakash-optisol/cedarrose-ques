@@ -119,16 +119,16 @@ function resolveInsertIndex(container: HTMLElement | null, clientY: number): num
 
 function captureFlipPositions(container: HTMLElement | null) {
   const positions = new Map<string, number>();
-  container?.querySelectorAll("[data-question-id]").forEach((el) => {
-    const id = el.getAttribute("data-question-id");
-    if (id) positions.set(id, (el as HTMLElement).offsetTop);
+  container?.querySelectorAll<HTMLElement>("[data-question-id]").forEach((el) => {
+    const id = el.dataset.questionId;
+    if (id) positions.set(id, el.offsetTop);
   });
   return positions;
 }
 
 function playFlipAnimation(container: HTMLElement | null, previous: Map<string, number>) {
-  container?.querySelectorAll("[data-question-id]").forEach((el) => {
-    const id = el.getAttribute("data-question-id");
+  container?.querySelectorAll<HTMLElement>("[data-question-id]").forEach((el) => {
+    const id = el.dataset.questionId;
     if (!id) return;
     const prevTop = previous.get(id);
     if (prevTop === undefined) return;
@@ -932,7 +932,7 @@ function QuestionCard({
   };
   const handleDragEnd = () => {
     if (dragGhostRef.current) {
-      document.body.removeChild(dragGhostRef.current);
+      dragGhostRef.current?.remove();
       dragGhostRef.current = null;
     }
     onDragEnd();

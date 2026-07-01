@@ -135,6 +135,19 @@ describe("workflow-progress", () => {
     expect(progress.currentStep).toBeGreaterThanOrEqual(1);
   });
 
+  it("ignores caseRecord stepTimestamps that normalize to null", () => {
+    const caseRecord = makeCase({
+      stepTimestamps: {
+        0: "2026-01-01T08:00:00.000Z",
+        1: "2026-01-02T08:00:00.000Z",
+      },
+      currentStep: 2,
+    });
+    const progress = buildWorkflowProgress(caseRecord, []);
+    // step 0 normalized to null and is ignored, step 1 should be set
+    expect(progress.completedAt[0]).toContain("02 Jan 2026");
+  });
+
   it("caps current step when workflow is complete", () => {
     const events: AuditEvent[] = Array.from({ length: 14 }, (_, i) => ({
       id: String(i),

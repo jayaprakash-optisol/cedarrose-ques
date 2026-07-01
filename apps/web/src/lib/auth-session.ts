@@ -1,7 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 import type { CurrentUser } from "@/types";
 import { authService } from "@/services";
-import { env } from "@/config/env";
 import { clearAppSelected } from "@/lib/app-selection";
 import { ApiError } from "@/services/api/client";
 
@@ -65,9 +64,7 @@ export async function completeLogin(queryClient: QueryClient, email: string, pas
 export async function completeLogout(queryClient: QueryClient) {
   clearAppSelected();
   clearLegacyTokenStorage();
-  if (!env.useMock) {
-    await authService.logout();
-  }
+  await authService.logout();
   queryClient.setQueryData(CURRENT_USER_QUERY_KEY, null);
   queryClient.removeQueries();
 }

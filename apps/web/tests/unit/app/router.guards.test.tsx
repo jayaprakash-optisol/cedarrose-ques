@@ -22,7 +22,7 @@ const appSelection = vi.hoisted(() => ({
 }));
 
 vi.mock("@/config/env", () => ({
-  env: { useMock: false, apiBaseUrl: "/api/v1", qaAutomationUrl: "" },
+  env: { apiBaseUrl: "/api/v1", qaAutomationUrl: "" },
 }));
 
 vi.mock("@/app/auth-context", () => ({
@@ -53,7 +53,7 @@ vi.mock("@/features/auth/pages/SelectAppPage", () => ({
   default: () => <div>Select App Page</div>,
 }));
 
-describe("AppRouter guards (non-mock)", () => {
+describe("AppRouter guards", () => {
   beforeEach(() => {
     authState.isAuthenticated = true;
     authState.isLoading = false;

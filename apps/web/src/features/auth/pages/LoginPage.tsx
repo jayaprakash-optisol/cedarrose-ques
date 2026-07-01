@@ -1,10 +1,8 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useState, type FormEvent } from "react";
+import { useState, type SubmitEvent } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { authService } from "@/services";
 import { ApiError } from "@/services/api/client";
-import { env } from "@/config/env";
 import { completeLogin } from "@/lib/auth-session";
 import {
   AuthPageShell,
@@ -24,7 +22,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [shake, setShake] = useState(false);
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: SubmitEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
@@ -35,9 +33,7 @@ export default function LoginPage() {
       const message =
         err instanceof ApiError
           ? err.message
-          : env.useMock
-            ? "Invalid email or password. Please try again."
-            : "Unable to sign in. Check your credentials and try again.";
+          : "Unable to sign in. Check your credentials and try again.";
       setError(message);
       setShake(true);
       setTimeout(() => setShake(false), 350);
@@ -50,8 +46,11 @@ export default function LoginPage() {
     <AuthPageShell shake={shake} title="Welcome back" subtitle="Sign in to your account">
       <form onSubmit={handleSubmit} className="mt-7">
         <div>
-          <label className={authLabelClassName}>Email address</label>
+          <label htmlFor="login-email" className={authLabelClassName}>
+            Email address
+          </label>
           <input
+            id="login-email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -62,9 +61,12 @@ export default function LoginPage() {
         </div>
 
         <div className="mt-4">
-          <label className={authLabelClassName}>Password</label>
+          <label htmlFor="login-password" className={authLabelClassName}>
+            Password
+          </label>
           <div className="relative">
             <input
+              id="login-password"
               type={showPw ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}

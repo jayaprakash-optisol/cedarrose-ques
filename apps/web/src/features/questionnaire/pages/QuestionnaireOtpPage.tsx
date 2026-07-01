@@ -16,7 +16,7 @@ export default function QuestionnaireOtpPage() {
   const navigate = useNavigate();
 
   const [session, setSession] = useState<QSessionState | null>(null);
-  const [digits, setDigits] = useState<string[]>(Array(6).fill(""));
+  const [digits, setDigits] = useState<string[]>(new Array(6).fill(""));
   const [verifying, setVerifying] = useState(false);
   const [resending, setResending] = useState(false);
   const [resentToast, setResentToast] = useState(false);
@@ -98,7 +98,7 @@ export default function QuestionnaireOtpPage() {
       setAttempts(newAttempts);
       if (newAttempts >= 3) {
         setError("Too many incorrect attempts. Please request a new code.");
-        setDigits(Array(6).fill(""));
+        setDigits(new Array(6).fill(""));
       } else {
         setError(
           e instanceof Error ? e.message : `Invalid code. ${3 - newAttempts} attempt(s) remaining.`,
@@ -113,7 +113,7 @@ export default function QuestionnaireOtpPage() {
     if (!token || !session) return;
     setResending(true);
     setError(null);
-    setDigits(Array(6).fill(""));
+    setDigits(new Array(6).fill(""));
     setAttempts(0);
     try {
       await questionnaireService.requestOtp(token);

@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type SubmitEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff, CheckCircle2, AlertCircle } from "lucide-react";
 import { authService } from "@/services";
@@ -60,7 +60,7 @@ export default function ResetPasswordPage() {
     };
   }, [token]);
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: SubmitEvent) {
     e.preventDefault();
     setError("");
 
@@ -153,9 +153,12 @@ export default function ResetPasswordPage() {
     >
       <form onSubmit={handleSubmit} className="mt-7">
         <div>
-          <label className={authLabelClassName}>New password</label>
+          <label htmlFor="reset-password" className={authLabelClassName}>
+            New password
+          </label>
           <div className="relative">
             <input
+              id="reset-password"
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -178,9 +181,12 @@ export default function ResetPasswordPage() {
         </div>
 
         <div className="mt-4">
-          <label className={authLabelClassName}>Confirm password</label>
+          <label htmlFor="reset-confirm" className={authLabelClassName}>
+            Confirm password
+          </label>
           <div className="relative">
             <input
+              id="reset-confirm"
               type={showConfirm ? "text" : "password"}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, type SubmitEvent } from "react";
 import { Link } from "react-router-dom";
 import { CheckCircle2 } from "lucide-react";
 import { authService } from "@/services";
@@ -18,7 +18,7 @@ export default function ForgotPasswordPage() {
   const [shake, setShake] = useState(false);
   const [sent, setSent] = useState(false);
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: SubmitEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
@@ -71,8 +71,11 @@ export default function ForgotPasswordPage() {
     >
       <form onSubmit={handleSubmit} className="mt-7">
         <div>
-          <label className={authLabelClassName}>Email address</label>
+          <label htmlFor="forgot-email" className={authLabelClassName}>
+            Email address
+          </label>
           <input
+            id="forgot-email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}

@@ -1,14 +1,15 @@
-import type { CaseRecord } from "@/types";
-import type { AuditEvent } from "@/types";
-import type { CompanyData } from "@/types";
-import type { User } from "@/types";
-import type { Template } from "@/types";
-import type { PlatformConfig } from "@/types";
-import type { Notification } from "@/types";
-import type { CurrentUser } from "@/types";
-import type { InvitationInfo, NotificationPreferences } from "@/types/user";
-import type { SaveSettingsInput, SettingsService } from "../mock/settings.mock";
-import type { RecipientType } from "@/types/case";
+import type {
+  CaseRecord,
+  AuditEvent,
+  CompanyData,
+  User,
+  Template,
+  PlatformConfig,
+  Notification,
+  CurrentUser,
+} from "@/types";
+import type { InvitationInfo } from "@/types/user";
+import type { SaveSettingsInput, SettingsService, CreateCaseInput } from "../types";
 import { env } from "@/config/env";
 import { apiListWithMeta, downloadApiCsv } from "./listing";
 import { DEFAULT_PAGE_SIZE } from "@/types/pagination";
@@ -106,17 +107,6 @@ function toAuditListQuery(params: AuditListParams = {}) {
   };
 }
 
-export interface CreateCaseInput {
-  orderId: string;
-  uid?: string;
-  subjectName: string;
-  country: string;
-  recipientType: RecipientType;
-  recipientEmail?: string;
-  linkValidityHours?: number;
-  templateId?: string;
-  analystId?: string;
-}
 
 export const apiAuthService = {
   async login(email: string, password: string, rememberMe = false): Promise<CurrentUser> {

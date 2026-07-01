@@ -9,8 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { settingsService } from "@/services";
 import { ApiError } from "@/services/api/client";
-import { CURRENT_USER_QUERY_KEY } from "@/lib/auth-session";
-import { completeLogout } from "@/lib/auth-session";
+import { CURRENT_USER_QUERY_KEY, completeLogout } from "@/lib/auth-session";
 import type { NotificationPreferences } from "@/types";
 import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/types/user";
 
@@ -84,7 +83,7 @@ export default function SettingsPage() {
     },
   });
 
-  const handlePasswordSubmit = (event: React.FormEvent) => {
+  const handlePasswordSubmit = (event: React.SubmitEvent) => {
     event.preventDefault();
     if (newPassword.length < 8) {
       toast.error("New password must be at least 8 characters.");

@@ -8,6 +8,7 @@ import {
   mapUser,
   mapAuditEvent,
   mapNotification,
+  mapNotificationPreferences,
   mapPlatformConfig,
   mapPlatformConfigToApi,
   mapTemplate,
@@ -121,6 +122,44 @@ describe("api mappers", () => {
         recipientEmails: [{ email: "a@b.com" } as unknown as string],
       }).recipientEmails,
     ).toEqual(["a@b.com"]);
+  });
+
+  it("maps notification preferences with API defaults", () => {
+    expect(
+      mapNotificationPreferences({
+        userId: "u-1",
+        email: "a@b.com",
+        firstName: "A",
+        lastName: "B",
+        role: "Analyst",
+        status: "Active",
+      }),
+    ).toEqual({
+      notifyOnSubmission: true,
+      notifyOnLinkExpiry: true,
+      notifyOnBlockedDispatch: true,
+      notifyOnRemindersSent: true,
+    });
+
+    expect(
+      mapNotificationPreferences({
+        userId: "u-2",
+        email: "a@b.com",
+        firstName: "A",
+        lastName: "B",
+        role: "Analyst",
+        status: "Active",
+        notifyOnSubmission: false,
+        notifyOnLinkExpiry: false,
+        notifyOnBlockedDispatch: false,
+        notifyOnRemindersSent: false,
+      }),
+    ).toEqual({
+      notifyOnSubmission: false,
+      notifyOnLinkExpiry: false,
+      notifyOnBlockedDispatch: false,
+      notifyOnRemindersSent: false,
+    });
   });
 
   it("maps audit, notification, and platform config", () => {
@@ -331,5 +370,261 @@ describe("api mappers", () => {
       ],
     });
     expect(template.sections[0].questions[0].text).toBe("First");
+  });
+
+  it("uses 'file' type for support_doc field type", () => {
+    const template = mapTemplate({
+      templateId: "tpl-3",
+      name: "DocUpload",
+      recipientType: "Supplier",
+      status: "Active",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      sections: [
+        {
+          sectionId: "s1",
+          title: "Section",
+          orderIndex: 0,
+          questions: [
+            {
+              questionId: "q1",
+              label: "Upload",
+              fieldType: "file",
+              orderIndex: 0,
+              mandatory: false,
+            },
+          ],
+        },
+      ],
+    });
+    expect(template.sections[0].questions[0].type).toBe("file");
+  });
+
+  it("falls back to '—' for template editor when missing", () => {
+    const template = mapTemplate({
+      templateId: "tpl-4",
+      name: "NoEditor",
+      recipientType: "Supplier",
+      status: "Active",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      sections: [],
+    });
+    expect(template.editor).toBe("—");
+  });
+
+  it("uses editor parameter over API editorName", () => {
+    const template = mapTemplate(
+      {
+        templateId: "tpl-5",
+        name: "WithEditor",
+        recipientType: "Supplier",
+        status: "Active",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+        editorName: "FromApi",
+        sections: [],
+      },
+      "Local Editor",
+    );
+    expect(template.editor).toBe("Local Editor");
+  });
+
+  it("maps user with initials fallback when missing", () => {
+    const user = mapCurrentUser({
+      userId: "u-1",
+      email: "a@b.com",
+      firstName: "Ada",
+      lastName: "Lovelace",
+      role: "Analyst",
+      status: "Active",
+    });
+    expect(user.initials).toBe("AL");
+  });
+
+  it("uses role as title when title is missing", () => {
+    const user = mapCurrentUser({
+      userId: "u-3",
+      email: "a@b.com",
+      firstName: "X",
+      lastName: "Y",
+      role: "Admin",
+      status: "Active",
+    });
+    expect(user.title).toBe("Admin");
+  });
+
+  it("maps user with string score that is not finite", () => {
+    const user = mapUser({
+      userId: "u-4",
+      email: "a@b.com",
+      firstName: "X",
+      lastName: "Y",
+      role: "Analyst",
+      status: "Active",
+      score: "not-a-number",
+    } as Parameters<typeof mapUser>[0]);
+    expect(user.score).toBeNull();
+  });
+
+  it("maps case with company missing recipient emails", () => {
+    const mapped = mapCase({
+      caseId: "c-no-emails",
+      caseRef: "CR-1",
+      orderId: "ORD-1",
+      subjectName: "Acme",
+      country: "AE",
+      recipientType: "Supplier",
+      status: "SENT",
+      completionMandatory: 0,
+      completionOptional: 0,
+      dateReceived: "2026-01-01T00:00:00.000Z",
+      currentStep: 1,
+      company: {
+        companyName: "Acme LLC",
+        crisNumber: "CR-55",
+        country: null,
+        riskRating: null,
+        recipientEmails: [],
+      } as unknown as Parameters<typeof mapCase>[0]["company"],
+    } as Parameters<typeof mapCase>[0]);
+    expect(mapped.companyData.country).toBe("");
+    expect(mapped.companyData.riskRating).toBe("Low");
+  });
+
+  it("maps full platform config to API shape", () => {
+    const config: Parameters<typeof mapPlatformConfigToApi>[0] = {
+      linkValidity: 10,
+      tokenType: "single-use",
+      tokenUnit: "hours",
+      tokenHours: 24,
+      tokenMinutes: 60,
+      otpExpiry: 10,
+      otpRetry: 3,
+      lockoutDuration: 15,
+      otpResend: 3,
+      r1: 3,
+      r2: 5,
+      r3: 7,
+      expiry: 10,
+      gamification: true,
+      midPrompt: true,
+      midText: "Halfway",
+      nearPrompt: true,
+      nearText: "Almost",
+      rewardSystem: true,
+      tier1Title: "T1",
+      tier1Desc: "D1",
+      tier1Accel: false,
+      tier1Discount: false,
+      tier1Active: true,
+      tier2Title: "T2",
+      tier2Desc: "D2",
+      tier2Active: true,
+      autoA: true,
+      manualB: false,
+      alertCD: true,
+      auditRetention: 365,
+      exportFormat: "csv",
+      staleHours: 72,
+    };
+    const result = mapPlatformConfigToApi(config);
+    expect(result.tokenExpiryValue).toBe(24);
+    expect(result.tokenExpiryUnit).toBe("hours");
+  });
+
+  it("maps full platform config to API shape with minutes", () => {
+    const config: Parameters<typeof mapPlatformConfigToApi>[0] = {
+      linkValidity: 10,
+      tokenType: "single-use",
+      tokenUnit: "minutes",
+      tokenHours: 24,
+      tokenMinutes: 60,
+      otpExpiry: 10,
+      otpRetry: 3,
+      lockoutDuration: 15,
+      otpResend: 3,
+      r1: 3,
+      r2: 5,
+      r3: 7,
+      expiry: 10,
+      gamification: true,
+      midPrompt: true,
+      midText: "Halfway",
+      nearPrompt: true,
+      nearText: "Almost",
+      rewardSystem: true,
+      tier1Title: "T1",
+      tier1Desc: "D1",
+      tier1Accel: false,
+      tier1Discount: false,
+      tier1Active: true,
+      tier2Title: "T2",
+      tier2Desc: "D2",
+      tier2Active: true,
+      autoA: true,
+      manualB: false,
+      alertCD: true,
+      auditRetention: 365,
+      exportFormat: "csv",
+      staleHours: 72,
+    };
+    const result = mapPlatformConfigToApi(config);
+    expect(result.tokenExpiryValue).toBe(60);
+  });
+
+  it("returns no columns when tableColumns is missing or empty", () => {
+    const template = mapTemplate({
+      templateId: "tpl-no-cols",
+      name: "NoCols",
+      recipientType: "Supplier",
+      status: "Active",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      sections: [
+        {
+          sectionId: "s1",
+          title: "Section",
+          orderIndex: 0,
+          questions: [
+            { questionId: "q1", label: "NoTable", fieldType: "text", orderIndex: 0, mandatory: false },
+          ],
+        },
+      ],
+    });
+    expect(template.sections[0].questions[0].columns).toBeUndefined();
+  });
+
+  it("maps notification without caseId", () => {
+    const notification = mapNotification({
+      notificationId: "n-1",
+      userId: "u-1",
+      type: "submission",
+      title: "T",
+      body: "B",
+      read: false,
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
+    expect(notification.caseId).toBeUndefined();
+  });
+
+  it("maps questionnaire responses with default answer and mandatory", () => {
+    const data = mapQuestionnaireFormData({
+      case: {
+        caseId: "c1",
+        subjectName: "Acme",
+        recipientType: "Supplier",
+        status: "IN PROGRESS",
+      },
+      template: {
+        templateId: "tpl-1",
+        name: "T",
+        recipientType: "Supplier",
+        status: "Active",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+        sections: [],
+      },
+      savedResponses: [
+        { questionId: "q1", sectionId: "s1", question: "Q" },
+      ],
+    });
+    expect(data.savedResponses?.[0]?.answer).toBe("");
+    expect(data.savedResponses?.[0]?.mandatory).toBe(false);
   });
 });

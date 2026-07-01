@@ -31,6 +31,15 @@ describe("audit-log utils", () => {
     expect(grouped[0].id).toBe("2");
   });
 
+  it("sorts groups across cases by latest timestamp descending", () => {
+    const grouped = groupAuditEventsByCase([
+      event({ id: "1", caseId: "cA", timestamp: "2026-01-01T08:00:00.000Z" }),
+      event({ id: "2", caseId: "cB", timestamp: "2026-01-01T12:00:00.000Z" }),
+      event({ id: "3", caseId: "cC", timestamp: "2026-01-01T10:00:00.000Z" }),
+    ]);
+    expect(grouped.map((e) => e.id)).toEqual(["2", "3", "1"]);
+  });
+
   it("extracts earliest successful step timestamps", () => {
     const map = stepTimestampsFromEvents([
       event({ step: 2, timestamp: "2026-01-02T10:00:00.000Z" }),
@@ -87,5 +96,43 @@ describe("audit-log utils", () => {
     });
     expect(labels.subject).toBe("Fallback Name");
     expect(labels.orderId).toBe("ORD-F");
+  });
+
+  it("keeps an earlier existing event in groupAuditEventsByCase", () => {
+    const grouped = groupAuditEventsByCase([
+      event({ id: "1", caseId: "c1", timestamp: "2026-01-02T10:00:00.000Z" }),
+      event({ id: "2", caseId: "c1", timestamp: "2026-01-01T10:00:00.000Z" }),
+    ]);
+    expect(grouped).toHaveLength(1);
+    expect(grouped[0].id).toBe("1");
+  });
+
+  it("returns em-dash subject when no name is available", () => {
+    const labels = resolveAuditCaseLabels(event({ caseSubject: "", caseOrderId: "" }));
+    expect(labels.subject).toBe("—");
+    expect(labels.orderId).toBe("");
+  });
+
+  it("uses event orderId when caseRecord has no orderId", () => {
+    const labels = resolveAuditCaseLabels(event({ caseSubject: "Subject", caseOrderId: "ORD-E" }));
+    expect(labels.orderId).toBe("ORD-E");
+  });
+
+  it("falls back to caseRecord orderId when event has no orderId", () => {
+    const labels = resolveAuditCaseLabels(event({ caseSubject: "X", caseOrderId: "" }), {
+      subjectName: "S",
+      orderId: "ORD-F",
+      companyData: { companyName: "S" } as never,
+    });
+    expect(labels.orderId).toBe("ORD-F");
+  });
+
+  it("returns em-dash subject when caseCompanyName is empty and no fallbacks exist", () => {
+    const labels = resolveAuditCaseLabels(event({ caseSubject: "", caseOrderId: "" }), {
+      subjectName: "",
+      orderId: "ORD-1",
+      companyData: { companyName: " " } as never,
+    });
+    expect(labels.subject).toBe("—");
   });
 });
