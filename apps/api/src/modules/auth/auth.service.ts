@@ -3,6 +3,10 @@ import { v4 as uuidv4 } from "uuid";
 import { addDays, addHours } from "date-fns";
 import { randomBytes } from "node:crypto";
 import type { AuthRepository } from "./auth.repository.js";
+import type {
+  NotificationPreferences,
+  UserNotificationPreferencesRepository,
+} from "./user-notification-preferences.repository.js";
 import type { EmailService } from "../../lib/email-service.js";
 import { env } from "../../config/env.js";
 import { hashPassword, verifyPassword } from "../../shared/utils/crypto.js";
@@ -12,7 +16,8 @@ import type { UserRow } from "../../db/schema/users.js";
 export class AuthService {
   constructor(
     private readonly authRepo: AuthRepository,
-    private readonly emailService: EmailService
+    private readonly notificationPreferencesRepo: UserNotificationPreferencesRepository,
+    private readonly emailService: EmailService,
   ) {}
 
   generateAccessToken(user: UserRow): string {
@@ -149,6 +154,59 @@ export class AuthService {
   stripPassword<T extends { password?: string }>(user: T) {
     const { password: _pw, ...safe } = user;
     return safe;
+  }
+
+  async toMeResponse(user: UserRow) {
+    const preferences = await this.notificationPreferencesRepo.findByUserId(user.userId);
+    return { ...this.stripPassword(user), ...preferences };
+  }
+
+  async updateMe(
+    userId: string,
+    dto: {
+      firstName?: string;
+      lastName?: string;
+      notifyOnSubmission?: boolean;
+      notifyOnLinkExpiry?: boolean;
+      notifyOnBlockedDispatch?: boolean;
+      notifyOnRemindersSent?: boolean;
+    },
+  ) {
+    const user = await this.authRepo.findById(userId);
+    if (!user) throw new AppError(404, "NOT_FOUND", "User not found");
+
+    const {
+      firstName,
+      lastName,
+      notifyOnSubmission,
+      notifyOnLinkExpiry,
+      notifyOnBlockedDispatch,
+      notifyOnRemindersSent,
+    } = dto;
+
+    let updated = user;
+    if (firstName !== undefined || lastName !== undefined) {
+      const row = await this.authRepo.updateProfile(userId, { firstName, lastName });
+      if (!row) throw new AppError(404, "NOT_FOUND", "User not found");
+      updated = row;
+    }
+
+    const preferenceUpdates: Partial<NotificationPreferences> = {};
+    if (notifyOnSubmission !== undefined) preferenceUpdates.notifyOnSubmission = notifyOnSubmission;
+    if (notifyOnLinkExpiry !== undefined) preferenceUpdates.notifyOnLinkExpiry = notifyOnLinkExpiry;
+    if (notifyOnBlockedDispatch !== undefined) {
+      preferenceUpdates.notifyOnBlockedDispatch = notifyOnBlockedDispatch;
+    }
+    if (notifyOnRemindersSent !== undefined) {
+      preferenceUpdates.notifyOnRemindersSent = notifyOnRemindersSent;
+    }
+
+    const preferences =
+      Object.keys(preferenceUpdates).length > 0
+        ? await this.notificationPreferencesRepo.upsert(userId, preferenceUpdates)
+        : await this.notificationPreferencesRepo.findByUserId(userId);
+
+    return { ...this.stripPassword(updated), ...preferences };
   }
 
   async findById(userId: string) {

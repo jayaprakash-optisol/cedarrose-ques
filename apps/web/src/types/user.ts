@@ -24,6 +24,20 @@ export interface CurrentUser {
   initials: string;
 }
 
+export interface NotificationPreferences {
+  notifyOnSubmission: boolean;
+  notifyOnLinkExpiry: boolean;
+  notifyOnBlockedDispatch: boolean;
+  notifyOnRemindersSent: boolean;
+}
+
+export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
+  notifyOnSubmission: true,
+  notifyOnLinkExpiry: true,
+  notifyOnBlockedDispatch: true,
+  notifyOnRemindersSent: true,
+};
+
 export interface InvitationInfo {
   firstName: string;
   lastName: string;

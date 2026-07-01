@@ -79,7 +79,7 @@ export class AuthController {
 
   me = async (req: Request, res: Response) => {
     if (!req.user) return sendError(res, 401, "Not authenticated");
-    sendSuccess(res, this.authService.stripPassword(req.user));
+    sendSuccess(res, await this.authService.toMeResponse(req.user));
   };
 
   changePassword = async (req: Request, res: Response) => {
@@ -132,5 +132,11 @@ export class AuthController {
     const { token, password } = req.body as { token: string; password: string };
     await this.authService.completeRegistration(token, password);
     sendSuccess(res, null, 200, "Registration complete");
+  };
+
+  updateMe = async (req: Request, res: Response) => {
+    if (!req.user) return sendError(res, 401, "Not authenticated");
+    const user = await this.authService.updateMe(req.user.userId, req.body);
+    sendSuccess(res, user, 200, "Settings updated");
   };
 }

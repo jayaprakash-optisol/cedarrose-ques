@@ -25,3 +25,16 @@ export const completeRegistrationSchema = z.object({
   token: z.string().min(1),
   password: z.string().min(8),
 });
+
+export const updateMeSchema = z
+  .object({
+    firstName: z.string().min(1).max(50).optional(),
+    lastName: z.string().max(50).optional(),
+    notifyOnSubmission: z.boolean().optional(),
+    notifyOnLinkExpiry: z.boolean().optional(),
+    notifyOnBlockedDispatch: z.boolean().optional(),
+    notifyOnRemindersSent: z.boolean().optional(),
+  })
+  .refine((data) => Object.values(data).some((v) => v !== undefined), {
+    message: "At least one field is required",
+  });

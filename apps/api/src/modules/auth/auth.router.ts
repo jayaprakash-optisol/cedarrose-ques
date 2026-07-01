@@ -7,6 +7,7 @@ import {
   resetPasswordSchema,
   changePasswordSchema,
   completeRegistrationSchema,
+  updateMeSchema,
 } from "./auth.schema.js";
 import {
   authLoginLimit,
@@ -26,6 +27,7 @@ export function authRouter(controller: AuthController): Router {
   router.post("/refresh", authRefreshLimit, controller.refreshToken);
   router.post("/logout", controller.logout);
   router.get("/me", cookieTokenExtractor, authenticate, controller.me);
+  router.patch("/me", cookieTokenExtractor, authenticate, validate(updateMeSchema), controller.updateMe);
   router.post(
     "/change-password",
     authChangePasswordLimit,

@@ -108,4 +108,34 @@ export class AuthRepository {
       .set({ password, status: "Active", updatedAt: new Date() })
       .where(eq(users.userId, userId));
   }
+
+  async updateProfile(
+    userId: string,
+    data: {
+      firstName?: string;
+      lastName?: string;
+    },
+  ) {
+    const initials =
+      data.firstName !== undefined || data.lastName !== undefined
+        ? await (async () => {
+            const user = await this.findById(userId);
+            if (!user) return undefined;
+            const first = data.firstName ?? user.firstName;
+            const last = data.lastName ?? user.lastName;
+            return `${first[0] ?? ""}${last[0] ?? ""}`.toUpperCase() || undefined;
+          })()
+        : undefined;
+
+    const [row] = await this.db
+      .update(users)
+      .set({
+        ...data,
+        ...(initials ? { initials } : {}),
+        updatedAt: new Date(),
+      })
+      .where(eq(users.userId, userId))
+      .returning();
+    return row ?? null;
+  }
 }

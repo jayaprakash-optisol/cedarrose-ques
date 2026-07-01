@@ -69,6 +69,23 @@ export function createMockUsersRepository() {
   };
 }
 
+export function createMockNotificationPreferencesRepository() {
+  return {
+    findByUserId: vi.fn().mockResolvedValue({
+      notifyOnSubmission: true,
+      notifyOnLinkExpiry: true,
+      notifyOnBlockedDispatch: true,
+      notifyOnRemindersSent: true,
+    }),
+    upsert: vi.fn().mockResolvedValue({
+      notifyOnSubmission: true,
+      notifyOnLinkExpiry: true,
+      notifyOnBlockedDispatch: true,
+      notifyOnRemindersSent: true,
+    }),
+  };
+}
+
 export function createMockQuestionnaireRepository() {
   return {
     setOtp: vi.fn(),

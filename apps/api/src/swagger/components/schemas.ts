@@ -94,6 +94,22 @@ export const schemas: Record<string, OpenAPIV3.SchemaObject> = {
       score: { type: "string", nullable: true },
       createdAt: { $ref: "#/components/schemas/DateTime" },
       updatedAt: { $ref: "#/components/schemas/DateTime" },
+      notifyOnSubmission: { type: "boolean" },
+      notifyOnLinkExpiry: { type: "boolean" },
+      notifyOnBlockedDispatch: { type: "boolean" },
+      notifyOnRemindersSent: { type: "boolean" },
+    },
+  },
+
+  UpdateMeRequest: {
+    type: "object",
+    properties: {
+      firstName: { type: "string", minLength: 1, maxLength: 50 },
+      lastName: { type: "string", maxLength: 50 },
+      notifyOnSubmission: { type: "boolean" },
+      notifyOnLinkExpiry: { type: "boolean" },
+      notifyOnBlockedDispatch: { type: "boolean" },
+      notifyOnRemindersSent: { type: "boolean" },
     },
   },
 

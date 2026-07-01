@@ -63,6 +63,18 @@ export const authPaths: OpenAPIV3.PathsObject = {
         "401": { $ref: "#/components/responses/Unauthorized" },
       },
     },
+    patch: {
+      tags: ["Auth"],
+      summary: "Update current user settings",
+      operationId: "authUpdateMe",
+      security: bearer,
+      requestBody: jsonRequest("#/components/schemas/UpdateMeRequest"),
+      responses: {
+        "200": jsonSuccess("#/components/schemas/User", "Settings updated"),
+        "401": { $ref: "#/components/responses/Unauthorized" },
+        "422": { $ref: "#/components/responses/ValidationError" },
+      },
+    },
   },
   "/api/v1/auth/change-password": {
     post: {

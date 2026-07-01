@@ -5,6 +5,7 @@ import type { CasesRepository } from "../../../../src/modules/cases/cases.reposi
 import {
   createMockCasesRepository,
   createMockNotificationsRepository,
+  createMockNotificationPreferencesRepository,
 } from "../../../helpers/mock-repositories.js";
 import { createMockCase } from "../../../helpers/mock-case.js";
 
@@ -29,6 +30,7 @@ function caseWithCompany() {
 describe("NotificationsService", () => {
   let notificationsRepo: ReturnType<typeof createMockNotificationsRepository>;
   let casesRepo: ReturnType<typeof createMockCasesRepository>;
+  let prefsRepo: ReturnType<typeof createMockNotificationPreferencesRepository>;
   let service: NotificationsService;
 
   const userId = "11111111-1111-1111-1111-111111111111";
@@ -36,9 +38,11 @@ describe("NotificationsService", () => {
   beforeEach(() => {
     notificationsRepo = createMockNotificationsRepository();
     casesRepo = createMockCasesRepository();
+    prefsRepo = createMockNotificationPreferencesRepository();
     service = new NotificationsService(
       notificationsRepo as unknown as NotificationsRepository,
       casesRepo as unknown as CasesRepository,
+      prefsRepo as unknown as import("../../../../src/modules/auth/user-notification-preferences.repository.js").UserNotificationPreferencesRepository,
     );
   });
 

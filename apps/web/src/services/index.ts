@@ -6,6 +6,7 @@ import { mockUsersService } from "./mock/users.mock";
 import { mockTemplatesService } from "./mock/templates.mock";
 import { mockConfigService } from "./mock/config.mock";
 import { mockNotificationsService } from "./mock/notifications.mock";
+import { mockSettingsService } from "./mock/settings.mock";
 import { mockAuthService } from "./mock/auth.mock";
 import { mockDashboardService } from "./mock/dashboard.mock";
 import { mockQuestionnaireService } from "./mock/questionnaire.mock";
@@ -18,6 +19,7 @@ import {
   apiConfigService,
   apiNotificationsService,
   apiAuthService,
+  apiSettingsService,
   apiDashboardService,
 } from "./api/client";
 import { apiQuestionnaireService } from "./api/questionnaire";
@@ -30,6 +32,7 @@ export const templatesService = env.useMock ? mockTemplatesService : apiTemplate
 export const configService = env.useMock ? mockConfigService : apiConfigService;
 export const notificationsService = env.useMock ? mockNotificationsService : apiNotificationsService;
 export const authService = env.useMock ? mockAuthService : apiAuthService;
+export const settingsService = env.useMock ? mockSettingsService : apiSettingsService;
 export const dashboardService = env.useMock ? mockDashboardService : apiDashboardService;
 export const questionnaireService = env.useMock ? mockQuestionnaireService : apiQuestionnaireService;
 
@@ -41,5 +44,6 @@ export type { TemplatesService } from "./mock/templates.mock";
 export type { ConfigService } from "./mock/config.mock";
 export type { NotificationsService } from "./mock/notifications.mock";
 export type { AuthService } from "./mock/auth.mock";
+export type { SettingsService } from "./mock/settings.mock";
 export type { DashboardService } from "./mock/dashboard.mock";
 export type { QuestionnaireService } from "./mock/questionnaire.mock";

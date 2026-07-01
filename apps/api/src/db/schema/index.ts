@@ -1,4 +1,5 @@
 export * from "./users.js";
+export * from "./user-notification-preferences.js";
 export * from "./refresh-tokens.js";
 export * from "./companies.js";
 export * from "./templates.js";

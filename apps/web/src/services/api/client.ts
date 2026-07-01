@@ -6,7 +6,8 @@ import type { Template } from "@/types";
 import type { PlatformConfig } from "@/types";
 import type { Notification } from "@/types";
 import type { CurrentUser } from "@/types";
-import type { InvitationInfo } from "@/types/user";
+import type { InvitationInfo, NotificationPreferences } from "@/types/user";
+import type { SaveSettingsInput, SettingsService } from "../mock/settings.mock";
 import type { RecipientType } from "@/types/case";
 import { env } from "@/config/env";
 import { ApiError, type ApiEnvelope } from "./errors";
@@ -15,6 +16,7 @@ import {
   mapCase,
   mapCompany,
   mapCurrentUser,
+  mapNotificationPreferences,
   mapNotification,
   mapPlatformConfig,
   mapPlatformConfigToApi,
@@ -135,6 +137,38 @@ export const apiAuthService = {
     await apiClient<null>("/auth/reset-password", {
       method: "POST",
       body: JSON.stringify({ token, newPassword }),
+    });
+  },
+};
+
+export const apiSettingsService: SettingsService = {
+  async get() {
+    const user = await apiClient<ApiUser>("/auth/me");
+    return {
+      user: mapCurrentUser(user),
+      preferences: mapNotificationPreferences(user),
+    };
+  },
+
+  async save(input: SaveSettingsInput) {
+    const { firstName, lastName } = input.name ? splitName(input.name) : { firstName: undefined, lastName: undefined };
+    const user = await apiClient<ApiUser>("/auth/me", {
+      method: "PATCH",
+      body: JSON.stringify({
+        ...(firstName !== undefined ? { firstName, lastName } : {}),
+        ...input.preferences,
+      }),
+    });
+    return {
+      user: mapCurrentUser(user),
+      preferences: mapNotificationPreferences(user),
+    };
+  },
+
+  async changePassword(currentPassword, newPassword, confirmPassword) {
+    await apiClient<{ message: string }>("/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
     });
   },
 };

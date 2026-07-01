@@ -7,17 +7,20 @@ import { hashPassword } from "../../../../src/shared/utils/crypto.js";
 import { env } from "../../../../src/config/env.js";
 import { createMockAuthRepository } from "../../../helpers/mock-auth-repository.js";
 import { createMockEmailService } from "../../../helpers/mock-email-service.js";
+import { createMockNotificationPreferencesRepository } from "../../../helpers/mock-repositories.js";
 import { createMockUser } from "../../../helpers/mock-user.js";
 
 describe("AuthService", () => {
   let repo: ReturnType<typeof createMockAuthRepository>;
+  let prefsRepo: ReturnType<typeof createMockNotificationPreferencesRepository>;
   let email: ReturnType<typeof createMockEmailService>;
   let service: AuthService;
 
   beforeEach(() => {
     repo = createMockAuthRepository();
+    prefsRepo = createMockNotificationPreferencesRepository();
     email = createMockEmailService();
-    service = new AuthService(repo, email);
+    service = new AuthService(repo, prefsRepo, email);
   });
 
   describe("validateUser", () => {

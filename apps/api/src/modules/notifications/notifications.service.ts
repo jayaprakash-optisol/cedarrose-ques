@@ -1,15 +1,28 @@
 import type { NotificationsRepository } from "./notifications.repository.js";
 import type { CasesRepository } from "../cases/cases.repository.js";
+import type {
+  NotificationPreferenceKey,
+  UserNotificationPreferencesRepository,
+} from "../auth/user-notification-preferences.repository.js";
 import {
   buildNotificationCopy,
   type CaseNotificationContext,
   type NotificationKind,
 } from "./notification-copy.js";
 
+const PREFERENCE_BY_TYPE: Partial<Record<NotificationKind, NotificationPreferenceKey>> = {
+  submission: "notifyOnSubmission",
+  expired: "notifyOnLinkExpiry",
+  stale: "notifyOnLinkExpiry",
+  blocked: "notifyOnBlockedDispatch",
+  reminder: "notifyOnRemindersSent",
+};
+
 export class NotificationsService {
   constructor(
     private readonly notificationsRepo: NotificationsRepository,
     private readonly casesRepo: CasesRepository,
+    private readonly notificationPreferencesRepo: UserNotificationPreferencesRepository,
   ) {}
 
   private async caseContext(caseId: string): Promise<CaseNotificationContext | null> {
@@ -61,6 +74,12 @@ export class NotificationsService {
   }
 
   async create(data: Parameters<NotificationsRepository["create"]>[0]) {
+    const prefKey = PREFERENCE_BY_TYPE[data.type as NotificationKind];
+    if (prefKey && data.userId) {
+      const preferences = await this.notificationPreferencesRepo.findByUserId(data.userId);
+      if (preferences[prefKey] === false) return null;
+    }
+
     if (data.caseId) {
       const context = await this.caseContext(data.caseId);
       if (context) {

@@ -9,7 +9,7 @@ import type { Notification } from "@/types/notification";
 import type { PlatformConfig } from "@/types/config";
 import type { QuestionnaireFormData } from "@/types/questionnaire";
 import type { Template, Question, Section } from "@/types/template";
-import type { CurrentUser, RoleKey, User } from "@/types/user";
+import type { CurrentUser, RoleKey, User, NotificationPreferences } from "@/types/user";
 import { absTime, relTime } from "@/lib/format";
 
 export interface ApiUser {
@@ -25,6 +25,10 @@ export interface ApiUser {
   score?: string | number | null;
   lastSubmission?: string | null;
   platforms?: { platform: string; role: string }[];
+  notifyOnSubmission?: boolean;
+  notifyOnLinkExpiry?: boolean;
+  notifyOnBlockedDispatch?: boolean;
+  notifyOnRemindersSent?: boolean;
 }
 
 export interface ApiCase {
@@ -204,6 +208,15 @@ export function toRoleKey(role: string): RoleKey {
 
 export function toApiRole(role: RoleKey): string {
   return role.charAt(0).toUpperCase() + role.slice(1);
+}
+
+export function mapNotificationPreferences(u: ApiUser): NotificationPreferences {
+  return {
+    notifyOnSubmission: u.notifyOnSubmission ?? true,
+    notifyOnLinkExpiry: u.notifyOnLinkExpiry ?? true,
+    notifyOnBlockedDispatch: u.notifyOnBlockedDispatch ?? true,
+    notifyOnRemindersSent: u.notifyOnRemindersSent ?? true,
+  };
 }
 
 export function mapCurrentUser(u: ApiUser): CurrentUser {

@@ -4,6 +4,7 @@ import { AuditRepository } from "./modules/audit/audit.repository.js";
 import { AuditService } from "./modules/audit/audit.service.js";
 import { AuditController } from "./modules/audit/audit.controller.js";
 import { AuthRepository } from "./modules/auth/auth.repository.js";
+import { UserNotificationPreferencesRepository } from "./modules/auth/user-notification-preferences.repository.js";
 import { AuthService } from "./modules/auth/auth.service.js";
 import { AuthController } from "./modules/auth/auth.controller.js";
 import { CasesRepository } from "./modules/cases/cases.repository.js";
@@ -37,6 +38,7 @@ export function createContainer() {
 
   const auditRepo = new AuditRepository(db);
   const authRepo = new AuthRepository(db);
+  const notificationPreferencesRepo = new UserNotificationPreferencesRepository(db);
   const casesRepo = new CasesRepository(db);
   const companiesRepo = new CompaniesRepository(db);
   const configRepo = new ConfigRepository(db);
@@ -47,8 +49,12 @@ export function createContainer() {
   const dashboardRepo = new DashboardRepository(db);
 
   const auditService = new AuditService(auditRepo, casesRepo, usersRepo);
-  const notificationsService = new NotificationsService(notificationsRepo, casesRepo);
-  const authService = new AuthService(authRepo, emailService);
+  const notificationsService = new NotificationsService(
+    notificationsRepo,
+    casesRepo,
+    notificationPreferencesRepo,
+  );
+  const authService = new AuthService(authRepo, notificationPreferencesRepo, emailService);
   const templatesService = new TemplatesService(templatesRepo);
   const configService = new ConfigService(configRepo);
   const companiesService = new CompaniesService(companiesRepo);
