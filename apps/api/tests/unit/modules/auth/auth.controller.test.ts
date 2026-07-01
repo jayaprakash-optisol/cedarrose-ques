@@ -32,6 +32,7 @@ describe("AuthController", () => {
       findById: vi.fn(),
       revokeRefreshToken: vi.fn().mockResolvedValue(undefined),
       stripPassword: vi.fn().mockReturnValue(strippedUser),
+      toMeResponse: vi.fn().mockResolvedValue(strippedUser),
       changePassword: vi.fn().mockResolvedValue(undefined),
       generateResetToken: vi.fn().mockResolvedValue(undefined),
       resetPassword: vi.fn().mockResolvedValue(undefined),
@@ -182,7 +183,7 @@ describe("AuthController", () => {
 
       await controller.me(req, res);
 
-      expect(authService.stripPassword).toHaveBeenCalledWith(user);
+      expect(authService.toMeResponse).toHaveBeenCalledWith(user);
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({ success: true, data: strippedUser })
