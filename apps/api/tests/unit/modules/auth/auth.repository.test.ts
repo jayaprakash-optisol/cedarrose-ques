@@ -125,4 +125,35 @@ describe("AuthRepository", () => {
     await repo.activateUser(user.userId, "hashed");
     expect(db.update).toHaveBeenCalled();
   });
+
+  it("updateProfile computes initials and returns updated row", async () => {
+    db.queueResults([user], [user]);
+    const result = await repo.updateProfile(user.userId, {
+      firstName: "Jane",
+      lastName: "Doe",
+    });
+    expect(db.update).toHaveBeenCalled();
+    expect(result).toBeTruthy();
+  });
+
+  it("updateProfile returns null when user not found", async () => {
+    db.queueResults([], []);
+    const result = await repo.updateProfile("missing", { firstName: "X" });
+    expect(result).toBeNull();
+  });
+
+  it("updateProfile with no name changes does not compute initials", async () => {
+    db.queueResults([user]);
+    await repo.updateProfile(user.userId, {});
+    expect(db.update).toHaveBeenCalled();
+  });
+
+  it("updateProfile with empty string names hits the ?? fallback for initials", async () => {
+    // first[0] and last[0] are undefined when the strings are empty, so ?? "" kicks in
+    // The resulting initials string "" is falsy, so initials resolves to undefined
+    db.queueResults([user], [user]);
+    const result = await repo.updateProfile(user.userId, { firstName: "", lastName: "" });
+    expect(db.update).toHaveBeenCalled();
+    expect(result).toBeTruthy();
+  });
 });

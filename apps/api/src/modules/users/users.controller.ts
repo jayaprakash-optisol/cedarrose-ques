@@ -8,7 +8,7 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   list = async (req: Request, res: Response) => {
-    const { page, limit, offset } = parsePagination(req.query as Record<string, unknown>);
+    const { page, limit, offset } = parsePagination(req.query);
     const { data, total } = await this.usersService.list({
       role: req.query.role as string | undefined,
       offset,

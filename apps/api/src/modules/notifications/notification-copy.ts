@@ -18,6 +18,12 @@ export function caseLabel(c: CaseNotificationContext): string {
   return `${caseDisplayName(c)} (${c.orderId})`;
 }
 
+function reminderDayLabel(reminderNumber: number): string {
+  if (reminderNumber === 1) return "Day 3";
+  if (reminderNumber === 2) return "Day 5";
+  return "Day 7";
+}
+
 export function buildNotificationCopy(
   type: NotificationKind,
   c: CaseNotificationContext,
@@ -56,7 +62,7 @@ export function buildNotificationCopy(
     case "reminder": {
       const n = opts?.reminderNumber ?? (c.remindersSent ?? 0);
       const isFinal = n >= 3;
-      const dayLabel = n === 1 ? "Day 3" : n === 2 ? "Day 5" : "Day 7";
+      const dayLabel = reminderDayLabel(n);
       const pct = c.completionMandatory ?? 0;
       const progress = pct > 0 ? ` Currently ${pct}% complete.` : "";
       return {

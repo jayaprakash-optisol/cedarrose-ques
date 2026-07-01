@@ -126,7 +126,7 @@ const envSchema = z
 
 const parsed = envSchema.safeParse(process.env);
 if (!parsed.success) {
-  console.error("Invalid environment variables:\n", parsed.error.flatten().fieldErrors);
+  console.error("Invalid environment variables:\n", z.flattenError(parsed.error).fieldErrors);
   process.exit(1);
 }
 
@@ -176,7 +176,7 @@ export const env = {
   jwtAccessTokenExpiry: data.JWT_ACCESS_TOKEN_EXPIRY,
   jwtRefreshTokenDays: data.JWT_REFRESH_TOKEN_DAYS,
   jwtQuestionnaireTokenExpiry: data.JWT_QUESTIONNAIRE_TOKEN_EXPIRY,
-  jwtAlgorithm: data.JWT_ALGORITHM as "RS256" | "RS384" | "RS512",
+  jwtAlgorithm: data.JWT_ALGORITHM,
   bcryptRounds: data.BCRYPT_ROUNDS,
   frontendUrl: data.FRONTEND_URL,
   allowedOrigins: data.ALLOWED_ORIGINS,

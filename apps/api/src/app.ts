@@ -55,7 +55,9 @@ export function createApp() {
   app.use(cookieTokenExtractor);
   app.use(compression());
 
-  if (!env.isProduction) {
+  if (env.isProduction) {
+    // swagger UI is dev/test-only
+  } else {
     setupSwagger(app);
   }
 

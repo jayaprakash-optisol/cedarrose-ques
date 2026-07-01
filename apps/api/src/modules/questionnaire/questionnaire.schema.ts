@@ -16,8 +16,8 @@ export const otpVerifySchema = z.object({
 export const saveProgressSchema = z.object({
   responses: z.array(
     z.object({
-      questionId: z.string().uuid().optional(),
-      sectionId: z.string().uuid().optional(),
+      questionId: z.uuid().optional(),
+      sectionId: z.uuid().optional(),
       question: z.string(),
       answer: z.string().optional(),
       mandatory: z.boolean().optional(),

@@ -10,11 +10,11 @@ export const PASSWORD_POLICY = {
   DISALLOW_COMMON: true,
 };
 
-const COMMON_PASSWORDS = [
+const COMMON_PASSWORDS = new Set([
   "password", "qwerty", "123456", "admin", "welcome",
   "letmein", "abc123", "passw0rd", "pa$$word", "12345678",
   "password123", "admin123", "qwerty123",
-];
+]);
 
 export function validatePasswordStrength(password: string): { valid: boolean; message?: string } {
   if (env.nodeEnv === "development") return { valid: true };
@@ -31,7 +31,7 @@ export function validatePasswordStrength(password: string): { valid: boolean; me
   if (!/\d/.test(password)) {
     return { valid: false, message: "Password must contain at least one number" };
   }
-  if (COMMON_PASSWORDS.includes(password.toLowerCase())) {
+  if (COMMON_PASSWORDS.has(password.toLowerCase())) {
     return { valid: false, message: "This password is too common and easy to guess" };
   }
 

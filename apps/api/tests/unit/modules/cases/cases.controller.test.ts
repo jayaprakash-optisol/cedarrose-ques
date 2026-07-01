@@ -165,5 +165,30 @@ describe("CasesController", () => {
       expect(res.write).toHaveBeenCalledWith(expect.stringContaining("Order ID,Company name"));
       expect(res.end).toHaveBeenCalled();
     });
+
+    it("handles null lastActivity and null researcherStatus in CSV rows", async () => {
+      async function* batches() {
+        yield [
+          {
+            orderId: "ORD-2",
+            subjectName: "Beta Corp",
+            country: "GB",
+            recipientType: "Customer",
+            status: "Closed",
+            completionMandatory: 100,
+            dateReceived: new Date("2026-02-01T00:00:00.000Z"),
+            lastActivity: null,
+            researcherStatus: null,
+          },
+        ];
+      }
+      vi.mocked(casesService.exportBatches).mockReturnValue(batches());
+      const req = createMockRequest({ query: {} });
+
+      await controller.exportCsv(req, res);
+
+      expect(res.write).toHaveBeenCalledWith(expect.stringContaining("Order ID,Company name"));
+      expect(res.end).toHaveBeenCalled();
+    });
   });
 });

@@ -33,6 +33,7 @@ describe("AuthController", () => {
       revokeRefreshToken: vi.fn().mockResolvedValue(undefined),
       stripPassword: vi.fn().mockReturnValue(strippedUser),
       toMeResponse: vi.fn().mockResolvedValue(strippedUser),
+      updateMe: vi.fn().mockResolvedValue(strippedUser),
       changePassword: vi.fn().mockResolvedValue(undefined),
       generateResetToken: vi.fn().mockResolvedValue(undefined),
       resetPassword: vi.fn().mockResolvedValue(undefined),
@@ -333,6 +334,28 @@ describe("AuthController", () => {
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({ message: "Registration complete" })
+      );
+    });
+  });
+
+  describe("updateMe", () => {
+    it("returns 401 when not authenticated", async () => {
+      const req = createMockRequest({ user: undefined });
+      await controller.updateMe(req, res);
+      expect(res.status).toHaveBeenCalledWith(401);
+    });
+
+    it("updates user settings on success", async () => {
+      const user = createMockUser();
+      const req = createMockRequest({
+        user,
+        body: { firstName: "Jane", notifyOnSubmission: false },
+      });
+      await controller.updateMe(req, res);
+      expect(authService.updateMe).toHaveBeenCalledWith(user.userId, req.body);
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.any(Object), message: "Settings updated" }),
       );
     });
   });

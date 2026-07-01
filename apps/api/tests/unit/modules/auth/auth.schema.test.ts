@@ -5,6 +5,7 @@ import {
   resetPasswordSchema,
   changePasswordSchema,
   completeRegistrationSchema,
+  updateMeSchema,
 } from "../../../../src/modules/auth/auth.schema.js";
 
 describe("auth schemas", () => {
@@ -60,6 +61,28 @@ describe("auth schemas", () => {
       expect(
         completeRegistrationSchema.parse({ token: "invite", password: "12345678" }),
       ).toEqual({ token: "invite", password: "12345678" });
+    });
+  });
+
+  describe("updateMeSchema", () => {
+    it("rejects empty payload (at least one field required)", () => {
+      const result = updateMeSchema.safeParse({});
+      expect(result.success).toBe(false);
+    });
+
+    it("accepts firstName update", () => {
+      const result = updateMeSchema.safeParse({ firstName: "Jane" });
+      expect(result.success).toBe(true);
+    });
+
+    it("accepts notification preference update", () => {
+      const result = updateMeSchema.safeParse({ notifyOnSubmission: false });
+      expect(result.success).toBe(true);
+    });
+
+    it("rejects firstName too long", () => {
+      const result = updateMeSchema.safeParse({ firstName: "a".repeat(51) });
+      expect(result.success).toBe(false);
     });
   });
 });

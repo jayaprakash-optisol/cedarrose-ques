@@ -334,4 +334,26 @@ describe("QuestionnaireService", () => {
       expect(notificationsService.notifySubmission).not.toHaveBeenCalled();
     });
   });
+
+  describe("session verification", () => {
+    it("rejects expired JWT", async () => {
+      const c = caseWithRecipient({ analystId: null });
+      const expiredToken = jwt.sign(
+        { sub: "link", caseId: c.caseId },
+        env.jwtQuestionnairePrivateKey,
+        { algorithm: env.jwtAlgorithm, expiresIn: "0s" },
+      );
+      vi.mocked(casesRepo.findById).mockResolvedValue(c);
+
+      await expect(service.saveProgress(`Bearer ${expiredToken}`, [] as never)).rejects.toMatchObject({
+        code: "SESSION_EXPIRED",
+      });
+    });
+
+    it("rejects invalid/non-JWT token", async () => {
+      await expect(service.saveProgress("Bearer not.valid.jwt", [] as never)).rejects.toMatchObject({
+        code: "UNAUTHORIZED",
+      });
+    });
+  });
 });

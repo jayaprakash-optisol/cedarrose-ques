@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import type { UserNotificationPreferencesRepository } from "../../src/modules/auth/user-notification-preferences.repository.js";
 
 export function createMockCasesRepository() {
   return {
@@ -84,7 +85,7 @@ export function createMockNotificationPreferencesRepository() {
       notifyOnBlockedDispatch: true,
       notifyOnRemindersSent: true,
     }),
-  };
+  } as unknown as UserNotificationPreferencesRepository;
 }
 
 export function createMockQuestionnaireRepository() {

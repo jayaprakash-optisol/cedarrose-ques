@@ -7,10 +7,10 @@ export const createCaseSchema = z.object({
   subjectName: z.string().min(1).max(255),
   country: z.string().min(1).max(100),
   recipientType: z.enum(RECIPIENT_TYPES as unknown as [string, ...string[]]),
-  recipientEmail: z.string().email().optional(),
+  recipientEmail: z.email().optional(),
   linkValidityHours: z.number().int().min(24).max(72).default(48),
-  templateId: z.string().uuid().optional(),
-  analystId: z.string().uuid().optional(),
+  templateId: z.uuid().optional(),
+  analystId: z.uuid().optional(),
 });
 
 export const researcherReviewSchema = z.object({

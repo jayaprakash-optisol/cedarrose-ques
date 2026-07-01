@@ -57,7 +57,7 @@ export class TemplatesService {
 
     for (const section of dto.sections) {
       for (const question of section.questions) {
-        if (question.systemControlled && !systemQuestionLabels.has(question.label as string)) {
+        if (question.systemControlled && !systemQuestionLabels.has(question.label)) {
           throw new AppError(400, "VALIDATION_ERROR", "System-controlled questions cannot be removed");
         }
       }

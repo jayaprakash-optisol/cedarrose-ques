@@ -64,7 +64,6 @@ export function createContainer() {
     companiesRepo,
     templatesRepo,
     auditService,
-    notificationsService,
     emailService,
   );
   const questionnaireService = new QuestionnaireService(

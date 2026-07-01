@@ -87,6 +87,25 @@ describe("AuditService", () => {
       );
     });
 
+    it("skips case lookup when caseId is absent", async () => {
+      vi.mocked(auditRepo.insert).mockImplementation(async (event) => ({
+        auditId: "a2b",
+        ...event,
+        createdAt: new Date(),
+      }));
+
+      await service.log({
+        eventType: "System",
+        description: "No case event",
+        status: "Success",
+      });
+
+      expect(casesRepo.findById).not.toHaveBeenCalled();
+      expect(auditRepo.insert).toHaveBeenCalledWith(
+        expect.objectContaining({ triggeredBy: "System" }),
+      );
+    });
+
     it("advances case currentStep on successful workflow step", async () => {
       const c = createMockCase({ currentStep: 1 });
       vi.mocked(casesRepo.findById).mockResolvedValue(c);
@@ -246,6 +265,80 @@ describe("AuditService", () => {
 
       const result = await service.list({ offset: 0, limit: 10, grouped: false });
       expect(result.data[0].triggeredBy).toBe("System");
+    });
+  });
+
+  describe("list with grouped true", () => {
+    it("uses findGroupedByCase when neither caseId nor grouped:false", async () => {
+      const c = createMockCase();
+      const user = createMockUser();
+      vi.mocked(auditRepo.findGroupedByCase).mockResolvedValue({
+        data: [
+          {
+            auditId: "a7",
+            caseId: c.caseId,
+            caseSubject: c.subjectName,
+            caseOrderId: c.orderId,
+            step: 1,
+            eventType: "API Call",
+            description: "Event",
+            triggeredBy: "Test Analyst",
+            triggeredByUserId: user.userId,
+            status: "Success",
+            payload: null,
+            createdAt: new Date(),
+            caseStatus: c.status,
+          },
+        ],
+        total: 1,
+      });
+      vi.mocked(casesRepo.findById).mockResolvedValue(c);
+      vi.mocked(usersRepo.findById).mockResolvedValue(user);
+
+      const result = await service.list({ offset: 0, limit: 10 });
+      expect(result.total).toBe(1);
+      expect(auditRepo.findGroupedByCase).toHaveBeenCalled();
+    });
+  });
+
+  describe("exportBatches", () => {
+    it("enriches batch rows with case status", async () => {
+      const c = createMockCase();
+      const user = createMockUser();
+
+      vi.mocked(auditRepo.exportBatches).mockImplementation(async function* () {
+        yield [
+          {
+            auditId: "a8",
+            caseId: c.caseId,
+            caseSubject: null,
+            caseOrderId: null,
+            step: 1,
+            eventType: "API Call",
+            description: "Event",
+            triggeredBy: null,
+            triggeredByUserId: user.userId,
+            status: "Success",
+            payload: null,
+            createdAt: new Date(),
+            caseStatus: "SENT",
+          },
+        ];
+      } as never);
+      vi.mocked(casesRepo.findById).mockResolvedValue(c);
+      vi.mocked(usersRepo.findById).mockResolvedValue(user);
+
+      const batches = [];
+      for await (const batch of service.exportBatches({})) {
+        batches.push(batch);
+      }
+
+      expect(batches).toHaveLength(1);
+      expect(batches[0][0]).toMatchObject({
+        caseSubject: c.subjectName,
+        caseOrderId: c.orderId,
+        caseStatus: "SENT",
+      });
     });
   });
 });

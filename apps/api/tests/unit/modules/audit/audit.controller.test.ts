@@ -81,6 +81,17 @@ describe("AuditController", () => {
         }),
       );
     });
+
+    it('passes grouped: false when grouped="false" is in the query string', async () => {
+      vi.mocked(auditService.list).mockResolvedValue({ data: [], total: 0 });
+      const req = createMockRequest({ query: { grouped: "false" } });
+
+      await controller.list(req, res);
+
+      expect(auditService.list).toHaveBeenCalledWith(
+        expect.objectContaining({ grouped: false }),
+      );
+    });
   });
 
   describe("exportCsv", () => {
@@ -98,6 +109,32 @@ describe("AuditController", () => {
       );
       expect(res.setHeader).toHaveBeenCalledWith("Content-Type", "text/csv");
       expect(res.write).toHaveBeenCalledWith(expect.stringContaining("Timestamp,Case,Order"));
+      expect(res.end).toHaveBeenCalled();
+    });
+
+    it("writes an empty string for step when row.step is null", async () => {
+      const entryWithNullStep = { ...mockEntry, step: null } as never;
+      async function* batches() {
+        yield [entryWithNullStep];
+      }
+      vi.mocked(auditService.exportBatches).mockReturnValue(batches());
+
+      const req = createMockRequest({ query: {} });
+      await controller.exportCsv(req, res);
+
+      expect(res.write).toHaveBeenCalledWith(expect.stringContaining("Timestamp,Case,Order"));
+      expect(res.end).toHaveBeenCalled();
+    });
+
+    it("calls res.end even when exportBatches yields no batches", async () => {
+      async function* batches() {
+        // yields nothing
+      }
+      vi.mocked(auditService.exportBatches).mockReturnValue(batches());
+
+      const req = createMockRequest({ query: {} });
+      await controller.exportCsv(req, res);
+
       expect(res.end).toHaveBeenCalled();
     });
   });

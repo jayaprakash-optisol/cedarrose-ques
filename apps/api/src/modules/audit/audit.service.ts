@@ -68,8 +68,8 @@ export class AuditService {
       const u = event.triggeredByUserId ? userMap.get(event.triggeredByUserId) : undefined;
       return {
         ...event,
-        caseSubject: event.caseSubject ?? c?.subjectName ?? event.caseSubject,
-        caseOrderId: event.caseOrderId ?? c?.orderId ?? event.caseOrderId,
+        caseSubject: event.caseSubject ?? c?.subjectName ?? null,
+        caseOrderId: event.caseOrderId ?? c?.orderId ?? null,
         triggeredBy:
           event.triggeredBy ??
           (u ? `${u.firstName} ${u.lastName}`.trim() : undefined) ??

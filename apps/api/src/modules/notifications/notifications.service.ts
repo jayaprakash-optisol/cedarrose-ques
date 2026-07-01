@@ -18,6 +18,17 @@ const PREFERENCE_BY_TYPE: Partial<Record<NotificationKind, NotificationPreferenc
   reminder: "notifyOnRemindersSent",
 };
 
+function notificationCopyOpts(
+  type: string,
+  context: CaseNotificationContext,
+): { staleHours?: number; reminderNumber?: number } | undefined {
+  if (type === "stale") return { staleHours: 72 };
+  if (type === "reminder") {
+    return { reminderNumber: Math.max(context.remindersSent ?? 0, 1) };
+  }
+  return undefined;
+}
+
 export class NotificationsService {
   constructor(
     private readonly notificationsRepo: NotificationsRepository,
@@ -44,12 +55,7 @@ export class NotificationsService {
     context: CaseNotificationContext | null,
   ) {
     if (!context) return row;
-    const opts =
-      row.type === "stale"
-        ? { staleHours: 72 }
-        : row.type === "reminder"
-          ? { reminderNumber: Math.max(context.remindersSent ?? 0, 1) }
-          : undefined;
+    const opts = notificationCopyOpts(row.type, context);
     const copy = buildNotificationCopy(row.type as NotificationKind, context, opts);
     return { ...row, title: copy.title, body: copy.body };
   }
@@ -83,12 +89,7 @@ export class NotificationsService {
     if (data.caseId) {
       const context = await this.caseContext(data.caseId);
       if (context) {
-        const opts =
-          data.type === "stale"
-            ? { staleHours: 72 }
-            : data.type === "reminder"
-              ? { reminderNumber: (context.remindersSent ?? 0) || 1 }
-              : undefined;
+        const opts = notificationCopyOpts(data.type, context);
         const copy = buildNotificationCopy(data.type as NotificationKind, context, opts);
         return this.notificationsRepo.create({
           ...data,

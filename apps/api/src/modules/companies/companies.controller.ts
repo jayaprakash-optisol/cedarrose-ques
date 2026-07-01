@@ -13,7 +13,7 @@ export class CompaniesController {
   };
 
   list = async (req: Request, res: Response) => {
-    const { page, limit, offset } = parsePagination(req.query as Record<string, unknown>);
+    const { page, limit, offset } = parsePagination(req.query);
     const { data, total } = await this.companiesService.list(offset, limit);
     sendSuccess(res, data, 200, undefined, paginationMeta(page, limit, total));
   };

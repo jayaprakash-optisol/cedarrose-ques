@@ -4,9 +4,9 @@ import { AppError } from "../shared/errors/AppError.js";
 import { failure } from "../shared/utils/response.js";
 import { isDatabaseError, toDatabaseErrorResponse } from "../shared/utils/db-error.js";
 import { formatZodError } from "../shared/utils/validation-error.js";
-import { logDevError, logger } from "../config/logger.js";
+import { logDevError } from "../config/logger.js";
 
-export { logger };
+export { logger } from "../config/logger.js";
 
 export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   const requestId = String((req as Request).id ?? "");

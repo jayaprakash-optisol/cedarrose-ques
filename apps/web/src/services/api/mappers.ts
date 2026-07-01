@@ -44,6 +44,7 @@ export interface ApiCase {
   completionOptional: number;
   dateSubmitted?: string | null;
   dateReceived: string;
+  dateDispatched?: string | null;
   lastActivity?: string | null;
   analystId?: string | null;
   analystName?: string | null;

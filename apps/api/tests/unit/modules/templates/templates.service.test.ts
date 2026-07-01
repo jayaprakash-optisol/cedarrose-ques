@@ -106,6 +106,18 @@ describe("TemplatesService", () => {
       expect(repo.replaceSectionsAndQuestions).toHaveBeenCalledWith(templateId, sections);
       expect(result).toEqual(full);
     });
+
+    it("skips replaceSectionsAndQuestions when no sections provided", async () => {
+      const row = createTemplateRow();
+      const full = createFullTemplate();
+      vi.mocked(repo.create).mockResolvedValue(row);
+      vi.mocked(repo.getFullTemplate).mockResolvedValue(full);
+
+      await service.create({ name: "Minimal Template", createdBy: userId });
+
+      expect(repo.create).toHaveBeenCalled();
+      expect(repo.replaceSectionsAndQuestions).not.toHaveBeenCalled();
+    });
   });
 
   describe("replace", () => {
@@ -228,6 +240,26 @@ describe("TemplatesService", () => {
       });
     });
 
+    it("rejects activation with sections but no questions", async () => {
+      const full = createFullTemplate({
+        sections: [
+          {
+            sectionId: "s1",
+            templateId,
+            title: "Empty Section",
+            orderIndex: 0,
+            questions: [],
+          },
+        ],
+      });
+      vi.mocked(repo.findById).mockResolvedValue(createTemplateRow());
+      vi.mocked(repo.getFullTemplate).mockResolvedValue(full);
+
+      await expect(service.updateStatus(templateId, "Active", userId)).rejects.toMatchObject({
+        message: "Cannot activate a template with no questions",
+      });
+    });
+
     it("rejects activation without mandatory questions", async () => {
       const full = createFullTemplate({
         sections: [
@@ -270,9 +302,28 @@ describe("TemplatesService", () => {
       expect(repo.update).toHaveBeenCalledWith(templateId, { status: "Active", updatedBy: userId });
       expect(result.status).toBe("Active");
     });
+
+    it("sets status to Draft without running activation checks", async () => {
+      const existing = createTemplateRow({ status: "Active" });
+      const updated = createTemplateRow({ status: "Draft" });
+      const full = createFullTemplate({ status: "Draft" });
+      vi.mocked(repo.findById).mockResolvedValue(existing);
+      vi.mocked(repo.update).mockResolvedValue(updated);
+      vi.mocked(repo.getFullTemplate).mockResolvedValue(full);
+
+      const result = await service.updateStatus(templateId, "Draft", userId);
+
+      expect(repo.update).toHaveBeenCalledWith(templateId, { status: "Draft", updatedBy: userId });
+      expect(result.status).toBe("Draft");
+    });
   });
 
   describe("delete", () => {
+    it("throws when template is not found", async () => {
+      vi.mocked(repo.findById).mockResolvedValue(null);
+      await expect(service.delete(templateId)).rejects.toMatchObject({ statusCode: 404 });
+    });
+
     it("only allows deleting draft templates", async () => {
       vi.mocked(repo.findById).mockResolvedValue(createTemplateRow({ status: "Active" }));
       await expect(service.delete(templateId)).rejects.toMatchObject({

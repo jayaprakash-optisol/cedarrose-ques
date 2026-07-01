@@ -129,4 +129,43 @@ describe("CasesRepository", () => {
     await repo.incrementRemindersSent(caseRow.caseId);
     expect(db.update).toHaveBeenCalled();
   });
+
+  it("findByLinkTokenHash returns row or null", async () => {
+    db.queueResults([caseRow]);
+    await expect(repo.findByLinkTokenHash("hash")).resolves.toEqual(caseRow);
+
+    db.queueResults([]);
+    await expect(repo.findByLinkTokenHash("missing")).resolves.toBeNull();
+  });
+
+  it("isLinkExpired returns boolean", async () => {
+    db.queueResults([{ expired: true }]);
+    await expect(repo.isLinkExpired(caseRow.caseId)).resolves.toBe(true);
+
+    db.queueResults([{ expired: false }]);
+    await expect(repo.isLinkExpired(caseRow.caseId)).resolves.toBe(false);
+
+    db.queueResults([]);
+    await expect(repo.isLinkExpired(caseRow.caseId)).resolves.toBe(false);
+  });
+
+  it("exportBatches yields multiple batches", async () => {
+    db.queueResults(
+      [{ case: caseRow, analystFirstName: "Ana", company: null }],
+      [{ total: 500 }],
+      [],
+      [{ case: caseRow, analystFirstName: "Ana", company: null }],
+      [{ total: 1 }],
+      [],
+      [],
+      [{ total: 0 }],
+      [],
+    );
+    const batches = [];
+    for await (const batch of repo.exportBatches({})) {
+      batches.push(batch);
+    }
+    expect(batches).toHaveLength(1);
+    expect(batches[0]).toHaveLength(1);
+  });
 });

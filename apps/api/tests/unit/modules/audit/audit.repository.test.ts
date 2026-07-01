@@ -67,4 +67,73 @@ describe("AuditRepository", () => {
     }
     expect(batches).toEqual([[{ ...auditRow, caseStatus: "SENT" }]]);
   });
+
+  it("exportBatches stops after empty batch", async () => {
+    db.queueResults([], [{ total: 0 }]);
+    const batches = [];
+    for await (const batch of repo.exportBatches({})) {
+      batches.push(batch);
+    }
+    expect(batches).toEqual([]);
+  });
+
+  it("findGroupedByCase returns mapped grouped results", async () => {
+    const groupedRow = {
+      audit_id: auditRow.auditId,
+      case_id: auditRow.caseId,
+      case_subject: auditRow.caseSubject,
+      case_order_id: auditRow.caseOrderId,
+      step: auditRow.step,
+      event_type: auditRow.eventType,
+      description: auditRow.description,
+      triggered_by: auditRow.triggeredBy,
+      triggered_by_user_id: auditRow.triggeredByUserId,
+      status: auditRow.status,
+      payload: null,
+      created_at: auditRow.createdAt,
+      case_status: "SENT",
+    };
+    db.queueResults([groupedRow], [{ total: "1" }]);
+
+    const result = await repo.findGroupedByCase({ offset: 0, limit: 10 });
+    expect(result.total).toBe(1);
+    expect(result.data[0]).toMatchObject({
+      auditId: auditRow.auditId,
+      caseId: auditRow.caseId,
+    });
+  });
+
+  it("findGroupedByCase handles empty results", async () => {
+    db.queueResults([], [{ total: "0" }]);
+    const result = await repo.findGroupedByCase({ offset: 0, limit: 10 });
+    expect(result.total).toBe(0);
+    expect(result.data).toEqual([]);
+  });
+
+  it("findGroupedByCase handles rows wrapper shape", async () => {
+    db.queueResults(
+      { rows: [] },
+      { rows: [{ total: "0" }] },
+    );
+    const result = await repo.findGroupedByCase({ offset: 0, limit: 10 });
+    expect(result.total).toBe(0);
+  });
+
+  it("countGrouped returns count from raw SQL", async () => {
+    db.queueResults([{ total: "42" }]);
+    const result = await repo.countGrouped({});
+    expect(result).toBe(42);
+  });
+
+  it("countGrouped handles rows wrapper shape", async () => {
+    db.queueResults({ rows: [{ total: "7" }] });
+    const result = await repo.countGrouped({});
+    expect(result).toBe(7);
+  });
+
+  it("countGrouped handles empty result", async () => {
+    db.queueResults([]);
+    const result = await repo.countGrouped({});
+    expect(result).toBe(0);
+  });
 });

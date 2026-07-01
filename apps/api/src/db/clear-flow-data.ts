@@ -14,10 +14,10 @@ import { logger } from "../config/logger.js";
  * questionnaire flow can be tested from a clean slate.
  * Keeps users, companies, templates, and platform config intact.
  */
-async function clearFlowData() {
-  const pool = new Pool({ connectionString: env.databaseUrl });
-  const db = drizzle(pool, { schema, logger: false });
+const pool = new Pool({ connectionString: env.databaseUrl });
+const db = drizzle(pool, { schema, logger: false });
 
+try {
   const counts = await db.transaction(async (tx) => {
     const removedAudit = await tx.delete(auditEvents).returning({ id: auditEvents.auditId });
     const removedNotifications = await tx
@@ -33,8 +33,6 @@ async function clearFlowData() {
     };
   });
 
-  await pool.end();
-
   logger.info(
     "Flow data cleared — %d cases, %d audit events, %d case notifications removed",
     counts.cases,
@@ -42,9 +40,9 @@ async function clearFlowData() {
     counts.notifications,
   );
   logger.info("Users, companies, and templates were not modified.");
-}
-
-clearFlowData().catch((err) => {
+} catch (err) {
   logger.error({ err }, "Failed to clear flow data");
   process.exit(1);
-});
+} finally {
+  await pool.end();
+}

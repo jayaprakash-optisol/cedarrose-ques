@@ -9,7 +9,7 @@ export class CompaniesService {
     if (!company) throw new AppError(404, "NOT_FOUND", `Company ${uid} not found`);
     const emailRows = await this.companiesRepo.getRecipientEmails(company.companyId);
     const recipientEmails = emailRows
-      .sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary))
+      .toSorted((a, b) => Number(b.isPrimary) - Number(a.isPrimary))
       .map((row) => row.email);
     return { ...company, uid: company.crisNumber, recipientEmails };
   }

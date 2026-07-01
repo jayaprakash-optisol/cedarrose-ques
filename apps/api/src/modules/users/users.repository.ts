@@ -1,9 +1,11 @@
 import { eq, and, count } from "drizzle-orm";
 import type { DbClient, DrizzleDB } from "../../config/database.js";
-import { users, type UserRow } from "../../db/schema/users.js";
+import { users } from "../../db/schema/users.js";
 import { userPlatforms } from "../../db/schema/companies.js";
 import { userInvitations } from "../../db/schema/refresh-tokens.js";
 import { normalizeEmail } from "../../shared/utils/email.js";
+
+export type { UserRow } from "../../db/schema/users.js";
 
 export class UsersRepository {
   constructor(private readonly db: DrizzleDB) {}
@@ -95,5 +97,3 @@ export class UsersRepository {
       .where(and(eq(userInvitations.userId, userId), eq(userInvitations.used, false)));
   }
 }
-
-export type { UserRow };

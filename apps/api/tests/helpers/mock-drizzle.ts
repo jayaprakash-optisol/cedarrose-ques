@@ -42,6 +42,7 @@ export function createMockDrizzle() {
       return Array.isArray(r) ? r : [r];
     })),
     delete: vi.fn(() => createQueryBuilder(dequeue)),
+    execute: vi.fn(() => Promise.resolve(dequeue())),
     transaction: vi.fn(async (fn: (tx: DrizzleDB) => Promise<unknown>) => fn(db as unknown as DrizzleDB)),
     queueResults: (...results: unknown[]) => {
       queue.push(...results);

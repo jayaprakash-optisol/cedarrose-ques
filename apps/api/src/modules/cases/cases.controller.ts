@@ -58,7 +58,7 @@ export class CasesController {
   constructor(private readonly casesService: CasesService) {}
 
   list = async (req: Request, res: Response) => {
-    const { page, limit, filters } = parseCaseListQuery(req.query as Record<string, unknown>);
+    const { page, limit, filters } = parseCaseListQuery(req.query);
     const { data, total } = await this.casesService.list(filters);
     sendSuccess(res, data, 200, undefined, paginationMeta(page, limit, total));
   };
@@ -88,7 +88,7 @@ export class CasesController {
   };
 
   exportCsv = async (req: Request, res: Response) => {
-    const filters = parseCaseExportQuery(req.query as Record<string, unknown>);
+    const filters = parseCaseExportQuery(req.query);
     const header =
       "Order ID,Company name,Country,Recipient,Status,Mandatory,Requested,Last Activity,Researcher\n";
     res.setHeader("Content-Type", "text/csv");

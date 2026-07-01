@@ -73,7 +73,7 @@ describe("completion-stats", () => {
   it("excludes cases with no dispatched date", () => {
     const noDate = makeCase({
       requestedDate: undefined as never,
-      link: { sentAt: null as never, firstOpenedAt: null, resentCount: 0 },
+      link: { sentAt: null as never, firstOpenedAt: undefined, resentCount: 0 },
     });
     const stats = computeCompletionStatsFromCases([noDate], "all");
     expect(stats.caseCount).toBe(0);
@@ -88,7 +88,7 @@ describe("completion-stats", () => {
 
   it("handles case with no firstOpenedAt", () => {
     const noOpen = makeCase({
-      link: { sentAt: subDays(new Date(), 3).toISOString(), firstOpenedAt: null, resentCount: 0 },
+      link: { sentAt: subDays(new Date(), 3).toISOString(), firstOpenedAt: undefined, resentCount: 0 },
     });
     const stats = computeCompletionStatsFromCases([noOpen], "all");
     expect(stats.summary.avgTimeToFirstOpen.value).toBeNull();

@@ -43,4 +43,12 @@ describe("db-error utils", () => {
     expect(isDatabaseError(new Error("plain"))).toBe(false);
     expect(isDatabaseError(null)).toBe(false);
   });
+
+  it("handles null and non-error inputs", () => {
+    expect(toDatabaseErrorResponse(null)).toMatchObject({ statusCode: 500, code: "DATABASE_ERROR" });
+    expect(toDatabaseErrorResponse(undefined)).toMatchObject({ statusCode: 500, code: "DATABASE_ERROR" });
+    expect(toDatabaseErrorResponse("string")).toMatchObject({ statusCode: 500, code: "DATABASE_ERROR" });
+    expect(isDatabaseError("not an error")).toBe(false);
+    expect(isDatabaseError({})).toBe(false);
+  });
 });

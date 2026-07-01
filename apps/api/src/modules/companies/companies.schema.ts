@@ -5,7 +5,7 @@ export const createCompanySchema = z.object({
   crisNumber: z.string().min(1).max(50),
   country: z.string().optional(),
   riskRating: z.enum(["Low", "Medium", "High"]).optional(),
-  recipientEmails: z.array(z.string().email()).optional(),
+  recipientEmails: z.array(z.email()).optional(),
 });
 
 export const updateCompanySchema = z.object({

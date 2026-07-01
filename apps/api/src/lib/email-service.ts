@@ -10,7 +10,7 @@ import { AppError } from "../shared/errors/AppError.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export class EmailService {
-  private client: EmailClient | null = null;
+  private readonly client: EmailClient | null = null;
 
   constructor() {
     if (!env.azureEmailConnectionString) return;

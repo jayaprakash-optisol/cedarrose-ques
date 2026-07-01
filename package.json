@@ -20,7 +20,9 @@
     "seed:clear": "npm run seed:clear -w cedarrose-opshub-api",
     "test:api": "npm run test -w cedarrose-opshub-api",
     "test:web": "npm run test -w cedarrose-opshub-web",
-    "test:coverage": "npm run test:coverage -w cedarrose-opshub-api && npm run test:coverage -w cedarrose-opshub-web",
+    "test:coverage:api": "npm run test:coverage -w cedarrose-opshub-api",
+    "test:coverage:web": "npm run test:coverage -w cedarrose-opshub-web",
+    "test:coverage": "npm run test:coverage:api && npm run test:coverage:web",
     "sonar:api": "bash scripts/sonar-scan.sh api",
     "sonar:web": "bash scripts/sonar-scan.sh web",
     "sonar:local": "bash scripts/sonar-local.sh"

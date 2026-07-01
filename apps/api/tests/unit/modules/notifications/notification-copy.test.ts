@@ -90,6 +90,21 @@ describe("notification-copy", () => {
       expect(final.body).toContain("Day 7");
     });
 
+    it("builds reminder copy using context remindersSent when no opts", () => {
+      const copy = buildNotificationCopy("reminder", {
+        ...baseContext,
+        remindersSent: 2,
+        completionMandatory: undefined,
+      });
+      expect(copy.body).toContain("Reminder 2");
+      expect(copy.body).not.toContain("%");
+    });
+
+    it("builds stale copy with default hours when no opts", () => {
+      const copy = buildNotificationCopy("stale", baseContext);
+      expect(copy.body).toContain("72 hours");
+    });
+
     it("builds stale copy with configurable hours", () => {
       const copy = buildNotificationCopy("stale", baseContext, { staleHours: 48 });
       expect(copy.title).toBe("Case activity stalled");

@@ -134,7 +134,7 @@ export class TemplatesRepository {
     await this.db.insert(templateSnapshots).values({
       templateId,
       version,
-      snapshot: snapshot as never,
+      snapshot,
     });
   }
 

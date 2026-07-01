@@ -54,6 +54,22 @@ describe("TemplatesRepository", () => {
     expect(rows[0].editorName).toBeNull();
   });
 
+  it("findAllSummaries handles null question counts", async () => {
+    db.queueResults([
+      {
+        ...templateRow,
+        editorFirstName: null,
+        editorLastName: null,
+        totalQuestions: null,
+        requiredCount: null,
+      },
+    ]);
+    const rows = await repo.findAllSummaries();
+    expect(rows[0].totalQuestions).toBe(0);
+    expect(rows[0].requiredCount).toBe(0);
+    expect(rows[0].optionalCount).toBe(0);
+  });
+
   it("findById and findActiveByRecipientType return row or null", async () => {
     db.queueResults([templateRow]);
     await expect(repo.findById(templateRow.templateId)).resolves.toEqual(templateRow);
@@ -63,6 +79,9 @@ describe("TemplatesRepository", () => {
 
     db.queueResults([templateRow]);
     await expect(repo.findActiveByRecipientType("Supplier")).resolves.toEqual(templateRow);
+
+    db.queueResults([]);
+    await expect(repo.findActiveByRecipientType("Unknown")).resolves.toBeNull();
   });
 
   it("getFullTemplate returns null when template missing", async () => {
@@ -101,6 +120,40 @@ describe("TemplatesRepository", () => {
     db.queueResults([templateRow], [], []);
     const full = await repo.getFullTemplate(templateRow.templateId);
     expect(full?.sections).toEqual([]);
+  });
+
+  it("getFullTemplate handles section with no matching questions", async () => {
+    const section1 = {
+      sectionId: "s1",
+      templateId: templateRow.templateId,
+      title: "Section 1",
+      description: null,
+      banner: null,
+      orderIndex: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const section2 = {
+      ...section1,
+      sectionId: "s2",
+      title: "Section 2",
+      orderIndex: 1,
+    };
+    const question = {
+      questionId: "q1",
+      sectionId: "s1",
+      label: "Q1",
+      fieldType: "text",
+      mandatory: true,
+      orderIndex: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    db.queueResults([templateRow], [section1, section2], [question]);
+    const full = await repo.getFullTemplate(templateRow.templateId);
+    expect(full?.sections).toHaveLength(2);
+    expect(full?.sections[0].questions).toHaveLength(1);
+    expect(full?.sections[1].questions).toEqual([]);
   });
 
   it("create, update, delete, and saveSnapshot mutate data", async () => {
@@ -145,6 +198,24 @@ describe("TemplatesRepository", () => {
   it("replaceSectionsAndQuestions no-ops when section list is empty", async () => {
     db.queueResults([]);
     await repo.replaceSectionsAndQuestions(templateRow.templateId, []);
+    expect(db.transaction).toHaveBeenCalled();
+  });
+
+  it("replaceSectionsAndQuestions skips question insert when questions empty", async () => {
+    const insertedSection = {
+      sectionId: "s-empty-q",
+      templateId: templateRow.templateId,
+      title: "No Questions",
+      description: null,
+      banner: null,
+      orderIndex: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    db.queueResults([], [insertedSection], []);
+    await repo.replaceSectionsAndQuestions(templateRow.templateId, [
+      { title: "No Questions", orderIndex: 0, questions: [] },
+    ]);
     expect(db.transaction).toHaveBeenCalled();
   });
 });

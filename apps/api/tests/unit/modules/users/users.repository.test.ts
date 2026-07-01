@@ -43,6 +43,9 @@ describe("UsersRepository", () => {
 
     db.queueResults([user]);
     await expect(repo.findByEmail(user.email)).resolves.toEqual(user);
+
+    db.queueResults([]);
+    await expect(repo.findByEmail("notfound@test.com")).resolves.toBeNull();
   });
 
   it("create and update support optional transaction client", async () => {
@@ -91,6 +94,9 @@ describe("UsersRepository", () => {
   it("manages invitations", async () => {
     db.queueResults([invitation]);
     await expect(repo.getLatestInvitation(user.userId)).resolves.toEqual(invitation);
+
+    db.queueResults([]);
+    await expect(repo.getLatestInvitation("no-invites")).resolves.toBeNull();
 
     db.queueResults([]);
     await repo.insertInvitation(invitation);

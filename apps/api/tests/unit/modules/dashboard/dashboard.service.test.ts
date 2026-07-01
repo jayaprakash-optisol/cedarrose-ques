@@ -211,5 +211,18 @@ describe("DashboardService", () => {
 
       expect(result.byCompany[0].endAt).toMatch(/\d{2} \w{3} \d{4}/);
     });
+
+    it("groups multiple cases for the same company", async () => {
+      const rows = [
+        dashboardRow({ caseId: "case-1", companyId: "co-1", dateDispatched: subDays(new Date(), 10), dateSubmitted: subDays(new Date(), 8) }),
+        dashboardRow({ caseId: "case-2", companyId: "co-1", dateDispatched: subDays(new Date(), 5), dateSubmitted: subDays(new Date(), 2) }),
+      ];
+      vi.mocked(repo.findCasesForStats).mockResolvedValue(rows);
+
+      const result = await service.getCompletionStats("all");
+      const coBar = result.byCompany.find((bar) => bar.companyId === "co-1");
+      expect(coBar).toBeTruthy();
+      expect(coBar!.caseCount).toBe(2);
+    });
   });
 });

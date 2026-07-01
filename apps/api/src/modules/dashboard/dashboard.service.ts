@@ -196,7 +196,7 @@ function buildCompanyBars(rows: DashboardCaseRow[], now: Date, overallAvg: numbe
     });
   }
 
-  return bars.sort((a, b) => b.days - a.days).slice(0, 12);
+  return bars.toSorted((a, b) => b.days - a.days).slice(0, 12);
 }
 
 export class DashboardService {

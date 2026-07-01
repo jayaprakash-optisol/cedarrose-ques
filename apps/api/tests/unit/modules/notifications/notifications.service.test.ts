@@ -354,4 +354,81 @@ describe("NotificationsService", () => {
       expect(notificationsRepo.delete).toHaveBeenCalledWith("n1", userId);
     });
   });
+
+  describe("create preference filtering", () => {
+    it("returns null when user has disabled a notification type", async () => {
+      vi.mocked(prefsRepo.findByUserId).mockResolvedValue({
+        notifyOnSubmission: false,
+        notifyOnLinkExpiry: true,
+        notifyOnBlockedDispatch: true,
+        notifyOnRemindersSent: true,
+      });
+
+      const result = await service.create({
+        userId,
+        type: "submission",
+        title: "",
+        body: "",
+      });
+
+      expect(result).toBeNull();
+      expect(notificationsRepo.create).not.toHaveBeenCalled();
+    });
+
+    it("does not filter when type has no preference key", async () => {
+      vi.mocked(notificationsRepo.create).mockResolvedValue({} as never);
+
+      await service.create({ userId, type: "api", title: "T", body: "B" });
+
+      expect(notificationsRepo.create).toHaveBeenCalled();
+    });
+  });
+
+  describe("create stale/reminder branch coverage", () => {
+    it("handles create stale with case context and no remindersSent", async () => {
+      const c = caseWithCompany();
+      vi.mocked(casesRepo.findById).mockResolvedValue({ ...c, remindersSent: undefined as unknown as number | null });
+      vi.mocked(notificationsRepo.create).mockResolvedValue({} as never);
+
+      await service.create({ userId, type: "stale", title: "", body: "", caseId: c.caseId });
+
+      expect(notificationsRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "stale", body: expect.stringContaining("72") }),
+      );
+    });
+
+    it("handles create reminder with 0 remindersSent in context", async () => {
+      const c = caseWithCompany();
+      vi.mocked(casesRepo.findById).mockResolvedValue({ ...c, remindersSent: 0 });
+      vi.mocked(notificationsRepo.create).mockResolvedValue({} as never);
+
+      await service.create({ userId, type: "reminder", title: "", body: "", caseId: c.caseId });
+
+      expect(notificationsRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "reminder", body: expect.stringContaining("Reminder 1") }),
+      );
+    });
+  });
+
+  describe("sendReminder edge cases", () => {
+    it("handles sendReminder with undefined remindersSent", async () => {
+      const c = caseWithCompany();
+      vi.mocked(casesRepo.findById).mockResolvedValue({ ...c, remindersSent: undefined as unknown as number | null });
+      vi.mocked(notificationsRepo.create).mockResolvedValue({} as never);
+
+      await service.sendReminder({ caseId: c.caseId, analystId: userId });
+
+      expect(notificationsRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "reminder", body: expect.stringContaining("Reminder 1") }),
+      );
+    });
+  });
+
+  describe("notifyStale with case missing", () => {
+    it("no-ops when case not found", async () => {
+      vi.mocked(casesRepo.findById).mockResolvedValue(null);
+      await service.notifyStale("missing", userId, 72);
+      expect(notificationsRepo.create).not.toHaveBeenCalled();
+    });
+  });
 });

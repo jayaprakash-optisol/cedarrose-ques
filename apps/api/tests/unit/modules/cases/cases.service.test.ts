@@ -11,7 +11,7 @@ import {
   createMockCompaniesRepository,
   createMockTemplatesRepository,
 } from "../../../helpers/mock-repositories.js";
-import { createMockAuditService, createMockNotificationsService } from "../../../helpers/mock-services.js";
+import { createMockAuditService } from "../../../helpers/mock-services.js";
 import { createMockEmailService } from "../../../helpers/mock-email-service.js";
 import { createMockCase } from "../../../helpers/mock-case.js";
 
@@ -35,7 +35,6 @@ describe("CasesService", () => {
   let companiesRepo: ReturnType<typeof createMockCompaniesRepository>;
   let templatesRepo: ReturnType<typeof createMockTemplatesRepository>;
   let auditService: ReturnType<typeof createMockAuditService>;
-  let notificationsService: ReturnType<typeof createMockNotificationsService>;
   let emailService: ReturnType<typeof createMockEmailService>;
   let service: CasesService;
 
@@ -46,14 +45,12 @@ describe("CasesService", () => {
     companiesRepo = createMockCompaniesRepository();
     templatesRepo = createMockTemplatesRepository();
     auditService = createMockAuditService();
-    notificationsService = createMockNotificationsService();
     emailService = createMockEmailService();
     service = new CasesService(
       casesRepo as unknown as CasesRepository,
       companiesRepo as unknown as CompaniesRepository,
       templatesRepo as unknown as TemplatesRepository,
       auditService,
-      notificationsService,
       emailService,
     );
   });
@@ -325,6 +322,29 @@ describe("CasesService", () => {
       expect(auditService.log).toHaveBeenCalledWith(
         expect.objectContaining({ step: WORKFLOW_STEP.API_PUSH }),
       );
+    });
+
+    it("skips external fetch and marks success when allowedExternalHosts is empty", async () => {
+      const c = createMockCase();
+      const updated = { ...c, apiPushStatus: "Success" as const };
+      vi.mocked(casesRepo.findById).mockResolvedValue(c);
+      vi.mocked(casesRepo.update).mockResolvedValue(updated);
+
+      const savedHosts = env.allowedExternalHosts.splice(0);
+      vi.mocked(httpClient.safeExternalFetch).mockClear();
+
+      try {
+        const result = await service.apiPush(c.caseId);
+
+        expect(httpClient.safeExternalFetch).not.toHaveBeenCalled();
+        expect(result.apiPushStatus).toBe("Success");
+        expect(casesRepo.update).toHaveBeenCalledWith(
+          c.caseId,
+          expect.objectContaining({ apiPushStatus: "Success" }),
+        );
+      } finally {
+        env.allowedExternalHosts.push(...savedHosts);
+      }
     });
 
     it("marks push failed and throws on external error", async () => {

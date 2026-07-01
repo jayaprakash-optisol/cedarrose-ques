@@ -6,6 +6,7 @@ export function createMockAuthRepository(): AuthRepository {
     findByEmail: vi.fn(),
     findById: vi.fn(),
     updatePassword: vi.fn(),
+    updateProfile: vi.fn(),
     insertRefreshToken: vi.fn(),
     findRefreshToken: vi.fn(),
     revokeRefreshToken: vi.fn(),

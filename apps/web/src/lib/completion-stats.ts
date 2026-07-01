@@ -11,7 +11,7 @@ const DISPATCHED_STATUSES = new Set([
   "COMPLETED — MISSING DATA",
   "EXPIRED",
 ]);
-const IN_FLIGHT_STATUSES = ["SENT", "OPENED", "IN PROGRESS"] as const;
+const IN_FLIGHT_STATUSES: readonly string[] = ["SENT", "OPENED", "IN PROGRESS"];
 
 interface CaseTimingRow {
   caseId: string;

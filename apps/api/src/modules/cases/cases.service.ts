@@ -3,7 +3,6 @@ import { determineInitialStatus, generateSecureLink } from "./cases.repository.j
 import type { CompaniesRepository } from "../companies/companies.repository.js";
 import type { TemplatesRepository } from "../templates/templates.repository.js";
 import type { AuditService } from "../audit/audit.service.js";
-import type { NotificationsService } from "../notifications/notifications.service.js";
 import type { EmailService } from "../../lib/email-service.js";
 import { detectEmailTypo } from "../../shared/utils/email.js";
 import { AppError } from "../../shared/errors/AppError.js";
@@ -17,7 +16,6 @@ export class CasesService {
     private readonly companiesRepo: CompaniesRepository,
     private readonly templatesRepo: TemplatesRepository,
     private readonly auditService: AuditService,
-    private readonly notificationsService: NotificationsService,
     private readonly emailService: EmailService
   ) {}
 
@@ -50,15 +48,9 @@ export class CasesService {
       throw new AppError(400, "EMAIL_TYPO_DETECTED", "Possible email typo detected");
     }
 
-    let companyId: string | undefined;
-    let subjectName = dto.subjectName;
-    if (dto.uid) {
-      const company = await this.companiesRepo.findByCrisNumber(dto.uid);
-      if (company) {
-        companyId = company.companyId;
-        subjectName = company.companyName;
-      }
-    }
+    const company = dto.uid ? await this.companiesRepo.findByCrisNumber(dto.uid) : null;
+    const companyId = company?.companyId;
+    const subjectName = company?.companyName ?? dto.subjectName;
 
     let templateId = dto.templateId;
     if (!templateId) {
@@ -78,10 +70,8 @@ export class CasesService {
     const caseRef = await this.casesRepo.getNextCaseRef();
     const validityHours = dto.linkValidityHours ?? 48;
 
-    let linkData: ReturnType<typeof generateSecureLink> | undefined;
-    if (dto.recipientEmail && status === "NOT SENT") {
-      linkData = generateSecureLink(validityHours);
-    }
+    const linkData =
+      dto.recipientEmail && status === "NOT SENT" ? generateSecureLink(validityHours) : undefined;
 
     const created = await this.casesRepo.create({
       caseRef,
@@ -133,35 +123,53 @@ export class CasesService {
       });
     }
 
-    let linkUrl: string | null = null;
-    if (linkData) {
-      await this.auditService.log({
-        caseId: created.caseId,
-        step: WORKFLOW_STEP.GENERATE_LINK,
-        eventType: "Link Event",
-        description: "Secure link generated",
-        triggeredByUserId: requesterId,
-        status: "Success",
-      });
-
-      linkUrl = `${env.frontendUrl}/q/${linkData.rawToken}`;
-      if (dto.recipientEmail) {
-        await this.emailService.sendQuestionnaireLink(dto.recipientEmail, subjectName, linkUrl);
-        await this.auditService.log({
-          caseId: created.caseId,
-          step: WORKFLOW_STEP.SEND_LINK,
-          eventType: "Link Event",
-          description: "Secure link sent",
-          triggeredByUserId: requesterId,
-          status: "Success",
-        });
-      }
-    }
+    const linkUrl = await this.dispatchLink(
+      created.caseId,
+      linkData,
+      dto.recipientEmail,
+      subjectName,
+      requesterId
+    );
 
     const caseRecord = (await this.casesRepo.findById(created.caseId)) ?? created;
     // Return linkUrl once in the creation response so admin UI can display/copy it.
     // The raw token is never stored in the DB — this is the only time it is returned.
     return { ...caseRecord, linkUrl };
+  }
+
+  private async dispatchLink(
+    caseId: string,
+    linkData: ReturnType<typeof generateSecureLink> | undefined,
+    recipientEmail: string | undefined,
+    subjectName: string,
+    requesterId: string
+  ): Promise<string | null> {
+    if (!linkData) return null;
+
+    await this.auditService.log({
+      caseId,
+      step: WORKFLOW_STEP.GENERATE_LINK,
+      eventType: "Link Event",
+      description: "Secure link generated",
+      triggeredByUserId: requesterId,
+      status: "Success",
+    });
+
+    const linkUrl = `${env.frontendUrl}/q/${linkData.rawToken}`;
+
+    if (!recipientEmail) return linkUrl;
+
+    await this.emailService.sendQuestionnaireLink(recipientEmail, subjectName, linkUrl);
+    await this.auditService.log({
+      caseId,
+      step: WORKFLOW_STEP.SEND_LINK,
+      eventType: "Link Event",
+      description: "Secure link sent",
+      triggeredByUserId: requesterId,
+      status: "Success",
+    });
+
+    return linkUrl;
   }
 
   async resendLink(caseId: string, requesterId: string, requesterRole: string) {

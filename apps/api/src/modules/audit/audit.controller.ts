@@ -20,7 +20,7 @@ function parseAuditListQuery(query: Record<string, unknown>) {
       to: parseDateQuery(query.to, true),
       offset,
       limit,
-      grouped: query.grouped === "false" ? false : true,
+      grouped: query.grouped !== "false",
     },
   };
 }
@@ -40,13 +40,13 @@ export class AuditController {
   constructor(private readonly auditService: AuditService) {}
 
   list = async (req: Request, res: Response) => {
-    const { page, limit, filters } = parseAuditListQuery(req.query as Record<string, unknown>);
+    const { page, limit, filters } = parseAuditListQuery(req.query);
     const { data, total } = await this.auditService.list(filters);
     sendSuccess(res, data, 200, undefined, paginationMeta(page, limit, total));
   };
 
   exportCsv = async (req: Request, res: Response) => {
-    const filters = parseAuditExportQuery(req.query as Record<string, unknown>);
+    const filters = parseAuditExportQuery(req.query);
     const header =
       "Timestamp,Case,Order,Step,Type,Description,TriggeredBy,Case status\n";
     res.setHeader("Content-Type", "text/csv");
@@ -55,7 +55,7 @@ export class AuditController {
 
     for await (const batch of this.auditService.exportBatches(filters)) {
       for (const row of batch) {
-        const step = row.step != null ? (normalizeWorkflowStep(row.step, row.eventType) ?? row.step) : "";
+        const step = row.step == null ? "" : (normalizeWorkflowStep(row.step, row.eventType) ?? row.step);
         const line = [
           row.createdAt.toISOString(),
           row.caseSubject ?? "",

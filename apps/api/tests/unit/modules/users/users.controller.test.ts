@@ -146,5 +146,25 @@ describe("UsersController", () => {
       );
       expect(res.send).toHaveBeenCalledWith(expect.stringContaining(mockUser.email));
     });
+
+    it("handles null values in CSV export", async () => {
+      vi.mocked(usersService.exportAll).mockResolvedValue([
+        {
+          userId: mockUser.userId,
+          email: mockUser.email,
+          firstName: null,
+          lastName: null,
+          role: mockUser.role,
+          status: mockUser.status,
+        },
+      ] as never);
+      const req = createMockRequest();
+
+      await controller.exportCsv(req, res);
+
+      expect(res.send).toHaveBeenCalledWith(
+        expect.stringContaining(`${mockUser.userId},${mockUser.email},,,${mockUser.role},${mockUser.status}`)
+      );
+    });
   });
 });

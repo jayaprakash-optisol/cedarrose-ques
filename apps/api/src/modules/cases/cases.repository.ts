@@ -191,7 +191,11 @@ export class CasesRepository {
         )
         .limit(filters.limit)
         .offset(filters.offset),
-      this.db.select({ total: count() }).from(cases).where(where),
+      this.db
+        .select({ total: count() })
+        .from(cases)
+        .leftJoin(companies, eq(cases.companyId, companies.companyId))
+        .where(where),
     ]);
 
     const companyIds = [

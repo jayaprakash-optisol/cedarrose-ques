@@ -415,4 +415,144 @@ describe("AuthService", () => {
       expect(repo.insertPasswordResetToken).not.toHaveBeenCalled();
     });
   });
+
+  describe("toMeResponse", () => {
+    it("returns user with notification preferences", async () => {
+      const user = createMockUser();
+      vi.mocked(prefsRepo.findByUserId).mockResolvedValue({
+        notifyOnSubmission: true,
+        notifyOnLinkExpiry: false,
+        notifyOnBlockedDispatch: true,
+        notifyOnRemindersSent: false,
+      });
+
+      const result = await service.toMeResponse(user);
+      expect(result).not.toHaveProperty("password");
+      expect(result).toHaveProperty("email", user.email);
+      expect(result).toHaveProperty("notifyOnSubmission", true);
+      expect(result).toHaveProperty("notifyOnLinkExpiry", false);
+    });
+  });
+
+  describe("updateMe", () => {
+    it("updates profile fields only", async () => {
+      const user = createMockUser();
+      vi.mocked(repo.findById).mockResolvedValue(user);
+      vi.mocked(repo.updateProfile).mockResolvedValue({
+        ...user,
+        firstName: "Jane",
+        lastName: "Doe",
+      });
+
+      const result = await service.updateMe(user.userId, {
+        firstName: "Jane",
+        lastName: "Doe",
+      });
+
+      expect(result).toHaveProperty("firstName", "Jane");
+      expect(result).toHaveProperty("lastName", "Doe");
+      expect(prefsRepo.upsert).not.toHaveBeenCalled();
+      expect(prefsRepo.findByUserId).toHaveBeenCalled();
+    });
+
+    it("updates notification preferences only", async () => {
+      const user = createMockUser();
+      vi.mocked(repo.findById).mockResolvedValue(user);
+      vi.mocked(prefsRepo.upsert).mockResolvedValue({
+        notifyOnSubmission: false,
+        notifyOnLinkExpiry: true,
+        notifyOnBlockedDispatch: true,
+        notifyOnRemindersSent: true,
+      });
+
+      const result = await service.updateMe(user.userId, {
+        notifyOnSubmission: false,
+      });
+
+      expect(result).toHaveProperty("notifyOnSubmission", false);
+      expect(prefsRepo.upsert).toHaveBeenCalled();
+      expect(repo.updateProfile).not.toHaveBeenCalled();
+    });
+
+    it("updates profile and notification preferences together", async () => {
+      const user = createMockUser();
+      vi.mocked(repo.findById).mockResolvedValue(user);
+      vi.mocked(repo.updateProfile).mockResolvedValue({
+        ...user,
+        firstName: "Updated",
+      });
+      vi.mocked(prefsRepo.upsert).mockResolvedValue({
+        notifyOnSubmission: false,
+        notifyOnLinkExpiry: true,
+        notifyOnBlockedDispatch: true,
+        notifyOnRemindersSent: true,
+      });
+
+      const result = await service.updateMe(user.userId, {
+        firstName: "Updated",
+        notifyOnSubmission: false,
+        notifyOnRemindersSent: true,
+      });
+
+      expect(result).toHaveProperty("firstName", "Updated");
+      expect(result).toHaveProperty("notifyOnSubmission", false);
+      expect(prefsRepo.upsert).toHaveBeenCalled();
+      expect(repo.updateProfile).toHaveBeenCalled();
+    });
+
+    it("includes notifyOnBlockedDispatch in preference updates when provided", async () => {
+      const user = createMockUser();
+      vi.mocked(repo.findById).mockResolvedValue(user);
+      vi.mocked(prefsRepo.upsert).mockResolvedValue({
+        notifyOnSubmission: true,
+        notifyOnLinkExpiry: true,
+        notifyOnBlockedDispatch: true,
+        notifyOnRemindersSent: true,
+      });
+
+      await service.updateMe(user.userId, { notifyOnBlockedDispatch: true });
+
+      expect(prefsRepo.upsert).toHaveBeenCalledWith(
+        user.userId,
+        expect.objectContaining({ notifyOnBlockedDispatch: true }),
+      );
+    });
+
+    it("includes notifyOnRemindersSent in preference updates when provided", async () => {
+      const user = createMockUser();
+      vi.mocked(repo.findById).mockResolvedValue(user);
+      vi.mocked(prefsRepo.upsert).mockResolvedValue({
+        notifyOnSubmission: true,
+        notifyOnLinkExpiry: true,
+        notifyOnBlockedDispatch: true,
+        notifyOnRemindersSent: false,
+      });
+
+      await service.updateMe(user.userId, { notifyOnRemindersSent: false });
+
+      expect(prefsRepo.upsert).toHaveBeenCalledWith(
+        user.userId,
+        expect.objectContaining({ notifyOnRemindersSent: false }),
+      );
+    });
+
+    it("throws when user is not found", async () => {
+      vi.mocked(repo.findById).mockResolvedValue(null as never);
+      await expect(service.updateMe("missing", { firstName: "X" })).rejects.toMatchObject({
+        code: "NOT_FOUND",
+      });
+    });
+
+    it("throws when updateProfile returns null", async () => {
+      const user = createMockUser();
+      vi.mocked(repo.findById).mockResolvedValue(user);
+      vi.mocked(repo.updateProfile).mockResolvedValue(null as never);
+
+      await expect(
+        service.updateMe(user.userId, { firstName: "X" }),
+      ).rejects.toMatchObject({
+        code: "NOT_FOUND",
+      });
+    });
+  });
 });
