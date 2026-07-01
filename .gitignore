@@ -38,3 +38,5 @@ AGENTS.md
 # Local Lovable reference copy (questionnaire already ported into apps/web)
 graphify-out/
 .opencode/
+# superpowers subagent-driven-development scratch
+.superpowers/
