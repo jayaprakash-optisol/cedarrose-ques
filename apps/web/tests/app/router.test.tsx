@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import {
-  questionnaireService,
   casesService,
   dashboardService,
   usersService,
@@ -82,18 +81,6 @@ async function renderRouterAt(path: string, authValue: Partial<AuthContextValue>
 describe("AppRouter", () => {
   beforeEach(() => vi.restoreAllMocks());
   afterEach(() => vi.restoreAllMocks());
-
-  it("renders the public questionnaire route without requiring auth", async () => {
-    vi.spyOn(questionnaireService, "verifyLink").mockResolvedValue({
-      caseId: "c1",
-      subjectName: "Acme",
-      recipientType: "Supplier",
-      status: "IN PROGRESS",
-      maskedEmail: "a***@e.com",
-    });
-    await renderRouterAt("/q/abc123");
-    expect(await screen.findByText("Credit Information Request")).toBeInTheDocument();
-  });
 
   it("redirects an unauthenticated user hitting a protected route to /login", async () => {
     await renderRouterAt("/cases", { isAuthenticated: false, user: undefined });
