@@ -10,9 +10,9 @@ import { AuthController } from "./modules/auth/auth.controller.js";
 import { CasesRepository } from "./modules/cases/cases.repository.js";
 import { CasesService } from "./modules/cases/cases.service.js";
 import { CasesController } from "./modules/cases/cases.controller.js";
-import { CompaniesRepository } from "./modules/companies/companies.repository.js";
-import { CompaniesService } from "./modules/companies/companies.service.js";
-import { CompaniesController } from "./modules/companies/companies.controller.js";
+import { CompanyRequestsRepository } from "./modules/company-requests/company-requests.repository.js";
+import { CompanyRequestsService } from "./modules/company-requests/company-requests.service.js";
+import { CompanyRequestsController } from "./modules/company-requests/company-requests.controller.js";
 import { ConfigRepository } from "./modules/config/config.repository.js";
 import { ConfigService } from "./modules/config/config.service.js";
 import { ConfigController } from "./modules/config/config.controller.js";
@@ -40,7 +40,7 @@ export function createContainer() {
   const authRepo = new AuthRepository(db);
   const notificationPreferencesRepo = new UserNotificationPreferencesRepository(db);
   const casesRepo = new CasesRepository(db);
-  const companiesRepo = new CompaniesRepository(db);
+  const companyRequestsRepo = new CompanyRequestsRepository(db);
   const configRepo = new ConfigRepository(db);
   const notificationsRepo = new NotificationsRepository(db);
   const questionnaireRepo = new QuestionnaireRepository(db);
@@ -57,11 +57,11 @@ export function createContainer() {
   const authService = new AuthService(authRepo, notificationPreferencesRepo, emailService);
   const templatesService = new TemplatesService(templatesRepo);
   const configService = new ConfigService(configRepo);
-  const companiesService = new CompaniesService(companiesRepo);
+  const companyRequestsService = new CompanyRequestsService(companyRequestsRepo);
   const usersService = new UsersService(db, usersRepo, emailService);
   const casesService = new CasesService(
     casesRepo,
-    companiesRepo,
+    companyRequestsRepo,
     templatesRepo,
     auditService,
     emailService,
@@ -82,7 +82,7 @@ export function createContainer() {
     auditService,
     authService,
     casesService,
-    companiesService,
+    companyRequestsService,
     configService,
     notificationsService,
     questionnaireService,
@@ -93,7 +93,7 @@ export function createContainer() {
       audit: new AuditController(auditService),
       auth: new AuthController(authService),
       cases: new CasesController(casesService),
-      companies: new CompaniesController(companiesService),
+      companyRequests: new CompanyRequestsController(companyRequestsService),
       config: new ConfigController(configService),
       notifications: new NotificationsController(notificationsService),
       questionnaire: new QuestionnaireController(questionnaireService),

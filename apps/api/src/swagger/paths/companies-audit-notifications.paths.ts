@@ -1,64 +1,7 @@
 import type { OpenAPIV3 } from "../types.js";
-import { jsonRequest, jsonSuccess, jsonSuccessArray, parameters, stdErrors } from "../components/helpers.js";
+import { jsonSuccess, jsonSuccessArray, parameters, stdErrors } from "../components/helpers.js";
 
 const bearer = [{ bearerAuth: [] }];
-
-export const companiesPaths: OpenAPIV3.PathsObject = {
-  "/api/v1/companies": {
-    get: {
-      tags: ["Companies"],
-      summary: "List companies",
-      operationId: "companiesList",
-      security: bearer,
-      description: "Admin only.",
-      parameters: [parameters.page, parameters.limit],
-      responses: {
-        "200": jsonSuccessArray("#/components/schemas/Company"),
-        "403": { $ref: "#/components/responses/Forbidden" },
-      },
-    },
-    post: {
-      tags: ["Companies"],
-      summary: "Register company",
-      operationId: "companiesCreate",
-      security: bearer,
-      description: "Admin only.",
-      requestBody: jsonRequest("#/components/schemas/CreateCompanyRequest"),
-      responses: {
-        "201": jsonSuccess("#/components/schemas/Company", "Company created"),
-        "403": { $ref: "#/components/responses/Forbidden" },
-        "409": { $ref: "#/components/responses/ValidationError" },
-      },
-    },
-  },
-  "/api/v1/companies/{uid}": {
-    get: {
-      tags: ["Companies"],
-      summary: "Lookup company by CRiS UID",
-      operationId: "companiesGetByUid",
-      security: bearer,
-      parameters: [parameters.uid],
-      responses: {
-        "200": jsonSuccess("#/components/schemas/Company"),
-        "404": { $ref: "#/components/responses/NotFound" },
-      },
-    },
-    patch: {
-      tags: ["Companies"],
-      summary: "Update company profile",
-      operationId: "companiesUpdate",
-      security: bearer,
-      description: "Admin only.",
-      parameters: [parameters.uid],
-      requestBody: jsonRequest("#/components/schemas/UpdateCompanyRequest"),
-      responses: {
-        "200": jsonSuccess("#/components/schemas/Company", "Company updated"),
-        "403": { $ref: "#/components/responses/Forbidden" },
-        "404": { $ref: "#/components/responses/NotFound" },
-      },
-    },
-  },
-};
 
 export const auditPaths: OpenAPIV3.PathsObject = {
   "/api/v1/audit-log": {

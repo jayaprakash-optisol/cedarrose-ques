@@ -10,8 +10,6 @@
     "type-check": "tsc --noEmit",
     "migrate": "tsx src/db/migrate.ts",
     "migrate:status": "tsx src/db/migrate-status.ts",
-    "seed": "tsx src/db/seeds/index.ts",
-    "seed:clear": "tsx src/db/clear-flow-data.ts",
     "lint": "eslint src --ext .ts",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",

@@ -29,4 +29,4 @@ export const RECIPIENT_TYPES = [
   "Business Analytics Report",
 ] as const;
 
-export const USER_ROLES = ["Researcher", "Reviewer", "Analyst", "Admin"] as const;
+export const USER_ROLES = ["Researcher", "Reviewer", "Analyst", "Admin", "Integration"] as const;

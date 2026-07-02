@@ -36,6 +36,7 @@ export interface ApiCase {
   caseRef: string;
   orderId: string;
   companyId?: string | null;
+  externalRef?: string | null;
   subjectName: string;
   country: string;
   recipientType: CaseRecord["recipientType"];
@@ -92,6 +93,24 @@ export interface ApiCompany {
   primaryIndustry?: string | null;
   incorporationDate?: string | null;
   recipientEmails: string[];
+}
+
+export interface ApiCompanyRequest {
+  companyRequestId: string;
+  orderId: string;
+  externalRef: string;
+  companyName: string;
+  country: string;
+  riskRating?: string | null;
+  incorporationDate?: string | null;
+  legalStructure?: string | null;
+  primaryIndustry?: string | null;
+  recipientType?: string | null;
+  recipientEmails?: string[];
+  status: string;
+  receivedAt: string;
+  consumedAt?: string | null;
+  caseId?: string | null;
 }
 
 export interface ApiAuditEvent {

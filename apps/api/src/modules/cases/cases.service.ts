@@ -1,6 +1,6 @@
 import type { CasesRepository } from "./cases.repository.js";
 import { determineInitialStatus, generateSecureLink } from "./cases.repository.js";
-import type { CompaniesRepository } from "../companies/companies.repository.js";
+import type { CompanyRequestsRepository } from "../company-requests/company-requests.repository.js";
 import type { TemplatesRepository } from "../templates/templates.repository.js";
 import type { AuditService } from "../audit/audit.service.js";
 import type { EmailService } from "../../lib/email-service.js";
@@ -13,7 +13,7 @@ import { WORKFLOW_STEP } from "../../config/workflow.js";
 export class CasesService {
   constructor(
     private readonly casesRepo: CasesRepository,
-    private readonly companiesRepo: CompaniesRepository,
+    private readonly companyRequestsRepo: CompanyRequestsRepository,
     private readonly templatesRepo: TemplatesRepository,
     private readonly auditService: AuditService,
     private readonly emailService: EmailService
@@ -33,7 +33,7 @@ export class CasesService {
   async createCase(
     dto: {
       orderId: string;
-      uid?: string;
+      companyRequestId?: string;
       subjectName: string;
       country: string;
       recipientType: string;
@@ -48,15 +48,17 @@ export class CasesService {
       throw new AppError(400, "EMAIL_TYPO_DETECTED", "Possible email typo detected");
     }
 
-    const company = dto.uid ? await this.companiesRepo.findByCrisNumber(dto.uid) : null;
-    const companyId = company?.companyId;
-    const subjectName = company?.companyName ?? dto.subjectName;
+    const company = dto.companyRequestId
+      ? await this.resolveCompanyRequest(dto.companyRequestId)
+      : undefined;
 
-    let templateId = dto.templateId;
-    if (!templateId) {
-      const template = await this.templatesRepo.findActiveByRecipientType(dto.recipientType);
-      templateId = template?.templateId;
-    }
+    const subjectName = company?.subjectName ?? dto.subjectName;
+    const country = company?.country ?? dto.country;
+    const companyRequestId = company?.companyRequestId;
+    const recipientEmails = company?.recipientEmails;
+    const recipientEmail = dto.recipientEmail || recipientEmails?.[0];
+
+    const templateId = await this.resolveTemplateId(dto.templateId, dto.recipientType);
 
     if (dto.recipientEmail && !templateId) {
       throw new AppError(
@@ -66,7 +68,7 @@ export class CasesService {
       );
     }
 
-    const status = determineInitialStatus(!!dto.recipientEmail, !!dto.uid);
+    const status = determineInitialStatus(!!dto.recipientEmail, !!dto.companyRequestId);
     const caseRef = await this.casesRepo.getNextCaseRef();
     const validityHours = dto.linkValidityHours ?? 48;
 
@@ -76,9 +78,8 @@ export class CasesService {
     const created = await this.casesRepo.create({
       caseRef,
       orderId: dto.orderId,
-      companyId,
       subjectName,
-      country: dto.country,
+      country,
       recipientType: dto.recipientType,
       status: linkData ? "SENT" : status,
       analystId: dto.analystId ?? requesterId,
@@ -88,6 +89,13 @@ export class CasesService {
       linkExpiry: linkData?.expiresAt,
       dateDispatched: linkData ? new Date() : undefined,
       researcherStatus: "Not Applicable",
+      externalRef: company?.externalRef,
+      riskRating: company?.riskRating,
+      incorporationDate: company?.incorporationDate,
+      legalStructure: company?.legalStructure,
+      primaryIndustry: company?.primaryIndustry,
+      recipientEmails,
+      companyRequestId,
     });
 
     await this.auditService.log({
@@ -101,12 +109,14 @@ export class CasesService {
       status: "Success",
     });
 
-    if (companyId) {
+    if (companyRequestId) {
+      await this.companyRequestsRepo.markConsumed(companyRequestId, created.caseId);
+
       await this.auditService.log({
         caseId: created.caseId,
         step: WORKFLOW_STEP.FETCH_COMPANY_DATA,
         eventType: "API Call",
-        description: "Company data fetched from CRiS",
+        description: "Company data loaded from webhook request",
         triggeredByUserId: requesterId,
         status: "Success",
       });
@@ -126,15 +136,41 @@ export class CasesService {
     const linkUrl = await this.dispatchLink(
       created.caseId,
       linkData,
-      dto.recipientEmail,
+      recipientEmail,
       subjectName,
       requesterId
     );
 
     const caseRecord = (await this.casesRepo.findById(created.caseId)) ?? created;
-    // Return linkUrl once in the creation response so admin UI can display/copy it.
-    // The raw token is never stored in the DB — this is the only time it is returned.
     return { ...caseRecord, linkUrl };
+  }
+
+  private async resolveCompanyRequest(companyRequestId: string) {
+    const cr = await this.companyRequestsRepo.findById(companyRequestId);
+    if (!cr) throw new AppError(404, "NOT_FOUND", `Company request ${companyRequestId} not found`);
+    if (cr.status !== "Pending")
+      throw new AppError(409, "COMPANY_REQUEST_ALREADY_USED", "Company request has already been used");
+
+    return {
+      subjectName: cr.companyName,
+      country: cr.country,
+      companyRequestId: cr.companyRequestId,
+      externalRef: cr.externalRef,
+      riskRating: cr.riskRating ?? undefined,
+      incorporationDate: cr.incorporationDate ?? undefined,
+      legalStructure: cr.legalStructure ?? undefined,
+      primaryIndustry: cr.primaryIndustry ?? undefined,
+      recipientEmails: cr.recipientEmails ?? [],
+    };
+  }
+
+  private async resolveTemplateId(
+    templateId: string | undefined,
+    recipientType: string
+  ): Promise<string | undefined> {
+    if (templateId) return templateId;
+    const template = await this.templatesRepo.findActiveByRecipientType(recipientType);
+    return template?.templateId;
   }
 
   private async dispatchLink(
@@ -179,7 +215,7 @@ export class CasesService {
       throw new AppError(403, "FORBIDDEN", "Not allowed to resend link for this case");
     }
 
-    const recipientEmail = c.company?.recipientEmails?.[0];
+    const recipientEmail = c.recipientEmails?.[0];
     if (!recipientEmail) {
       throw new AppError(400, "VALIDATION_ERROR", "No recipient email on file for this case");
     }

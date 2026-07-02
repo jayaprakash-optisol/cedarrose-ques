@@ -60,6 +60,14 @@ export const emailActionLimit = rateLimit({
   message: { success: false, message: "Too many email requests. Try again later." },
 });
 
+/** Webhook ingest from external integration clients. */
+export const webhookIngestLimit = rateLimit({
+  ...limiterDefaults,
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  message: { success: false, message: "Too many webhook requests. Try again later." },
+});
+
 export function setSecureCookie(
   _req: Request,
   res: Response,

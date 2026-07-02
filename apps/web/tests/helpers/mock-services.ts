@@ -12,6 +12,7 @@ export function mockServicesFactory() {
     authService: { login: noop, logout: noopResolved, getCurrentUser: noop, verifyInvitation: noop, completeRegistration: noop, forgotPassword: noopResolved, verifyResetToken: noop, resetPassword: noopResolved },
     settingsService: { get: noop, save: noop, changePassword: noopResolved },
     companiesService: { getByUid: noop },
+    companyRequestsService: { listPending: noopList, getById: noop },
     usersService: { list: noopList, save: noop },
     templatesService: { list: noopList, getById: noop, create: noop, save: noop, updateStatus: noop, delete: noopResolved, saveAll: noop },
     configService: { get: noop, save: noop },

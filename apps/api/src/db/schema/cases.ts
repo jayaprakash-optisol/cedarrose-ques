@@ -1,13 +1,11 @@
-import { pgTable, uuid, varchar, text, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, text, integer, timestamp, date, jsonb } from "drizzle-orm/pg-core";
 import { users } from "./users.js";
-import { companies } from "./companies.js";
 import { templates } from "./templates.js";
 
 export const cases = pgTable("cases", {
   caseId: uuid("CaseID").primaryKey().defaultRandom(),
   caseRef: varchar("CaseRef", { length: 20 }).notNull().unique(),
   orderId: varchar("OrderID", { length: 100 }).notNull(),
-  companyId: uuid("CompanyID").references(() => companies.companyId),
   subjectName: varchar("SubjectName", { length: 255 }).notNull(),
   country: varchar("Country", { length: 100 }).notNull(),
   recipientType: varchar("RecipientType", { length: 50 }).notNull(),
@@ -34,6 +32,13 @@ export const cases = pgTable("cases", {
   resentCount: integer("ResentCount").notNull().default(0),
   templateId: uuid("TemplateID").references(() => templates.templateId),
   templateVersion: integer("TemplateVersion").notNull().default(1),
+  externalRef: varchar("ExternalRef", { length: 100 }),
+  riskRating: varchar("RiskRating", { length: 10 }),
+  incorporationDate: date("IncorporationDate"),
+  legalStructure: varchar("LegalStructure", { length: 100 }),
+  primaryIndustry: varchar("PrimaryIndustry", { length: 100 }),
+  recipientEmails: jsonb("RecipientEmails").$type<string[]>(),
+  companyRequestId: uuid("CompanyRequestID"),
   createdAt: timestamp("CreatedAt").notNull().defaultNow(),
   updatedAt: timestamp("UpdatedAt").notNull().defaultNow(),
 });

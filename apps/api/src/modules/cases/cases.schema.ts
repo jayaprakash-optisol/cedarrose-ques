@@ -3,7 +3,7 @@ import { RECIPIENT_TYPES } from "../../config/constants.js";
 
 export const createCaseSchema = z.object({
   orderId: z.string().min(1).max(100),
-  uid: z.string().optional(),
+  companyRequestId: z.uuid().optional(),
   subjectName: z.string().min(1).max(255),
   country: z.string().min(1).max(100),
   recipientType: z.enum(RECIPIENT_TYPES as unknown as [string, ...string[]]),

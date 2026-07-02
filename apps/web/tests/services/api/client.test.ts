@@ -4,14 +4,14 @@ import {
   apiAuditService,
   apiAuthService,
   apiCasesService,
-  apiCompaniesService,
+  apiCompanyRequestsService,
   apiConfigService,
   apiNotificationsService,
   apiSettingsService,
   apiTemplatesService,
   apiUsersService,
 } from "@/services/api/client";
-import type { ApiAuditEvent, ApiCase, ApiCompany, ApiNotification, ApiPlatformConfig, ApiTemplate, ApiUser } from "@/services/api/mappers";
+import type { ApiAuditEvent, ApiCase, ApiCompany, ApiCompanyRequest, ApiNotification, ApiPlatformConfig, ApiTemplate, ApiUser } from "@/services/api/mappers";
 
 function envelope<T>(data: T, extra: Record<string, unknown> = {}) {
   return new Response(JSON.stringify({ success: true, data, ...extra }), {
@@ -363,7 +363,7 @@ describe("services/api/client", () => {
       await expect(apiCasesService.getById("x")).rejects.toBeInstanceOf(ApiError);
     });
 
-    it("create returns the mapped case with the provided uid", async () => {
+    it("create returns the mapped case with the provided id", async () => {
       const apiCase: Partial<ApiCase> = {
         caseId: "c1",
         caseRef: "ref-1",
@@ -380,12 +380,12 @@ describe("services/api/client", () => {
       fetchMock.mockResolvedValueOnce(envelope(apiCase));
       const c = await apiCasesService.create({
         orderId: "O1",
-        uid: "CR-1",
+        companyRequestId: "cr-1",
         subjectName: "Acme",
         country: "UAE",
         recipientType: "Supplier",
       });
-      expect(c.uid).toBe("CR-1");
+      expect(c.id).toBe("c1");
     });
 
     it("resendLink returns the link expiry from the response", async () => {
@@ -511,21 +511,40 @@ describe("services/api/client", () => {
     });
   });
 
-  describe("apiCompaniesService", () => {
-    it("getByUid encodes the uid and maps the result", async () => {
-      const apiCo: Partial<ApiCompany> = {
-        companyId: "co-1",
+  describe("apiCompanyRequestsService", () => {
+    it("listPending returns mapped summaries", async () => {
+      const apiCr: Partial<ApiCompanyRequest> = {
+        companyRequestId: "cr-1",
+        orderId: "ORD-100",
+        externalRef: "EXT-1",
         companyName: "Acme",
-        crisNumber: "CR-1",
         country: "UAE",
         riskRating: "Low",
         recipientEmails: ["a@b.com"],
+        status: "Pending",
+        receivedAt: "2026-01-01T00:00:00Z",
       };
-      fetchMock.mockResolvedValueOnce(envelope(apiCo));
-      const co = await apiCompaniesService.getByUid("CR/1");
-      const url = fetchMock.mock.calls[0][0] as string;
-      expect(url).toContain("CR%2F1");
+      fetchMock.mockResolvedValueOnce(paginated([apiCr], 1, 100, 1));
+      const rows = await apiCompanyRequestsService.listPending();
+      expect(rows).toHaveLength(1);
+      expect(rows[0].companyName).toBe("Acme");
+    });
+
+    it("getById returns CompanyData", async () => {
+      const apiCr: Partial<ApiCompanyRequest> = {
+        companyRequestId: "cr-1",
+        orderId: "ORD-100",
+        externalRef: "EXT-1",
+        companyName: "Acme",
+        country: "UAE",
+        riskRating: "Low",
+        recipientEmails: ["a@b.com"],
+        status: "Pending",
+      };
+      fetchMock.mockResolvedValueOnce(envelope(apiCr));
+      const co = await apiCompanyRequestsService.getById("cr-1");
       expect(co.companyName).toBe("Acme");
+      expect(co.registrationNumber).toBe("EXT-1");
     });
   });
 

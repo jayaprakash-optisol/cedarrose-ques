@@ -4,8 +4,8 @@ import { responses } from "./components/helpers.js";
 import { securitySchemes } from "./components/security.js";
 import { authPaths } from "./paths/auth.paths.js";
 import { casesPaths } from "./paths/cases.paths.js";
+import { companyRequestsPaths, webhookCompanyRequestsPaths } from "./paths/company-requests.paths.js";
 import {
-  companiesPaths,
   auditPaths,
   notificationsPaths,
 } from "./paths/companies-audit-notifications.paths.js";
@@ -33,6 +33,7 @@ export function buildOpenApiDocument(serverUrl = "http://localhost:3000"): OpenA
         "**Authentication**",
         "- Staff routes: `Authorization: Bearer <access_token>` or `access_token` httpOnly cookie from login.",
         "- Questionnaire routes: Bearer token from `POST /api/v1/questionnaire/otp-verify`.",
+        "- Webhook routes: `Authorization: Bearer <access_token>` authenticated as an Integration-role user.",
         "",
         "All successful JSON responses use `{ success: true, data, message?, meta? }`.",
       ].join("\n"),
@@ -42,7 +43,8 @@ export function buildOpenApiDocument(serverUrl = "http://localhost:3000"): OpenA
     tags: [
       { name: "Auth", description: "Authentication and account lifecycle" },
       { name: "Cases", description: "Questionnaire case management" },
-      { name: "Companies", description: "CRiS company registry" },
+      { name: "Company Requests", description: "Webhook-received company request data" },
+      { name: "Webhooks", description: "Client integration endpoints (Integration-role required)" },
       { name: "Audit Log", description: "Immutable audit trail" },
       { name: "Notifications", description: "User notifications" },
       { name: "Questionnaire (Public)", description: "Recipient-facing questionnaire flow" },
@@ -54,7 +56,8 @@ export function buildOpenApiDocument(serverUrl = "http://localhost:3000"): OpenA
     paths: mergePaths(
       authPaths,
       casesPaths,
-      companiesPaths,
+      companyRequestsPaths,
+      webhookCompanyRequestsPaths,
       auditPaths,
       notificationsPaths,
       adminUsersPaths,

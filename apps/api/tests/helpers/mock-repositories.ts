@@ -20,15 +20,12 @@ export function createMockCasesRepository() {
   };
 }
 
-export function createMockCompaniesRepository() {
+export function createMockCompanyRequestsRepository() {
   return {
-    findByCrisNumber: vi.fn(),
+    upsert: vi.fn(),
     findAll: vi.fn(),
     findById: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
-    getRecipientEmails: vi.fn(),
-    addRecipientEmail: vi.fn(),
+    markConsumed: vi.fn(),
   };
 }
 

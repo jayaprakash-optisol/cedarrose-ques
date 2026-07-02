@@ -21,7 +21,6 @@ import { parseApiEnvelope } from "./envelope";
 import {
   mapAuditEvent,
   mapCase,
-  mapCompany,
   mapCurrentUser,
   mapNotificationPreferences,
   mapNotification,
@@ -36,7 +35,7 @@ import {
   isLocalTemplateId,
   type ApiAuditEvent,
   type ApiCase,
-  type ApiCompany,
+  type ApiCompanyRequest,
   type ApiNotification,
   type ApiPlatformConfig,
   type ApiTemplate,
@@ -212,7 +211,7 @@ export const apiCasesService = {
       method: "POST",
       body: JSON.stringify(input),
     });
-    return mapCase(row, null, input.uid);
+    return mapCase(row, null, input.companyRequestId);
   },
 
   async resendLink(id: string): Promise<{ linkExpiry: string | null }> {
@@ -232,10 +231,40 @@ export const apiAuditService = {
   },
 };
 
-export const apiCompaniesService = {
-  async getByUid(uid: string): Promise<CompanyData> {
-    const row = await apiClient<ApiCompany>(`/companies/${encodeURIComponent(uid)}`);
-    return mapCompany(row);
+export const apiCompanyRequestsService = {
+  async listPending() {
+    const { data: rows } = await apiListWithMeta<ApiCompanyRequest>("/company-requests", {
+      page: 1,
+      limit: 100,
+      status: "Pending",
+    });
+    return rows.map((r) => ({
+      companyRequestId: r.companyRequestId,
+      orderId: r.orderId,
+      externalRef: r.externalRef,
+      companyName: r.companyName,
+      country: r.country,
+      riskRating: r.riskRating,
+      recipientType: r.recipientType,
+      receivedAt: r.receivedAt,
+      status: r.status,
+    }));
+  },
+
+  async getById(id: string): Promise<CompanyData> {
+    const row = await apiClient<ApiCompanyRequest>(`/company-requests/${id}`);
+    return {
+      companyName: row.companyName,
+      registrationNumber: row.externalRef,
+      country: row.country,
+      riskRating: (row.riskRating ?? "Low") as CompanyData["riskRating"],
+      recipientEmails: row.recipientEmails ?? [],
+      additionalFields: {
+        incorporationDate: row.incorporationDate ?? "",
+        legalStructure: row.legalStructure ?? "",
+        primaryIndustry: row.primaryIndustry ?? "",
+      },
+    };
   },
 };
 

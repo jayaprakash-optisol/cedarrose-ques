@@ -4,8 +4,9 @@ import userEvent from "@testing-library/user-event";
 import NewRequestPage from "@/features/new-request/pages/NewRequestPage";
 import { renderWithProviders } from "../../../helpers/render";
 
-const { mockGetByUid, mockCreate, mockListTemplates, mockGetTemplate } = vi.hoisted(() => ({
-  mockGetByUid: vi.fn(),
+const { mockListPending, mockGetById, mockCreate, mockListTemplates, mockGetTemplate } = vi.hoisted(() => ({
+  mockListPending: vi.fn(),
+  mockGetById: vi.fn(),
   mockCreate: vi.fn(),
   mockListTemplates: vi.fn(),
   mockGetTemplate: vi.fn(),
@@ -16,7 +17,7 @@ vi.mock("@/services", () => {
   const noopResolved = vi.fn().mockResolvedValue(undefined);
   const noopList = vi.fn().mockResolvedValue([]);
   return {
-    companiesService: { getByUid: mockGetByUid },
+    companyRequestsService: { listPending: mockListPending, getById: mockGetById },
     casesService: { list: noopList, getById: noop, create: mockCreate, exportCsv: noop, resendLink: noopResolved },
     templatesService: { list: mockListTemplates, getById: mockGetTemplate, create: noop, save: noop, updateStatus: noop, delete: noopResolved, saveAll: noop },
     auditService: { list: noopList, exportCsv: noop },
@@ -30,6 +31,20 @@ vi.mock("@/services", () => {
   };
 });
 
+const PENDING_REQUESTS = [
+  {
+    companyRequestId: "cr-1",
+    orderId: "ORD-10001",
+    externalRef: "UID-44529",
+    companyName: "Acme Trading LLC",
+    country: "UAE",
+    riskRating: "Low",
+    recipientType: "Supplier",
+    receivedAt: "2026-01-01T00:00:00Z",
+    status: "Pending",
+  },
+];
+
 const COMPANY_DATA = {
   companyName: "Acme Trading",
   registrationNumber: "CR-100",
@@ -41,9 +56,10 @@ const COMPANY_DATA = {
 
 describe("NewRequestPage", () => {
   beforeEach(() => {
-    // Fix for Radix UI Select in jsdom
     HTMLElement.prototype.hasPointerCapture = vi.fn();
     HTMLElement.prototype.setPointerCapture = vi.fn();
+    mockListPending.mockResolvedValue(PENDING_REQUESTS);
+    mockGetById.mockResolvedValue(COMPANY_DATA);
     mockListTemplates.mockResolvedValue([
       { id: "tpl-1", name: "Supplier Template", recipientType: "Supplier", status: "Active" },
     ]);
@@ -51,7 +67,6 @@ describe("NewRequestPage", () => {
       id: "tpl-1", name: "Supplier Template",
       sections: [{ id: "s1", number: 1, title: "Section 1", questions: [{ id: "q1", text: "Q1", type: "text", required: true, prefill: false }] }],
     });
-    mockGetByUid.mockResolvedValue(COMPANY_DATA);
     mockCreate.mockResolvedValue({ id: "case-1", linkUrl: "https://example.com/q/abc" });
   });
 
@@ -67,29 +82,34 @@ describe("NewRequestPage", () => {
 
   it("renders the stepper", () => {
     renderWithProviders(<NewRequestPage />, { authValue: { isAuthenticated: true, isAdmin: true } });
-    expect(screen.getByText("Enter order details")).toBeInTheDocument();
-    expect(screen.getByText("Review fetched data")).toBeInTheDocument();
+    expect(screen.getByText("Select request")).toBeInTheDocument();
+    expect(screen.getByText("Review & configure")).toBeInTheDocument();
     expect(screen.getByText("Confirm & send")).toBeInTheDocument();
   });
 
-  it("renders step A form fields", () => {
+  it("renders step A form with pending requests", async () => {
     renderWithProviders(<NewRequestPage />, { authValue: { isAuthenticated: true, isAdmin: true } });
-    expect(screen.getByText("Step A — Enter order details")).toBeInTheDocument();
-    expect(screen.getAllByText("Company Name *").length).toBeGreaterThan(0);
-  });
-
-  it("renders step A without crashing", async () => {
-    mockGetByUid.mockRejectedValue(new Error("Not found"));
-    renderWithProviders(<NewRequestPage />, { authValue: { isAuthenticated: true, isAdmin: true } });
-    expect(screen.getByText("Step A — Enter order details")).toBeInTheDocument();
-  });
-
-  it("sends the link in step B", async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<NewRequestPage />, {
-      authValue: { isAuthenticated: true, isAdmin: true },
-      routerPath: "/new-request?orderId=ORD-10001&subject=Acme&country=UAE",
+    await waitFor(() => {
+      expect(screen.getByText("Step A — Select incoming company request")).toBeInTheDocument();
+      expect(screen.getByText("Acme Trading LLC")).toBeInTheDocument();
     });
+  });
+
+  it("shows empty state when no pending requests", async () => {
+    mockListPending.mockResolvedValue([]);
+    renderWithProviders(<NewRequestPage />, { authValue: { isAuthenticated: true, isAdmin: true } });
+    await waitFor(() => {
+      expect(screen.getByText(/No pending company requests/)).toBeInTheDocument();
+    });
+  });
+
+  it("sends the link after selecting a request", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<NewRequestPage />, { authValue: { isAuthenticated: true, isAdmin: true } });
+    await waitFor(() => {
+      expect(screen.getByText("Acme Trading LLC")).toBeInTheDocument();
+    });
+    await user.click(screen.getByText("Acme Trading LLC"));
     await waitFor(() => {
       expect(screen.getByText("Confirm & send")).toBeInTheDocument();
     });
@@ -101,10 +121,11 @@ describe("NewRequestPage", () => {
 
   it("shows step C on successful send", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<NewRequestPage />, {
-      authValue: { isAuthenticated: true, isAdmin: true },
-      routerPath: "/new-request?orderId=ORD-10001&subject=Acme&country=UAE",
+    renderWithProviders(<NewRequestPage />, { authValue: { isAuthenticated: true, isAdmin: true } });
+    await waitFor(() => {
+      expect(screen.getByText("Acme Trading LLC")).toBeInTheDocument();
     });
+    await user.click(screen.getByText("Acme Trading LLC"));
     await waitFor(() => {
       expect(screen.getByText("Confirm & send")).toBeInTheDocument();
     });
@@ -116,10 +137,11 @@ describe("NewRequestPage", () => {
 
   it("shows questionnaire link when created", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<NewRequestPage />, {
-      authValue: { isAuthenticated: true, isAdmin: true },
-      routerPath: "/new-request?orderId=ORD-10001&subject=Acme&country=UAE",
+    renderWithProviders(<NewRequestPage />, { authValue: { isAuthenticated: true, isAdmin: true } });
+    await waitFor(() => {
+      expect(screen.getByText("Acme Trading LLC")).toBeInTheDocument();
     });
+    await user.click(screen.getByText("Acme Trading LLC"));
     await waitFor(() => {
       expect(screen.getByText("Confirm & send")).toBeInTheDocument();
     });
@@ -132,25 +154,27 @@ describe("NewRequestPage", () => {
 
   it("navigates back from step B to step A", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<NewRequestPage />, {
-      authValue: { isAuthenticated: true, isAdmin: true },
-      routerPath: "/new-request?orderId=ORD-10001&subject=Acme&country=UAE",
+    renderWithProviders(<NewRequestPage />, { authValue: { isAuthenticated: true, isAdmin: true } });
+    await waitFor(() => {
+      expect(screen.getByText("Acme Trading LLC")).toBeInTheDocument();
     });
+    await user.click(screen.getByText("Acme Trading LLC"));
     await waitFor(() => {
       expect(screen.getByText("Confirm & send")).toBeInTheDocument();
     });
     await user.click(screen.getByRole("button", { name: /Back/ }));
     await waitFor(() => {
-      expect(screen.getByText("Step A — Enter order details")).toBeInTheDocument();
+      expect(screen.getByText("Step A — Select incoming company request")).toBeInTheDocument();
     });
   });
 
   it("triggers another request from step C", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<NewRequestPage />, {
-      authValue: { isAuthenticated: true, isAdmin: true },
-      routerPath: "/new-request?orderId=ORD-10001&subject=Acme&country=UAE",
+    renderWithProviders(<NewRequestPage />, { authValue: { isAuthenticated: true, isAdmin: true } });
+    await waitFor(() => {
+      expect(screen.getByText("Acme Trading LLC")).toBeInTheDocument();
     });
+    await user.click(screen.getByText("Acme Trading LLC"));
     await waitFor(() => {
       expect(screen.getByText("Confirm & send")).toBeInTheDocument();
     });
@@ -160,17 +184,18 @@ describe("NewRequestPage", () => {
     });
     await user.click(screen.getByRole("button", { name: /Trigger another request/ }));
     await waitFor(() => {
-      expect(screen.getByText("Step A — Enter order details")).toBeInTheDocument();
+      expect(screen.getByText("Step A — Select incoming company request")).toBeInTheDocument();
     });
   });
 
   it("handles send failure", async () => {
     mockCreate.mockRejectedValue(new Error("Send failed"));
     const user = userEvent.setup();
-    renderWithProviders(<NewRequestPage />, {
-      authValue: { isAuthenticated: true, isAdmin: true },
-      routerPath: "/new-request?orderId=ORD-10001&subject=Acme&country=UAE",
+    renderWithProviders(<NewRequestPage />, { authValue: { isAuthenticated: true, isAdmin: true } });
+    await waitFor(() => {
+      expect(screen.getByText("Acme Trading LLC")).toBeInTheDocument();
     });
+    await user.click(screen.getByText("Acme Trading LLC"));
     await waitFor(() => {
       expect(screen.getByText("Confirm & send")).toBeInTheDocument();
     });
@@ -180,29 +205,40 @@ describe("NewRequestPage", () => {
     });
   });
 
-  it("handles TEMPLATE_NOT_AVAILABLE error", async () => {
-    const { ApiError } = await import("@/services/api/errors");
-    mockCreate.mockRejectedValue(new ApiError("TEMPLATE_NOT_AVAILABLE", "No template", 400));
+  it("shows company data in step B", async () => {
+    renderWithProviders(<NewRequestPage />, { authValue: { isAuthenticated: true, isAdmin: true } });
+    await waitFor(() => {
+      expect(screen.getByText("Acme Trading LLC")).toBeInTheDocument();
+    });
     const user = userEvent.setup();
-    renderWithProviders(<NewRequestPage />, {
-      authValue: { isAuthenticated: true, isAdmin: true },
-      routerPath: "/new-request?orderId=ORD-10001&subject=Acme&country=UAE",
-    });
+    await user.click(screen.getByText("Acme Trading LLC"));
     await waitFor(() => {
-      expect(screen.getByText("Confirm & send")).toBeInTheDocument();
+      expect(screen.getByText("Acme Trading")).toBeInTheDocument();
+      expect(screen.getByText("CR-100")).toBeInTheDocument();
+      expect(screen.getByText("UAE")).toBeInTheDocument();
     });
-    await user.click(screen.getByRole("button", { name: /Confirm & send link/ }));
+  });
+
+  it("shows no template warning when no active template", async () => {
+    mockListTemplates.mockResolvedValue([]);
+    renderWithProviders(<NewRequestPage />, { authValue: { isAuthenticated: true, isAdmin: true } });
     await waitFor(() => {
-      expect(mockCreate).toHaveBeenCalled();
+      expect(screen.getByText("Acme Trading LLC")).toBeInTheDocument();
+    });
+    const user = userEvent.setup();
+    await user.click(screen.getByText("Acme Trading LLC"));
+    await waitFor(() => {
+      expect(screen.getByText(/No active questionnaire template/)).toBeInTheDocument();
     });
   });
 
   it("renders template preview collapsible", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<NewRequestPage />, {
-      authValue: { isAuthenticated: true, isAdmin: true },
-      routerPath: "/new-request?orderId=ORD-10001&subject=Acme&country=UAE",
+    renderWithProviders(<NewRequestPage />, { authValue: { isAuthenticated: true, isAdmin: true } });
+    await waitFor(() => {
+      expect(screen.getByText("Acme Trading LLC")).toBeInTheDocument();
     });
+    await user.click(screen.getByText("Acme Trading LLC"));
     await waitFor(() => {
       expect(screen.getByText("Confirm & send")).toBeInTheDocument();
     });
@@ -215,10 +251,11 @@ describe("NewRequestPage", () => {
 
   it("shows View case in All Cases link", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<NewRequestPage />, {
-      authValue: { isAuthenticated: true, isAdmin: true },
-      routerPath: "/new-request?orderId=ORD-10001&subject=Acme&country=UAE",
+    renderWithProviders(<NewRequestPage />, { authValue: { isAuthenticated: true, isAdmin: true } });
+    await waitFor(() => {
+      expect(screen.getByText("Acme Trading LLC")).toBeInTheDocument();
     });
+    await user.click(screen.getByText("Acme Trading LLC"));
     await waitFor(() => {
       expect(screen.getByText("Confirm & send")).toBeInTheDocument();
     });
@@ -228,61 +265,17 @@ describe("NewRequestPage", () => {
     });
   });
 
-  it("renders recipient type radio options", () => {
-    renderWithProviders(<NewRequestPage />, {
-      authValue: { isAuthenticated: true, isAdmin: true },
-      routerPath: "/new-request?orderId=ORD-10001&subject=Acme&country=UAE",
-    });
-    expect(screen.getAllByText("Supplier").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText("Customer").length).toBeGreaterThanOrEqual(1);
-  });
-
-  it("renders authentication method and link expiry", () => {
-    renderWithProviders(<NewRequestPage />, {
-      authValue: { isAuthenticated: true, isAdmin: true },
-      routerPath: "/new-request?orderId=ORD-10001&subject=Acme&country=UAE",
-    });
-    expect(screen.getByText("Authentication method")).toBeInTheDocument();
-    expect(screen.getByText("Link expiry")).toBeInTheDocument();
-  });
-
-  it("shows company data in step B", async () => {
-    renderWithProviders(<NewRequestPage />, {
-      authValue: { isAuthenticated: true, isAdmin: true },
-      routerPath: "/new-request?orderId=ORD-10001&subject=Acme&country=UAE",
-    });
-    await waitFor(() => {
-      expect(screen.getByText("Acme Trading")).toBeInTheDocument();
-      expect(screen.getByText("CR-100")).toBeInTheDocument();
-      expect(screen.getByText("UAE")).toBeInTheDocument();
-    });
-  });
-
-  it("shows no template warning when no active template", async () => {
-    mockListTemplates.mockResolvedValue([]);
-    renderWithProviders(<NewRequestPage />, {
-      authValue: { isAuthenticated: true, isAdmin: true },
-      routerPath: "/new-request?orderId=ORD-10001&subject=Acme&country=UAE",
-    });
-    await waitFor(() => {
-      expect(screen.getByText(/No active questionnaire template/)).toBeInTheDocument();
-    });
-  });
-
-  it("disables send button initially", () => {
+  it("renders recipient type radio options", async () => {
     renderWithProviders(<NewRequestPage />, { authValue: { isAuthenticated: true, isAdmin: true } });
-    // The send button should exist (in step B, not visible until step B)
-    // But we can check that step A is rendered
-    expect(screen.getByText("Step A — Enter order details")).toBeInTheDocument();
-  });
-
-  it("shows company data loading state", async () => {
-    renderWithProviders(<NewRequestPage />, {
-      authValue: { isAuthenticated: true, isAdmin: true },
-      routerPath: "/new-request?orderId=ORD-10001&subject=Acme&country=UAE",
-    });
     await waitFor(() => {
-      expect(screen.getByText(/Loading company data/)).toBeInTheDocument();
+      expect(screen.getByText("Acme Trading LLC")).toBeInTheDocument();
     });
+    const user = userEvent.setup();
+    await user.click(screen.getByText("Acme Trading LLC"));
+    await waitFor(() => {
+      expect(screen.getByText("Confirm & send")).toBeInTheDocument();
+    });
+    expect(screen.getAllByText("Supplier").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Customer").length).toBeGreaterThanOrEqual(1);
   });
 });

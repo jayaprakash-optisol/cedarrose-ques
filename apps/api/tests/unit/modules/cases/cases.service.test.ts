@@ -1,30 +1,38 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { CasesService } from "../../../../src/modules/cases/cases.service.js";
 import type { CasesRepository } from "../../../../src/modules/cases/cases.repository.js";
-import type { CompaniesRepository } from "../../../../src/modules/companies/companies.repository.js";
+import type { CompanyRequestsRepository } from "../../../../src/modules/company-requests/company-requests.repository.js";
 import type { TemplatesRepository } from "../../../../src/modules/templates/templates.repository.js";
 import { WORKFLOW_STEP } from "../../../../src/config/workflow.js";
 import { env } from "../../../../src/config/env.js";
 import * as httpClient from "../../../../src/shared/utils/http-client.js";
 import {
   createMockCasesRepository,
-  createMockCompaniesRepository,
+  createMockCompanyRequestsRepository,
   createMockTemplatesRepository,
 } from "../../../helpers/mock-repositories.js";
 import { createMockAuditService } from "../../../helpers/mock-services.js";
 import { createMockEmailService } from "../../../helpers/mock-email-service.js";
 import { createMockCase } from "../../../helpers/mock-case.js";
 
-function createMockCompany() {
+function createMockCompanyRequest() {
   return {
-    companyId: "44444444-4444-4444-4444-444444444444",
+    companyRequestId: "55000000-5555-5555-5555-555555555555",
+    orderId: "ORD-2001",
+    externalRef: "CRIS-1001",
     companyName: "Acme Ltd",
-    crisNumber: "CRIS-1001",
     country: "GB",
     riskRating: "Low",
     incorporationDate: null,
     legalStructure: null,
     primaryIndustry: null,
+    recipientType: null,
+    recipientEmails: ["acme@test.com"],
+    rawPayload: {},
+    status: "Pending",
+    receivedAt: new Date(),
+    consumedAt: null,
+    caseId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -32,7 +40,7 @@ function createMockCompany() {
 
 describe("CasesService", () => {
   let casesRepo: ReturnType<typeof createMockCasesRepository>;
-  let companiesRepo: ReturnType<typeof createMockCompaniesRepository>;
+  let companyRequestsRepo: ReturnType<typeof createMockCompanyRequestsRepository>;
   let templatesRepo: ReturnType<typeof createMockTemplatesRepository>;
   let auditService: ReturnType<typeof createMockAuditService>;
   let emailService: ReturnType<typeof createMockEmailService>;
@@ -42,13 +50,13 @@ describe("CasesService", () => {
 
   beforeEach(() => {
     casesRepo = createMockCasesRepository();
-    companiesRepo = createMockCompaniesRepository();
+    companyRequestsRepo = createMockCompanyRequestsRepository();
     templatesRepo = createMockTemplatesRepository();
     auditService = createMockAuditService();
     emailService = createMockEmailService();
     service = new CasesService(
       casesRepo as unknown as CasesRepository,
-      companiesRepo as unknown as CompaniesRepository,
+      companyRequestsRepo as unknown as CompanyRequestsRepository,
       templatesRepo as unknown as TemplatesRepository,
       auditService,
       emailService,
@@ -99,7 +107,7 @@ describe("CasesService", () => {
       });
     });
 
-    it("creates pending linkage case without uid or email", async () => {
+    it("creates pending linkage case without companyRequestId or email", async () => {
       const created = createMockCase({ status: "PENDING LINKAGE & CONTACT" });
       vi.mocked(casesRepo.getNextCaseRef).mockResolvedValue("c-002");
       vi.mocked(casesRepo.create).mockResolvedValue(created);
@@ -119,30 +127,49 @@ describe("CasesService", () => {
       expect(result.linkUrl).toBeNull();
     });
 
-    it("resolves company from uid and logs fetch step", async () => {
-      const company = createMockCompany();
+    it("resolves company from companyRequestId and logs fetch step", async () => {
+      const cr = createMockCompanyRequest();
       const created = createMockCase({
-        companyId: company.companyId,
-        subjectName: company.companyName,
+        companyRequestId: cr.companyRequestId,
+        externalRef: cr.externalRef,
+        subjectName: cr.companyName,
+        recipientEmails: cr.recipientEmails,
         status: "PENDING CONTACT",
       });
-      vi.mocked(companiesRepo.findByCrisNumber).mockResolvedValue(company);
+      vi.mocked(companyRequestsRepo.findById).mockResolvedValue(cr);
       vi.mocked(casesRepo.getNextCaseRef).mockResolvedValue("c-003");
       vi.mocked(casesRepo.create).mockResolvedValue(created);
       vi.mocked(casesRepo.findById).mockResolvedValue(created);
 
-      await service.createCase({ ...baseDto, uid: company.crisNumber }, requesterId);
+      await service.createCase({ ...baseDto, companyRequestId: cr.companyRequestId }, requesterId);
 
       expect(casesRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          companyId: company.companyId,
-          subjectName: company.companyName,
+          companyRequestId: cr.companyRequestId,
+          externalRef: cr.externalRef,
+          subjectName: cr.companyName,
           status: "PENDING CONTACT",
         }),
+      );
+      expect(companyRequestsRepo.markConsumed).toHaveBeenCalledWith(
+        cr.companyRequestId,
+        created.caseId,
       );
       expect(auditService.log).toHaveBeenCalledWith(
         expect.objectContaining({ step: WORKFLOW_STEP.FETCH_COMPANY_DATA }),
       );
+    });
+
+    it("rejects already-used company request", async () => {
+      const cr = { ...createMockCompanyRequest(), status: "Used" };
+      vi.mocked(companyRequestsRepo.findById).mockResolvedValue(cr);
+
+      await expect(
+        service.createCase({ ...baseDto, companyRequestId: cr.companyRequestId }, requesterId),
+      ).rejects.toMatchObject({
+        statusCode: 409,
+        code: "COMPANY_REQUEST_ALREADY_USED",
+      });
     });
 
     it("applies active template for recipient type when templateId omitted", async () => {
@@ -265,7 +292,7 @@ describe("CasesService", () => {
 
     it("allows admin to resend, emails recipient, and returns link URL", async () => {
       const existing = {
-        ...createMockCase({ resentCount: 1 }),
+        ...createMockCase({ resentCount: 1, recipientEmails: ["recipient@test.com"] }),
         analystName: "Test",
         company: {
           companyName: "Acme Ltd",

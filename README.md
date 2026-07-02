@@ -33,7 +33,6 @@ cp apps/web/.env.example apps/web/.env
 
 # Database setup (API)
 npm run migrate
-npm run seed
 
 # Run both apps
 npm run dev
@@ -56,7 +55,6 @@ The web dev server proxies `/api` → `localhost:3000`, so cookies and relative 
 | `npm run dev:api` | API only |
 | `npm run build` | Build API then web |
 | `npm run migrate` | Run API database migrations |
-| `npm run seed` | Seed API demo data |
 | `npm run type-check` | Type-check both packages |
 | `npm run lint` | Lint all workspaces |
 

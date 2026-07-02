@@ -8,42 +8,36 @@ describe("CasesRepository", () => {
   let repo: CasesRepository;
 
   const caseRow = createMockCase();
-  const company = {
-    companyId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-    companyName: "Acme",
-    crisNumber: "CRIS-001",
-    country: "UK",
+  const caseRowWithCompany = createMockCase({
+    externalRef: "CRIS-001",
     riskRating: "Low",
-    incorporationDate: null,
-    legalStructure: null,
-    primaryIndustry: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
+    recipientEmails: ["contact@acme.com"],
+  });
 
   beforeEach(() => {
     db = createMockDrizzle();
     repo = new CasesRepository(db as never);
   });
 
-  it("findById returns enriched case or null", async () => {
+  it("findById returns enriched case with company snapshot from denormalized fields", async () => {
     db.queueResults(
-      [{ case: caseRow, analystFirstName: "Ana", company }],
-      [{ companyId: company.companyId, email: "contact@acme.com", isPrimary: true }],
+      [{ case: caseRowWithCompany, analystFirstName: "Ana" }],
       [{ step: 1, createdAt: new Date("2026-01-15T00:00:00.000Z") }]
     );
-    const found = await repo.findById(caseRow.caseId);
+    const found = await repo.findById(caseRowWithCompany.caseId);
     expect(found?.analystName).toBe("Ana");
-    expect(found?.company?.companyName).toBe("Acme");
+    expect(found?.company?.companyName).toBe(caseRowWithCompany.subjectName);
+    expect(found?.company?.crisNumber).toBe("CRIS-001");
+    expect(found?.company?.recipientEmails).toEqual(["contact@acme.com"]);
     expect(found?.stepTimestamps?.[1]).toBeDefined();
 
     db.queueResults([]);
     await expect(repo.findById("missing")).resolves.toBeNull();
   });
 
-  it("findById works without company", async () => {
+  it("findById returns null company snapshot when no externalRef", async () => {
     db.queueResults(
-      [{ case: caseRow, analystFirstName: null, company: null }],
+      [{ case: caseRow, analystFirstName: null }],
       []
     );
     const found = await repo.findById(caseRow.caseId);
@@ -52,9 +46,8 @@ describe("CasesRepository", () => {
 
   it("findAll applies filters and returns paginated data", async () => {
     db.queueResults(
-      [{ case: caseRow, analystFirstName: "Ana", company: null }],
-      [{ total: 1 }],
-      []
+      [{ case: caseRow, analystFirstName: "Ana" }],
+      [{ total: 1 }]
     );
     const result = await repo.findAll({
       status: "NOT SENT",
@@ -70,7 +63,7 @@ describe("CasesRepository", () => {
   });
 
   it("findAll works without filters", async () => {
-    db.queueResults([], [{ total: 0 }], []);
+    db.queueResults([], [{ total: 0 }]);
     await expect(repo.findAll({ offset: 0, limit: 20 })).resolves.toEqual({ data: [], total: 0 });
   });
 
@@ -122,7 +115,7 @@ describe("CasesRepository", () => {
   it("incrementRemindersSent updates reminder count", async () => {
     const withReminders = { ...caseRow, remindersSent: 2 };
     db.queueResults(
-      [{ case: withReminders, analystFirstName: null, company: null }],
+      [{ case: withReminders, analystFirstName: null }],
       [],
       withReminders
     );
@@ -151,10 +144,10 @@ describe("CasesRepository", () => {
 
   it("exportBatches yields multiple batches", async () => {
     db.queueResults(
-      [{ case: caseRow, analystFirstName: "Ana", company: null }],
+      [{ case: caseRow, analystFirstName: "Ana" }],
       [{ total: 500 }],
       [],
-      [{ case: caseRow, analystFirstName: "Ana", company: null }],
+      [{ case: caseRow, analystFirstName: "Ana" }],
       [{ total: 1 }],
       [],
       [],

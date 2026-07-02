@@ -7,7 +7,7 @@ export const schemas: Record<string, OpenAPIV3.SchemaObject> = {
 
   UserRole: {
     type: "string",
-    enum: ["Researcher", "Reviewer", "Analyst", "Admin"],
+    enum: ["Researcher", "Reviewer", "Analyst", "Admin", "Integration"],
   },
   UserStatus: {
     type: "string",
@@ -178,7 +178,6 @@ export const schemas: Record<string, OpenAPIV3.SchemaObject> = {
       caseId: { $ref: "#/components/schemas/Uuid" },
       caseRef: { type: "string", example: "c-001" },
       orderId: { type: "string" },
-      companyId: { $ref: "#/components/schemas/Uuid", nullable: true },
       subjectName: { type: "string" },
       country: { type: "string" },
       recipientType: { $ref: "#/components/schemas/RecipientType" },
@@ -201,6 +200,9 @@ export const schemas: Record<string, OpenAPIV3.SchemaObject> = {
           recipientEmails: { type: "array", items: { $ref: "#/components/schemas/Email" } },
         },
       },
+      externalRef: { type: "string", nullable: true },
+      riskRating: { type: "string", nullable: true, enum: ["Low", "Medium", "High"] },
+      companyRequestId: { $ref: "#/components/schemas/Uuid", nullable: true },
       assignedResearcherId: { $ref: "#/components/schemas/Uuid", nullable: true },
       researcherStatus: { type: "string", nullable: true },
       templateId: { $ref: "#/components/schemas/Uuid", nullable: true },
@@ -213,7 +215,7 @@ export const schemas: Record<string, OpenAPIV3.SchemaObject> = {
     required: ["orderId", "subjectName", "country", "recipientType"],
     properties: {
       orderId: { type: "string", maxLength: 100 },
-      uid: { type: "string", description: "CRiS company UID" },
+      companyRequestId: { $ref: "#/components/schemas/Uuid", description: "ID of a pending company request from the webhook" },
       subjectName: { type: "string", maxLength: 255 },
       country: { type: "string", maxLength: 100 },
       recipientType: { $ref: "#/components/schemas/RecipientType" },
@@ -232,37 +234,47 @@ export const schemas: Record<string, OpenAPIV3.SchemaObject> = {
     },
   },
 
-  Company: {
+  CompanyRequest: {
     type: "object",
     properties: {
-      companyId: { $ref: "#/components/schemas/Uuid" },
+      companyRequestId: { $ref: "#/components/schemas/Uuid" },
+      orderId: { type: "string" },
+      externalRef: { type: "string", description: "Client's company/order reference" },
       companyName: { type: "string" },
-      crisNumber: { type: "string", description: "CRiS UID" },
-      country: { type: "string", nullable: true },
+      country: { type: "string" },
       riskRating: { type: "string", enum: ["Low", "Medium", "High"], nullable: true },
       legalStructure: { type: "string", nullable: true },
       primaryIndustry: { type: "string", nullable: true },
-    },
-  },
-  CreateCompanyRequest: {
-    type: "object",
-    required: ["companyName", "crisNumber"],
-    properties: {
-      companyName: { type: "string", maxLength: 100 },
-      crisNumber: { type: "string", maxLength: 50 },
-      country: { type: "string" },
-      riskRating: { type: "string", enum: ["Low", "Medium", "High"] },
+      recipientType: { $ref: "#/components/schemas/RecipientType" },
       recipientEmails: { type: "array", items: { $ref: "#/components/schemas/Email" } },
+      status: { type: "string", enum: ["Pending", "Used"] },
+      receivedAt: { $ref: "#/components/schemas/DateTime" },
+      consumedAt: { $ref: "#/components/schemas/DateTime", nullable: true },
+      caseId: { $ref: "#/components/schemas/Uuid", nullable: true },
     },
   },
-  UpdateCompanyRequest: {
+  WebhookCompanyRequest: {
     type: "object",
+    required: ["orderId", "externalRef", "companyName", "country", "recipientEmails"],
     properties: {
-      companyName: { type: "string" },
-      country: { type: "string" },
+      orderId: { type: "string", maxLength: 100 },
+      externalRef: { type: "string", maxLength: 100, description: "Client's company/order reference" },
+      companyName: { type: "string", maxLength: 255 },
+      country: { type: "string", maxLength: 100 },
       riskRating: { type: "string", enum: ["Low", "Medium", "High"] },
+      incorporationDate: { type: "string", description: "YYYY-MM-DD" },
       legalStructure: { type: "string" },
       primaryIndustry: { type: "string" },
+      recipientType: { $ref: "#/components/schemas/RecipientType" },
+      recipientEmails: { type: "array", items: { $ref: "#/components/schemas/Email" } },
+    },
+    example: {
+      orderId: "ORD-10001",
+      externalRef: "UID-44529",
+      companyName: "Acme Trading LLC",
+      country: "UAE",
+      riskRating: "Low",
+      recipientEmails: ["supplier.contact@acmetrading.example"],
     },
   },
 

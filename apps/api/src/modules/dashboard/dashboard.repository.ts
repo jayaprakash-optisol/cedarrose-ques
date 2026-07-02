@@ -1,7 +1,6 @@
-import { and, gte, isNotNull, inArray, eq } from "drizzle-orm";
+import { and, gte, isNotNull, inArray } from "drizzle-orm";
 import type { DrizzleDB } from "../../config/database.js";
 import { cases } from "../../db/schema/cases.js";
-import { companies } from "../../db/schema/companies.js";
 
 const DISPATCHED_STATUSES = [
   "SENT",
@@ -44,11 +43,10 @@ export class DashboardRepository {
         dateDispatched: cases.dateDispatched,
         firstOpenedAt: cases.firstOpenedAt,
         dateSubmitted: cases.dateSubmitted,
-        companyId: cases.companyId,
-        companyName: companies.companyName,
+        companyId: cases.companyRequestId,
+        companyName: cases.subjectName,
       })
       .from(cases)
-      .leftJoin(companies, eq(cases.companyId, companies.companyId))
       .where(and(...conditions));
   }
 }

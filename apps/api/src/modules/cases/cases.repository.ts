@@ -3,7 +3,6 @@ import { addHours } from "date-fns";
 import type { DrizzleDB } from "../../config/database.js";
 import { cases } from "../../db/schema/cases.js";
 import { users } from "../../db/schema/users.js";
-import { companies, companyRecipientEmails } from "../../db/schema/companies.js";
 import { questionnaireResponses } from "../../db/schema/questionnaire-responses.js";
 import { auditEvents } from "../../db/schema/audit-events.js";
 import { STATUS_PRIORITY } from "../../config/constants.js";
@@ -25,7 +24,6 @@ export interface CaseFilters {
 const EXPORT_BATCH_SIZE = 500;
 
 type CaseRow = typeof cases.$inferSelect;
-type CompanyRow = typeof companies.$inferSelect;
 
 export type CaseCompanySnapshot = {
   companyName: string;
@@ -77,46 +75,18 @@ async function loadStepTimestamps(
   return result;
 }
 
-function buildCompanySnapshot(
-  company: CompanyRow | null,
-  recipientEmails: string[]
-): CaseCompanySnapshot | null {
-  if (!company) return null;
+function buildCompanySnapshot(row: CaseRow): CaseCompanySnapshot | null {
+  if (!row.externalRef) return null;
   return {
-    companyName: company.companyName,
-    crisNumber: company.crisNumber,
-    country: company.country,
-    riskRating: company.riskRating,
-    incorporationDate: company.incorporationDate ? String(company.incorporationDate) : null,
-    legalStructure: company.legalStructure,
-    primaryIndustry: company.primaryIndustry,
-    recipientEmails,
+    companyName: row.subjectName,
+    crisNumber: row.externalRef,
+    country: row.country,
+    riskRating: row.riskRating,
+    incorporationDate: row.incorporationDate ? String(row.incorporationDate) : null,
+    legalStructure: row.legalStructure,
+    primaryIndustry: row.primaryIndustry,
+    recipientEmails: row.recipientEmails ?? [],
   };
-}
-
-async function loadRecipientEmailsByCompanyIds(
-  db: DrizzleDB,
-  companyIds: string[]
-): Promise<Map<string, string[]>> {
-  if (!companyIds.length) return new Map();
-
-  const rows = await db
-    .select({
-      companyId: companyRecipientEmails.companyId,
-      email: companyRecipientEmails.email,
-      isPrimary: companyRecipientEmails.isPrimary,
-    })
-    .from(companyRecipientEmails)
-    .where(inArray(companyRecipientEmails.companyId, companyIds))
-    .orderBy(desc(companyRecipientEmails.isPrimary));
-
-  const map = new Map<string, string[]>();
-  for (const row of rows) {
-    const list = map.get(row.companyId) ?? [];
-    list.push(row.email);
-    map.set(row.companyId, list);
-  }
-  return map;
 }
 
 export class CasesRepository {
@@ -124,27 +94,19 @@ export class CasesRepository {
 
   async findById(caseId: string): Promise<CaseWithAnalyst | null> {
     const [row] = await this.db
-      .select({ case: cases, analystFirstName: users.firstName, company: companies })
+      .select({ case: cases, analystFirstName: users.firstName })
       .from(cases)
       .leftJoin(users, eq(cases.analystId, users.userId))
-      .leftJoin(companies, eq(cases.companyId, companies.companyId))
       .where(eq(cases.caseId, caseId))
       .limit(1);
     if (!row) return null;
-
-    const emailsByCompany = row.company
-      ? await loadRecipientEmailsByCompanyIds(this.db, [row.company.companyId])
-      : new Map<string, string[]>();
-    const recipientEmails = row.company
-      ? (emailsByCompany.get(row.company.companyId) ?? [])
-      : [];
 
     const stepTimestamps = await loadStepTimestamps(this.db, caseId);
 
     return withAnalystName(
       row.case,
       row.analystFirstName,
-      buildCompanySnapshot(row.company, recipientEmails),
+      buildCompanySnapshot(row.case),
       stepTimestamps
     );
   }
@@ -163,7 +125,7 @@ export class CasesRepository {
         or(
           ilike(cases.subjectName, term),
           ilike(cases.orderId, term),
-          ilike(companies.crisNumber, term)
+          ilike(cases.externalRef, term)
         )!
       );
     }
@@ -180,10 +142,9 @@ export class CasesRepository {
 
     const [rows, [{ total }]] = await Promise.all([
       this.db
-        .select({ case: cases, analystFirstName: users.firstName, company: companies })
+        .select({ case: cases, analystFirstName: users.firstName })
         .from(cases)
         .leftJoin(users, eq(cases.analystId, users.userId))
-        .leftJoin(companies, eq(cases.companyId, companies.companyId))
         .where(where)
         .orderBy(
           sql`CASE ${cases.status} ${sql.raw(priorityCases)} ELSE 99 END`,
@@ -194,26 +155,17 @@ export class CasesRepository {
       this.db
         .select({ total: count() })
         .from(cases)
-        .leftJoin(companies, eq(cases.companyId, companies.companyId))
         .where(where),
     ]);
 
-    const companyIds = [
-      ...new Set(rows.map((row) => row.company?.companyId).filter((id): id is string => !!id)),
-    ];
-    const emailsByCompany = await loadRecipientEmailsByCompanyIds(this.db, companyIds);
-
     return {
-      data: rows.map((row) => {
-        const recipientEmails = row.company
-          ? (emailsByCompany.get(row.company.companyId) ?? [])
-          : [];
-        return withAnalystName(
+      data: rows.map((row) =>
+        withAnalystName(
           row.case,
           row.analystFirstName,
-          buildCompanySnapshot(row.company, recipientEmails)
-        );
-      }),
+          buildCompanySnapshot(row.case)
+        )
+      ),
       total: Number(total),
     };
   }
@@ -314,8 +266,8 @@ export class CasesRepository {
   }
 }
 
-export function determineInitialStatus(hasEmail: boolean, hasUid: boolean): string {
-  if (!hasUid && !hasEmail) return "PENDING LINKAGE & CONTACT";
+export function determineInitialStatus(hasEmail: boolean, hasCompanyData: boolean): string {
+  if (!hasCompanyData && !hasEmail) return "PENDING LINKAGE & CONTACT";
   if (!hasEmail) return "PENDING CONTACT";
   return "NOT SENT";
 }

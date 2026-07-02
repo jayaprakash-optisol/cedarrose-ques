@@ -6,7 +6,7 @@ import cookieParser from "cookie-parser";
 import { env } from "./config/env.js";
 import { requestId } from "./middleware/request-id.js";
 import { httpLogger } from "./middleware/http-logger.js";
-import { cookieTokenExtractor } from "./middleware/rate-limit.js";
+import { cookieTokenExtractor, webhookIngestLimit } from "./middleware/rate-limit.js";
 import { authenticate } from "./middleware/authenticate.js";
 import { authorize } from "./middleware/authorize.js";
 import { errorHandler } from "./middleware/error-handler.js";
@@ -14,7 +14,8 @@ import { createContainer } from "./container.js";
 import { setupSwagger } from "./swagger/setup.js";
 import { authRouter } from "./modules/auth/auth.router.js";
 import { casesRouter } from "./modules/cases/cases.router.js";
-import { companiesRouter } from "./modules/companies/companies.router.js";
+import { companyRequestsRouter } from "./modules/company-requests/company-requests.router.js";
+import { companyRequestsWebhookRouter } from "./modules/company-requests/company-requests.webhook.router.js";
 import { auditRouter } from "./modules/audit/audit.router.js";
 import { notificationsRouter } from "./modules/notifications/notifications.router.js";
 import { questionnaireRouter } from "./modules/questionnaire/questionnaire.router.js";
@@ -76,7 +77,14 @@ export function createApp() {
   app.use("/api/v1/auth", authRouter(controllers.auth));
   app.use("/api/v1/cases", authenticate, casesRouter(controllers.cases));
   app.use("/api/v1/dashboard", authenticate, dashboardRouter(controllers.dashboard));
-  app.use("/api/v1/companies", authenticate, companiesRouter(controllers.companies));
+  app.use("/api/v1/company-requests", authenticate, companyRequestsRouter(controllers.companyRequests));
+  app.use(
+    "/api/v1/webhooks/company-requests",
+    authenticate,
+    authorize("Integration"),
+    webhookIngestLimit,
+    companyRequestsWebhookRouter(controllers.companyRequests),
+  );
   app.use("/api/v1/audit-log", authenticate, auditRouter(controllers.audit));
   app.use("/api/v1/notifications", authenticate, notificationsRouter(controllers.notifications));
   app.use("/api/v1/questionnaire", questionnaireRouter(controllers.questionnaire));

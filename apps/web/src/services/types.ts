@@ -50,7 +50,7 @@ export interface AuthService {
 
 export interface CreateCaseInput {
   orderId: string;
-  uid?: string;
+  companyRequestId?: string;
   subjectName: string;
   country: string;
   recipientType: RecipientType;
@@ -73,8 +73,21 @@ export interface AuditService {
   exportCsv(params?: Omit<AuditListParams, "page" | "limit" | "grouped">): Promise<void>;
 }
 
-export interface CompaniesService {
-  getByUid(uid: string): Promise<CompanyData>;
+export interface CompanyRequestsService {
+  listPending(): Promise<CompanyRequestSummary[]>;
+  getById(id: string): Promise<CompanyData>;
+}
+
+export interface CompanyRequestSummary {
+  companyRequestId: string;
+  orderId: string;
+  externalRef: string;
+  companyName: string;
+  country: string;
+  riskRating?: string | null;
+  recipientType?: string | null;
+  receivedAt: string;
+  status: string;
 }
 
 export interface UsersService {

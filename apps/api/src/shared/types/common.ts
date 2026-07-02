@@ -3,6 +3,7 @@ export enum UserRole {
   REVIEWER = "Reviewer",
   ANALYST = "Analyst",
   ADMIN = "Admin",
+  INTEGRATION = "Integration",
 }
 
 export enum UserStatus {

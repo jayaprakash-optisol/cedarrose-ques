@@ -4,13 +4,13 @@ import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { Loader2, Check, AlertCircle, ArrowLeft, Copy, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
-import { companiesService, casesService, templatesService } from "@/services";
+import { companyRequestsService, casesService, templatesService } from "@/services";
 import { ApiError } from "@/services/api/client";
 import type { CaseRecord, CompanyData, RecipientType } from "@/types/case";
 import type { Template } from "@/types/template";
+import type { CompanyRequestSummary } from "@/services/types";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -24,6 +24,12 @@ const search = z.object({
 
 
 type Step = "A" | "B" | "C";
+
+function riskRatingBadgeClass(riskRating: string | null | undefined): string {
+  if (riskRating === "High") return "bg-status-abandoned-bg text-status-abandoned-fg";
+  if (riskRating === "Medium") return "bg-status-pending-bg text-status-pending-fg";
+  return "bg-status-completed-bg text-status-completed-fg";
+}
 
 function getActiveTemplateForRecipient(templates: Template[], recipientType: RecipientType) {
   return templates.find((t) => t.recipientType === recipientType && t.status === "Active");
@@ -41,12 +47,12 @@ export default function NewRequestPage() {
   const [orderId, setOrderId] = useState(sp.orderId ?? "");
   const [country, setCountry] = useState(sp.country ?? "");
   const [subject, setSubject] = useState(sp.subject ?? "");
-  const [uid, setUid] = useState("UID-44529");
 
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [company, setCompany] = useState<CompanyData | null>(null);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [createdCase, setCreatedCase] = useState<CaseRecord | null>(null);
 
   const [recipientType, setRecipientType] = useState<RecipientType>("Supplier");
@@ -57,6 +63,11 @@ export default function NewRequestPage() {
   const { data: templates = [] } = useQuery({
     queryKey: ["templates"],
     queryFn: () => templatesService.list(),
+  });
+
+  const { data: pendingRequests = [] } = useQuery({
+    queryKey: ["company-requests", "pending"],
+    queryFn: () => companyRequestsService.listPending(),
   });
 
   const activeTemplate = useMemo(
@@ -75,16 +86,13 @@ export default function NewRequestPage() {
     [templateDetail],
   );
 
-  const fetchData = async () => {
-    if (!orderId || !subject || !uid.trim()) {
-      toast.error("Order ID, company name, and CRiS UID are required.");
-      return;
-    }
+  const fetchData = async (cr: CompanyRequestSummary) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await companiesService.getByUid(uid.trim());
+      const data = await companyRequestsService.getById(cr.companyRequestId);
       setCompany(data);
+      setSelectedRequestId(cr.companyRequestId);
       if (!country) setCountry(data.country);
       setStep("B");
     } catch (e) {
@@ -100,11 +108,13 @@ export default function NewRequestPage() {
     if (autoFetchAttempted.current || step !== "B" || company || loading) return;
     if (!sp.orderId) return;
     autoFetchAttempted.current = true;
-    void fetchData();
-  }, [step, company, loading, sp.orderId]);
+    if (pendingRequests.length > 0) {
+      void fetchData(pendingRequests[0]);
+    }
+  }, [step, company, loading, sp.orderId, pendingRequests]);
 
   const send = async () => {
-    if (!company) return;
+    if (!company || !selectedRequestId) return;
     if (!activeTemplate) {
       toast.error(
         `No active template is available for ${recipientType}. Add and activate a template in Form Builder before sending.`,
@@ -115,7 +125,7 @@ export default function NewRequestPage() {
     try {
       const result = await casesService.create({
         orderId,
-        uid: uid.trim(),
+        companyRequestId: selectedRequestId,
         subjectName: company.companyName,
         country: country || company.country,
         recipientType,
@@ -150,7 +160,47 @@ export default function NewRequestPage() {
 
         {step === "A" && (
           <div className="rounded-lg border border-border bg-card p-6 space-y-4">
-            <h3 className="text-sm font-semibold">Step A — Enter order details</h3>
+            <h3 className="text-sm font-semibold">Step A — Select incoming company request</h3>
+            <p className="text-sm text-muted-foreground">
+              Choose a pending company request that was received from the integration webhook.
+            </p>
+
+            {pendingRequests.length === 0 ? (
+              <div className="rounded-md bg-status-pending-bg text-status-pending-fg p-3 text-sm flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                <p>No pending company requests. New requests arrive via the webhook integration.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {pendingRequests.map((cr) => (
+                  <button
+                    key={cr.companyRequestId}
+                    onClick={() => fetchData(cr)}
+                    disabled={loading}
+                    className="w-full text-left rounded-md border border-border bg-background p-3 hover:bg-secondary/50 transition-colors"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-sm font-medium">{cr.companyName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Order: {cr.orderId} • Ref: {cr.externalRef}
+                        </p>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs ${riskRatingBadgeClass(cr.riskRating)}`}>
+                          {cr.riskRating ?? "—"}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Country: {cr.country}
+                      {cr.recipientType ? ` • Type: ${cr.recipientType}` : ""}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Field label="Company Name *">
                 <Select value={subject} onValueChange={setSubject}>
@@ -172,33 +222,21 @@ export default function NewRequestPage() {
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="CRiS UID *">
-                <Input
-                  value={uid}
-                  onChange={(e) => setUid(e.target.value)}
-                  placeholder="UID-44529"
-                />
-              </Field>
             </div>
             {error && (
               <div className="rounded-md bg-status-abandoned-bg text-status-abandoned-fg p-3 text-sm flex items-start gap-2">
                 <AlertCircle className="h-4 w-4 mt-0.5" />
                 <div className="flex-1">{error}</div>
-                <Button size="sm" variant="outline" onClick={fetchData}>Retry</Button>
+                <Button size="sm" variant="outline" onClick={() => setStep("A")}>Retry</Button>
               </div>
             )}
-            <div className="flex justify-end pt-2">
-              <Button onClick={fetchData} disabled={loading} className="bg-navy hover:bg-navy/90 text-white">
-                {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Fetching…</> : "Fetch company data"}
-              </Button>
-            </div>
           </div>
         )}
 
         {step === "B" && (
           <div className="space-y-4">
             <div className="rounded-lg border border-border bg-card p-6">
-              <h3 className="text-sm font-semibold mb-3">Step B — Review fetched company data</h3>
+              <h3 className="text-sm font-semibold mb-3">Step B — Review company data from webhook</h3>
               {company ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                   <Read label="Company name" value={company.companyName} />
@@ -367,7 +405,7 @@ export default function NewRequestPage() {
 
             <div className="flex gap-3 justify-center pt-2">
               <Link to="/cases"><Button variant="outline">View case in All Cases</Button></Link>
-              <Button onClick={() => { setStep("A"); setCompany(null); setCreatedCase(null); setOrderId(""); setSubject(""); setCountry(""); setUid("UID-44529"); }} className="bg-navy hover:bg-navy/90 text-white">
+              <Button onClick={() => { setStep("A"); setCompany(null); setCreatedCase(null); setSelectedRequestId(null); setOrderId(""); setSubject(""); setCountry(""); }} className="bg-navy hover:bg-navy/90 text-white">
                 Trigger another request
               </Button>
             </div>
@@ -380,8 +418,8 @@ export default function NewRequestPage() {
 
 function Stepper({ step }: Readonly<{ step: Step }>) {
   const steps: { id: Step; label: string }[] = [
-    { id: "A", label: "Enter order details" },
-    { id: "B", label: "Review fetched data" },
+    { id: "A", label: "Select request" },
+    { id: "B", label: "Review & configure" },
     { id: "C", label: "Confirm & send" },
   ];
   const order = ["A", "B", "C"];
