@@ -11,8 +11,23 @@ import {
 } from "@/services";
 import type { AuthContextValue } from "@/app/auth-context";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import type { CompletionStats } from "@/types/dashboard";
 import { makeTestUser, makeQueryClient } from "../helpers/render";
 import { setAppSelected } from "@/lib/app-selection";
+
+const emptyCompletionStats: CompletionStats = {
+  period: "7d",
+  caseCount: 0,
+  expiredCapDays: 7,
+  includesInProgress: false,
+  summary: {
+    avgTimeToFirstOpen: { value: null, unit: "hours", trend: null, trendUnit: "hours" },
+    avgTimeToComplete: { value: null, unit: "hours", trend: null, trendUnit: "hours" },
+    avgTotalTurnaround: { value: null, unit: "days", trend: null, trendUnit: "days" },
+  },
+  overallAvgDays: 0,
+  byCompany: [],
+};
 
 // DashboardPage renders recharts' <ResponsiveContainer>, which relies on
 // ResizeObserver — not implemented in jsdom. The AdminGuard redirect test
@@ -72,7 +87,8 @@ describe("AppRouter", () => {
     vi.spyOn(questionnaireService, "verifyLink").mockResolvedValue({
       caseId: "c1",
       subjectName: "Acme",
-      recipientType: "subject",
+      recipientType: "Supplier",
+      status: "IN PROGRESS",
       maskedEmail: "a***@e.com",
     });
     await renderRouterAt("/q/abc123");
@@ -105,10 +121,7 @@ describe("AppRouter", () => {
       data: [],
       meta: { page: 1, limit: 20, total: 0 },
     });
-    vi.spyOn(dashboardService, "getCompletionStats").mockResolvedValue({
-      totalCompleted: 0,
-      trendPct: 0,
-    });
+    vi.spyOn(dashboardService, "getCompletionStats").mockResolvedValue(emptyCompletionStats);
     setAppSelected("questionnaire");
     const user = makeTestUser({ role: "analyst" });
     await renderRouterAt("/admin/users", { isAuthenticated: true, user, isAdmin: false });
@@ -142,10 +155,7 @@ describe("AppRouter", () => {
       data: [],
       meta: { page: 1, limit: 20, total: 0 },
     });
-    vi.spyOn(dashboardService, "getCompletionStats").mockResolvedValue({
-      totalCompleted: 0,
-      trendPct: 0,
-    });
+    vi.spyOn(dashboardService, "getCompletionStats").mockResolvedValue(emptyCompletionStats);
     setAppSelected("questionnaire");
     const user = makeTestUser({ role: "analyst" });
     await renderRouterAt("/", { isAuthenticated: true, user });
