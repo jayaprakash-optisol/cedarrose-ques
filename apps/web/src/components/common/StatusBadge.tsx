@@ -16,52 +16,40 @@ const STATUS_CLASS: Record<CaseStatus, string> = {
 
 type ActionTone = "green" | "amber" | "red" | "grey";
 
-const STATUS_META: Record<CaseStatus, { meaning: string; action: string; tone: ActionTone }> = {
-  "SENT": {
-    meaning: "Questionnaire dispatched. Subject has not yet opened it.",
-    action: "No — monitoring only",
-    tone: "green",
-  },
-  "OPENED": {
-    meaning: "Subject clicked the link and authenticated.",
-    action: "No — monitoring only",
-    tone: "green",
-  },
-  "IN PROGRESS": {
-    meaning: "Subject has started completing the form.",
-    action: "No — monitoring only",
-    tone: "green",
-  },
-  "COMPLETED": {
-    meaning: "All mandatory fields submitted. E-signature applied.",
-    action: "Yes — validate and use for report",
-    tone: "amber",
-  },
-  "COMPLETED — MISSING DATA": {
-    meaning: "Submitted but optional fields missing.",
-    action: "Yes — validate; consider follow-up",
-    tone: "amber",
-  },
-  "PENDING CONTACT": {
-    meaning: "Questionnaire on hold: no contact email available.",
-    action: "Yes — source contact email",
-    tone: "red",
-  },
-  "PENDING LINKAGE & CONTACT": {
-    meaning: "Questionnaire on hold: no company link and no contact.",
-    action: "Yes — link profile and source email",
-    tone: "red",
-  },
-  "EXPIRED": {
-    meaning: "Questionnaire link has expired without submission.",
-    action: "Yes — reissue link if still needed",
-    tone: "red",
-  },
-  "NOT SENT": {
-    meaning: "Questionnaire was not sent (order too early or excluded).",
-    action: "Review — manual decision",
-    tone: "grey",
-  },
+const STATUS_MEANING: Record<CaseStatus, string> = {
+  "SENT": "Questionnaire dispatched. Subject has not yet opened it.",
+  "OPENED": "Subject clicked the link and authenticated.",
+  "IN PROGRESS": "Subject has started completing the form.",
+  "COMPLETED": "All mandatory fields submitted. E-signature applied.",
+  "COMPLETED — MISSING DATA": "Submitted but optional fields missing.",
+  "PENDING CONTACT": "Questionnaire on hold: no contact email available.",
+  "PENDING LINKAGE & CONTACT": "Questionnaire on hold: no company link and no contact.",
+  "EXPIRED": "Questionnaire link has expired without submission.",
+  "NOT SENT": "Questionnaire was not sent (order too early or excluded).",
+};
+
+const STATUS_ACTION: Record<CaseStatus, string> = {
+  "SENT": "No — monitoring only",
+  "OPENED": "No — monitoring only",
+  "IN PROGRESS": "No — monitoring only",
+  "COMPLETED": "Yes — validate and use for report",
+  "COMPLETED — MISSING DATA": "Yes — validate; consider follow-up",
+  "PENDING CONTACT": "Yes — source contact email",
+  "PENDING LINKAGE & CONTACT": "Yes — link profile and source email",
+  "EXPIRED": "Yes — reissue link if still needed",
+  "NOT SENT": "Review — manual decision",
+};
+
+const STATUS_TONE: Record<CaseStatus, ActionTone> = {
+  "SENT": "green",
+  "OPENED": "green",
+  "IN PROGRESS": "green",
+  "COMPLETED": "amber",
+  "COMPLETED — MISSING DATA": "amber",
+  "PENDING CONTACT": "red",
+  "PENDING LINKAGE & CONTACT": "red",
+  "EXPIRED": "red",
+  "NOT SENT": "grey",
 };
 
 const TONE_CLASS: Record<ActionTone, string> = {
@@ -79,8 +67,10 @@ const RESEARCHER_CLASS: Record<ResearcherStatus, string> = {
   "Rejected": "bg-red-100 text-red-800",
 };
 
-export function StatusBadge({ status }: { status: CaseStatus }) {
-  const meta = STATUS_META[status];
+export function StatusBadge({ status }: { readonly status: CaseStatus }) {
+  const meaning = STATUS_MEANING[status];
+  const action = STATUS_ACTION[status];
+  const tone = STATUS_TONE[status];
   const showWarn = status === "COMPLETED — MISSING DATA";
   return (
     <TooltipProvider delayDuration={150}>
@@ -103,15 +93,15 @@ export function StatusBadge({ status }: { status: CaseStatus }) {
           className="bg-white text-foreground border border-border shadow-md max-w-xs px-3 py-2"
         >
           <div className="font-semibold text-xs mb-1">{status}</div>
-          <div className="text-xs text-muted-foreground mb-1.5 leading-snug">{meta.meaning}</div>
-          <div className={["text-xs font-medium", TONE_CLASS[meta.tone]].join(" ")}>{meta.action}</div>
+          <div className="text-xs text-muted-foreground mb-1.5 leading-snug">{meaning}</div>
+          <div className={["text-xs font-medium", TONE_CLASS[tone]].join(" ")}>{action}</div>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );
 }
 
-export function ResearcherBadge({ status }: { status: ResearcherStatus }) {
+export function ResearcherBadge({ status }: { readonly status: ResearcherStatus }) {
   return (
     <span
       className={[
@@ -124,7 +114,7 @@ export function ResearcherBadge({ status }: { status: ResearcherStatus }) {
   );
 }
 
-export function RecipientBadge({ type }: { type: string }) {
+export function RecipientBadge({ type }: { readonly type: string }) {
   return (
     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border border-border bg-card text-foreground">
       {type}

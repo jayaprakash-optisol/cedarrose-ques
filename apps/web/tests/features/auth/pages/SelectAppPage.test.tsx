@@ -84,13 +84,25 @@ describe("SelectAppPage", () => {
   });
 
   it("falls back to derived initials from name when initials is missing", () => {
-    // Skip — type system requires initials: string so we can't omit it
-    // and the source uses `??` which only handles null/undefined, not empty strings.
+    renderWithProviders(<SelectAppPage />, {
+      authValue: {
+        user: {
+          id: "u1",
+          name: "Charlie Delta",
+          email: "c@d.com",
+          role: "analyst",
+          title: "T",
+          initials: undefined,
+        } as unknown as import("@/types").CurrentUser,
+      },
+      routerPath: "/select-app",
+    });
+    expect(screen.getByText("CH")).toBeInTheDocument();
   });
 
-  it("falls back to User when user name is missing", () => {
-    // Skip — same reason as above; type system requires initials and the
-    // `??` fallback only handles null/undefined, not empty strings.
+  it("falls back to User when no user is present", () => {
+    renderWithProviders(<SelectAppPage />, { routerPath: "/select-app" });
+    expect(screen.getByText("User")).toBeInTheDocument();
   });
 
   it("renders the description for each app card", () => {

@@ -323,32 +323,40 @@ describe("FormBuilderPage", () => {
   it("moves a section up", async () => {
     const user = userEvent.setup();
     renderFormBuilder(qc);
+    expect(screen.getAllByText(/Section \d+ —/)[0]).toHaveTextContent("Company Info");
     await user.click(screen.getAllByRole("button", { name: "Section options" })[0]);
     await user.click(screen.getByText("Move section down"));
+    await waitFor(() => expect(screen.getAllByText(/Section \d+ —/)[0]).toHaveTextContent("Contact Info"));
   });
 
   it("moves a section down", async () => {
     const user = userEvent.setup();
     renderFormBuilder(qc);
+    expect(screen.getAllByText(/Section \d+ —/).at(-1)).toHaveTextContent("Contact Info");
     const optsBtns = screen.getAllByRole("button", { name: "Section options" });
     await user.click(optsBtns[optsBtns.length - 1]);
     await user.click(screen.getByText("Move section up"));
+    await waitFor(() => expect(screen.getAllByText(/Section \d+ —/).at(-1)).toHaveTextContent("Company Info"));
   });
 
   it("removes a section via dialog", async () => {
     const user = userEvent.setup();
     renderFormBuilder(qc);
+    expect(screen.getAllByText(/Section \d+ —/).length).toBe(2);
     await user.click(screen.getAllByRole("button", { name: "Section options" })[0]);
     await user.click(screen.getByText("Remove section"));
     await waitFor(() => expect(screen.getByText("Remove this section?")).toBeInTheDocument());
     await user.click(screen.getByRole("button", { name: "Remove section" }));
+    await waitFor(() => expect(screen.getAllByText(/Section \d+ —/).length).toBe(1));
   });
 
   it("toggles the section collapse", async () => {
     const user = userEvent.setup();
     renderFormBuilder(qc);
+    expect(screen.getByText("Basic details")).toBeInTheDocument();
     const triggers = screen.getAllByText(/Section \d+ —/);
     await user.click(triggers[0]);
+    await waitFor(() => expect(screen.queryByText("Basic details")).not.toBeInTheDocument());
   });
 
   it("renders different field types in question card", () => {
@@ -375,9 +383,11 @@ describe("FormBuilderPage", () => {
     const user = userEvent.setup();
     renderFormBuilder(qc);
     const switches = screen.getAllByRole("switch");
-    if (switches.length > 1) {
-      await user.click(switches[1]);
-    }
+    expect(switches.length).toBeGreaterThan(1);
+    const target = switches[1];
+    const before = target.getAttribute("aria-checked");
+    await user.click(target);
+    await waitFor(() => expect(target.getAttribute("aria-checked")).not.toBe(before));
   });
 
   it("renders options editor for dropdown question", () => {
@@ -488,9 +498,10 @@ describe("FormBuilderPage", () => {
     const firstChip = screen.getByText("First");
     const parent = firstChip.parentElement;
     const removeBtn = parent?.querySelector("button");
-    if (removeBtn) {
-      fireEvent.click(removeBtn);
-    }
+    expect(removeBtn).toBeTruthy();
+    fireEvent.click(removeBtn!);
+    await waitFor(() => expect(screen.queryByText("First")).not.toBeInTheDocument());
+    expect(screen.getByText("Second")).toBeInTheDocument();
   });
 
   it("adds a new option on Enter", async () => {
@@ -508,6 +519,8 @@ describe("FormBuilderPage", () => {
     const optInput = screen.getByPlaceholderText(/Type an option/);
     fireEvent.change(optInput, { target: { value: "NewOpt" } });
     fireEvent.keyDown(optInput, { key: "Enter" });
+    await waitFor(() => expect(screen.getByText("NewOpt")).toBeInTheDocument());
+    expect((optInput as HTMLInputElement).value).toBe("");
   });
 
   it("renders file upload preview", () => {
@@ -637,6 +650,7 @@ describe("FormBuilderPage", () => {
     const handle = screen.getAllByLabelText("Drag to reorder question")[0];
     const dataTransfer = { setData: vi.fn(), effectAllowed: "", setDragImage: vi.fn() };
     fireEvent.dragStart(handle, { dataTransfer });
+    expect(dataTransfer.setData).toHaveBeenCalledWith("text/plain", "0");
     fireEvent.dragEnd(handle, { dataTransfer });
   });
 
@@ -647,13 +661,16 @@ describe("FormBuilderPage", () => {
     const dataTransfer = { setData: vi.fn(), effectAllowed: "", setDragImage: vi.fn(), dropEffect: "" };
     // First, start drag
     fireEvent.dragStart(handle, { dataTransfer });
+    // Flush the requestAnimationFrame that marks dragging as active
+    await new Promise((resolve) => requestAnimationFrame(resolve));
     // Then simulate dragover on the container - find the list container
     const cards = document.querySelectorAll('[data-question-id]');
-    if (cards.length > 0) {
-      const container = cards[0].parentElement!;
-      fireEvent.dragOver(container, { dataTransfer, clientY: 100 });
-      fireEvent.drop(container, { dataTransfer, clientY: 100 });
-    }
+    expect(cards.length).toBeGreaterThan(0);
+    const container = cards[0].parentElement!;
+    fireEvent.dragOver(container, { dataTransfer, clientY: 100 });
+    expect(dataTransfer.dropEffect).toBe("move");
+    fireEvent.drop(container, { dataTransfer, clientY: 100 });
+    fireEvent.dragEnd(handle, { dataTransfer });
   });
 
   it("updates a table column name", async () => {
@@ -670,6 +687,7 @@ describe("FormBuilderPage", () => {
     });
     const colInput = screen.getByDisplayValue("OldName");
     fireEvent.change(colInput, { target: { value: "NewName" } });
+    await waitFor(() => expect(screen.getByDisplayValue("NewName")).toBeInTheDocument());
   });
 
   it("adds a new table column", async () => {
@@ -684,7 +702,9 @@ describe("FormBuilderPage", () => {
       authValue: { isAuthenticated: true, isAdmin: true },
       queryClient: qc,
     });
+    expect(screen.queryAllByPlaceholderText("Column name").length).toBe(0);
     fireEvent.click(screen.getByText(/Add column/));
+    await waitFor(() => expect(screen.getAllByPlaceholderText("Column name").length).toBe(1));
   });
 
   it("removes a table column", async () => {
@@ -703,7 +723,9 @@ describe("FormBuilderPage", () => {
     const colInput = screen.getByDisplayValue("Col1");
     const parent = colInput.parentElement!;
     const removeBtn = parent.querySelectorAll("button")[parent.querySelectorAll("button").length - 1];
-    if (removeBtn) fireEvent.click(removeBtn);
+    expect(removeBtn).toBeTruthy();
+    fireEvent.click(removeBtn);
+    await waitFor(() => expect(screen.queryByDisplayValue("Col1")).not.toBeInTheDocument());
   });
 
   it("renders a question with note text", () => {
@@ -769,6 +791,7 @@ describe("FormBuilderPage", () => {
   });
 
   it("removes a question via the popover", async () => {
+    const user = userEvent.setup();
     const tpl = makeTemplate({
       sections: [{ id: "sec-1", number: 1, title: "Section", questions: [
         { id: "q1", text: "Q1", type: "text", required: false, prefill: false },
@@ -781,9 +804,15 @@ describe("FormBuilderPage", () => {
       authValue: { isAuthenticated: true, isAdmin: true },
       queryClient: qc,
     });
-    // Find the trash button next to a question
-    const trashButtons = document.querySelectorAll('button.lucide-trash-2');
-    // There should be trash buttons for deleting questions
+    expect(screen.getByDisplayValue("Q1")).toBeInTheDocument();
+    const trashIcon = document.querySelector(".lucide-trash-2");
+    const trashButton = trashIcon?.closest("button");
+    expect(trashButton).toBeTruthy();
+    await user.click(trashButton!);
+    const confirmButton = await screen.findByText("Yes, remove");
+    await user.click(confirmButton);
+    await waitFor(() => expect(screen.queryByDisplayValue("Q1")).not.toBeInTheDocument());
+    expect(screen.getByDisplayValue("Q2")).toBeInTheDocument();
   });
 
   it("renders long text question", () => {
@@ -876,14 +905,13 @@ describe("FormBuilderPage", () => {
     expect(screen.getByText("Options")).toBeInTheDocument();
   });
 
-  it("changes the question type via the type select", async () => {
-    const user = userEvent.setup();
+  it("changes the question type via the type select", () => {
     renderFormBuilder(qc);
-    // Click the first type select
-    const selects = document.querySelectorAll('[role="combobox"]');
-    if (selects.length > 0) {
-      await user.click(selects[0]);
-    }
+    // Radix Select cannot fully open in jsdom (missing scrollIntoView), so
+    // this verifies the trigger for the first question is wired to its type.
+    const selects = screen.getAllByRole("combobox");
+    expect(selects.length).toBeGreaterThan(0);
+    expect(selects[0]).toHaveTextContent("Text (single line)");
   });
 
   it("toggles the question required switch", async () => {
@@ -892,9 +920,11 @@ describe("FormBuilderPage", () => {
     const switches = screen.getAllByRole("switch");
     // The first switch is the Draft/Active toggle, then there are required switches
     // Click on a switch (skip the first one which is template status)
-    if (switches.length > 2) {
-      await user.click(switches[1]);
-    }
+    expect(switches.length).toBeGreaterThan(2);
+    const target = switches[1];
+    const before = target.getAttribute("aria-checked");
+    await user.click(target);
+    await waitFor(() => expect(target.getAttribute("aria-checked")).not.toBe(before));
   });
 
   it("toggles the system controlled question switch (disabled)", () => {
@@ -927,16 +957,24 @@ describe("FormBuilderPage", () => {
   });
 
   it("clicks the add help text button to show help input", async () => {
-    // Skipped — flaky when run with other tests, but the help text button is
-    // already covered by other tests.
+    const user = userEvent.setup();
+    renderFormBuilder(qc);
+    const addHelpButtons = screen.getAllByText("+ Add help text");
+    expect(addHelpButtons.length).toBeGreaterThan(0);
+    await user.click(addHelpButtons[0]);
+    await waitFor(() =>
+      expect(screen.getAllByPlaceholderText(/Help text shown to subject/).length).toBeGreaterThan(0)
+    );
   });
 
   it("toggles section collapse to closed", async () => {
     const user = userEvent.setup();
     renderFormBuilder(qc);
+    expect(screen.getByText("Basic details")).toBeInTheDocument();
     // Click on the section title to collapse
     const sectionTitle = screen.getByText(/Section 1 — Company Info/);
     await user.click(sectionTitle);
+    await waitFor(() => expect(screen.queryByText("Basic details")).not.toBeInTheDocument());
   });
 
   it("cancels the rename section dialog", async () => {

@@ -6,6 +6,10 @@ import { usersService } from "@/services";
 import { renderWithProviders, makeQueryClient } from "../../../../helpers/render";
 import type { User } from "@/types/user";
 
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {};
+}
+
 function makeUser(overrides: Partial<User> = {}): User {
   return {
     id: "USR-abc12345-def67890-1234",
@@ -335,10 +339,65 @@ describe("UsersPage", () => {
   });
 
   it("successfully adds a new user with full details", async () => {
-    // Test skipped — needs careful test setup for UsersPage mock injection
+    const user = userEvent.setup();
+    renderPage();
+    await waitFor(() => expect(screen.getByText("Jane Doe")).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: /Add User/ }));
+    await waitFor(() => expect(screen.getAllByText(/Add User & Send Invitation/).length).toBeGreaterThan(0));
+
+    const inputs = screen.getAllByRole("textbox");
+    await user.type(inputs[0], "John");
+    await user.type(inputs[1], "Smith");
+    await user.type(inputs[2], "john.smith@example.com");
+
+    const switches = screen.getAllByRole("switch");
+    await user.click(switches[0]);
+    const roleTriggers = screen.getAllByRole("combobox");
+    await user.click(roleTriggers[0]);
+    await user.click(await screen.findByText("Researcher"));
+
+    const submitBtn = screen.getByRole("button", { name: /Add User & Send Invitation/ });
+    await user.click(submitBtn);
+
+    await waitFor(
+      () => expect(usersService.save).toHaveBeenCalled(),
+      { timeout: 3000 },
+    );
+    const savedArg = (usersService.save as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0] as User[];
+    expect(savedArg.some((u) => u.name === "John Smith" && u.email === "john.smith@example.com")).toBe(true);
+    await waitFor(() => expect(screen.queryByText("Add User & Send Invitation")).not.toBeInTheDocument());
   });
 
   it("edits a user and triggers saveUser with full flow", async () => {
-    // Test skipped — needs careful test setup for UsersPage mock injection
+    const user = userEvent.setup();
+    renderPage();
+    await waitFor(() => expect(screen.getByText("Jane Doe")).toBeInTheDocument());
+    await user.click(screen.getAllByTitle("Edit")[0]);
+    await waitFor(() => expect(screen.getByText("Edit user")).toBeInTheDocument());
+
+    const inputs = screen.getAllByRole("textbox");
+    await user.type(inputs[0], "Janet");
+    await user.type(inputs[1], "Doerson");
+    await user.type(inputs[2], "janet.doerson@example.com");
+
+    const switches = screen.getAllByRole("switch");
+    await user.click(switches[0]);
+    const roleTriggers = screen.getAllByRole("combobox");
+    await user.click(roleTriggers[0]);
+    await user.click(await screen.findByText("Researcher"));
+
+    const submitBtn = screen.getByRole("button", { name: /Save changes/ });
+    await user.click(submitBtn);
+
+    await waitFor(
+      () => expect(usersService.save).toHaveBeenCalled(),
+      { timeout: 3000 },
+    );
+    const savedArg = (usersService.save as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0] as User[];
+    expect(savedArg.some((u) => u.name === "Jane Doe")).toBe(true);
+    await waitFor(
+      () => expect(screen.queryByText("Edit user")).not.toBeInTheDocument(),
+      { timeout: 3000 },
+    );
   });
 });

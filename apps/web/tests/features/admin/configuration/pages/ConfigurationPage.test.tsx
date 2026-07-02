@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
-import { screen, waitFor, fireEvent } from "@testing-library/react";
+import { screen, waitFor, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import ConfigPage from "@/features/admin/configuration/pages/ConfigurationPage";
 import { renderWithProviders } from "../../../../helpers/render";
 import { authService } from "@/services";
@@ -170,9 +171,13 @@ describe("ConfigurationPage", () => {
   });
 
   it("triggers save button click", async () => {
+    const toastSpy = vi.spyOn(toast, "success");
     const user = userEvent.setup();
     renderPage();
     await user.click(screen.getByText("Save all changes"));
+    expect(toastSpy).toHaveBeenCalledWith(
+      "Configuration saved. Changes will apply to all new questionnaire dispatches."
+    );
   });
 
   it("types in the link validity input", async () => {
@@ -199,36 +204,40 @@ describe("ConfigurationPage", () => {
     const user = userEvent.setup();
     renderPage();
     const switches = screen.getAllByRole("switch");
-    if (switches.length > 0) {
-      await user.click(switches[0]);
-    }
+    expect(switches.length).toBeGreaterThan(0);
+    const before = switches[0].getAttribute("aria-checked");
+    await user.click(switches[0]);
+    await waitFor(() => expect(switches[0].getAttribute("aria-checked")).not.toBe(before));
   });
 
   it("toggles mid-form switch", async () => {
     const user = userEvent.setup();
     renderPage();
     const switches = screen.getAllByRole("switch");
-    if (switches.length > 1) {
-      await user.click(switches[1]);
-    }
+    expect(switches.length).toBeGreaterThan(1);
+    const before = switches[1].getAttribute("aria-checked");
+    await user.click(switches[1]);
+    await waitFor(() => expect(switches[1].getAttribute("aria-checked")).not.toBe(before));
   });
 
   it("toggles near-completion switch", async () => {
     const user = userEvent.setup();
     renderPage();
     const switches = screen.getAllByRole("switch");
-    if (switches.length > 2) {
-      await user.click(switches[2]);
-    }
+    expect(switches.length).toBeGreaterThan(2);
+    const before = switches[2].getAttribute("aria-checked");
+    await user.click(switches[2]);
+    await waitFor(() => expect(switches[2].getAttribute("aria-checked")).not.toBe(before));
   });
 
   it("toggles reward system switch", async () => {
     const user = userEvent.setup();
     renderPage();
     const switches = screen.getAllByRole("switch");
-    if (switches.length > 3) {
-      await user.click(switches[3]);
-    }
+    expect(switches.length).toBeGreaterThan(3);
+    const before = switches[3].getAttribute("aria-checked");
+    await user.click(switches[3]);
+    await waitFor(() => expect(switches[3].getAttribute("aria-checked")).not.toBe(before));
   });
 
   it("renders tier 1 and tier 2 active switches", () => {
@@ -281,39 +290,47 @@ describe("ConfigurationPage", () => {
     renderPage();
     // Tier 1 active is the 5th switch (0=gamification, 1=mid, 2=near, 3=reward, 4=tier1active)
     const switches = screen.getAllByRole("switch");
-    if (switches.length > 4) {
-      await user.click(switches[4]);
-    }
+    expect(switches.length).toBeGreaterThan(4);
+    const before = switches[4].getAttribute("aria-checked");
+    await user.click(switches[4]);
+    await waitFor(() => expect(switches[4].getAttribute("aria-checked")).not.toBe(before));
   });
 
   it("toggles tier 2 active switch", async () => {
     const user = userEvent.setup();
     renderPage();
     const switches = screen.getAllByRole("switch");
-    if (switches.length > 5) {
-      await user.click(switches[5]);
-    }
+    expect(switches.length).toBeGreaterThan(5);
+    const before = switches[5].getAttribute("aria-checked");
+    await user.click(switches[5]);
+    await waitFor(() => expect(switches[5].getAttribute("aria-checked")).not.toBe(before));
   });
 
   it("clicks NumberStepper plus and minus buttons", async () => {
     const user = userEvent.setup();
     renderPage();
-    // NumberStepper renders buttons (no specific role other than 'button')
-    const buttons = screen.getAllByRole("button");
-    // Click the first 4 buttons (likely NumberStepper plus/minus)
-    for (let i = 0; i < Math.min(4, buttons.length); i++) {
-      await user.click(buttons[i]);
-    }
+    const labelEl = screen.getByText("Maximum incorrect OTP attempts before lockout");
+    const settingRow = labelEl.parentElement!.parentElement as HTMLElement;
+    const otpRetryInput = within(settingRow).getByDisplayValue("3") as HTMLInputElement;
+    const stepper = otpRetryInput.parentElement!;
+    const [minusButton, plusButton] = stepper.querySelectorAll("button");
+    await user.click(plusButton);
+    expect(otpRetryInput.value).toBe("4");
+    await user.click(minusButton);
+    await user.click(minusButton);
+    expect(otpRetryInput.value).toBe("2");
   });
 
   it("types in all number inputs to trigger onChange handlers", async () => {
     const user = userEvent.setup();
     renderPage();
     const inputs = document.querySelectorAll('input[type="number"]');
+    expect(inputs.length).toBeGreaterThan(0);
     for (let i = 0; i < inputs.length; i++) {
       const input = inputs[i] as HTMLInputElement;
       await user.clear(input);
       await user.type(input, "5");
+      expect(input.value).toBe("5");
     }
   });
 
@@ -339,10 +356,13 @@ describe("ConfigurationPage", () => {
     const user = userEvent.setup();
     renderPage();
     const switches = screen.getAllByRole("switch");
+    const before = switches.map((sw) => sw.getAttribute("aria-checked"));
     // Toggle each switch
     for (const sw of switches) {
       await user.click(sw);
     }
+    const after = switches.map((sw) => sw.getAttribute("aria-checked"));
+    expect(after).not.toEqual(before);
   });
 
   it("types in tier 1 title input", async () => {

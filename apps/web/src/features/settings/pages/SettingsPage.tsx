@@ -200,7 +200,7 @@ export default function SettingsPage() {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children }: Readonly<{ title: string; children: React.ReactNode }>) {
   return (
     <div className="rounded-lg border border-border bg-card p-5 space-y-3">
       <h3 className="text-sm font-semibold">{title}</h3>
@@ -209,7 +209,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+function Row({ label, children }: Readonly<{ label: string; children: React.ReactNode }>) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-3 items-center">
       <Label className="text-sm text-muted-foreground">{label}</Label>
@@ -222,11 +222,11 @@ function ToggleRow({
   label,
   checked,
   onCheckedChange,
-}: {
+}: Readonly<{
   label: string;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
-}) {
+}>) {
   return (
     <div className="flex items-center justify-between border-t border-border pt-3 first:border-t-0 first:pt-0">
       <span className="text-sm">{label}</span>

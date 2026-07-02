@@ -11,7 +11,7 @@ const DISPATCHED_STATUSES = new Set([
   "COMPLETED — MISSING DATA",
   "EXPIRED",
 ]);
-const IN_FLIGHT_STATUSES: readonly string[] = ["SENT", "OPENED", "IN PROGRESS"];
+const IN_FLIGHT_STATUSES = new Set(["SENT", "OPENED", "IN PROGRESS"]);
 
 interface CaseTimingRow {
   caseId: string;
@@ -116,7 +116,7 @@ function formatEndLabel(row: CaseTimingRow) {
 
 function barState(days: number, status: string, overallAvg: number): CompletionStatsCompanyBar["state"] {
   if (status === "EXPIRED") return "expired";
-  if (IN_FLIGHT_STATUSES.includes(status)) return "over-progress";
+  if (IN_FLIGHT_STATUSES.has(status)) return "over-progress";
   return days <= overallAvg ? "under" : "over-progress";
 }
 
@@ -163,20 +163,20 @@ function buildCompanyBars(rows: CaseTimingRow[], now: Date, overallAvg: number):
     });
   }
 
-  return bars.sort((a, b) => b.days - a.days).slice(0, 12);
+  return [...bars].sort((a, b) => b.days - a.days).slice(0, 12);
 }
 
 export function computeCompletionStatsFromCases(cases: CaseRecord[], period: DashboardPeriod): CompletionStats {
   const now = new Date();
-  const window = periodWindow(period);
+  const { currentSince, previousSince, previousUntil } = periodWindow(period);
   const allRows = cases.map(caseToRow).filter((r): r is CaseTimingRow => r !== null);
-  const currentRows = window.currentSince
-    ? allRows.filter((r) => r.dateDispatched >= window.currentSince!)
+  const currentRows = currentSince
+    ? allRows.filter((r) => r.dateDispatched >= currentSince)
     : allRows;
   const previousRows =
-    window.previousSince && window.previousUntil
+    previousSince && previousUntil
       ? allRows.filter(
-          (r) => r.dateDispatched >= window.previousSince! && r.dateDispatched < window.previousUntil!
+          (r) => r.dateDispatched >= previousSince && r.dateDispatched < previousUntil
         )
       : [];
 

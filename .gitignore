@@ -40,3 +40,5 @@ graphify-out/
 .opencode/
 # superpowers subagent-driven-development scratch
 .superpowers/
+.claude/
+.commandcode/

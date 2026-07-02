@@ -8,12 +8,12 @@ type Source = "cris" | "subject" | "missing";
 
 function inferSource(response: QuestionnaireResponse, companyName: string): Source {
   const answer = response.answer?.trim();
-  if (!answer) return response.mandatory ? "missing" : "missing";
+  if (!answer) return "missing";
   if (answer === companyName) return "cris";
   return "subject";
 }
 
-function SourceBadge({ source }: { source: Source }) {
+function SourceBadge({ source }: Readonly<{ source: Source }>) {
   if (source === "cris") {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 text-blue-700 px-2 py-0.5 text-[11px] font-medium">
@@ -36,8 +36,8 @@ function SourceBadge({ source }: { source: Source }) {
 }
 
 interface Props {
-  responses: QuestionnaireResponse[];
-  companyName: string;
+  readonly responses: QuestionnaireResponse[];
+  readonly companyName: string;
 }
 
 export function ResponsesReview({ responses, companyName }: Props) {
@@ -63,10 +63,10 @@ export function ResponsesReview({ responses, companyName }: Props) {
       <div className="rounded-md bg-blue-50 border border-blue-200 text-blue-800 text-xs px-3 py-2 flex items-center gap-2">
         <Info className="h-4 w-4 shrink-0" />
         <span>
-          <strong className="text-navy">{cris}</strong> pre-filled from CRiS
-          <span className="mx-2 text-blue-300">|</span>
-          <strong className="text-navy">{subject}</strong> filled by subject
-          <span className="mx-2 text-blue-300">|</span>
+          <strong className="text-navy">{cris}</strong> pre-filled from CRiS{" "}
+          <span className="mx-2 text-blue-300">|</span>{" "}
+          <strong className="text-navy">{subject}</strong> filled by subject{" "}
+          <span className="mx-2 text-blue-300">|</span>{" "}
           <strong className="text-navy">{countAnswered(mandatory)}/{mandatory.length || "—"}</strong> mandatory
           {optional.length > 0 && (
             <>

@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -71,6 +70,18 @@ function scoreColor(score: number) {
   return "text-[#9B2C2C]";
 }
 
+function withUpsertedUser(arr: User[], u: User): User[] {
+  return arr.map((x) => (x.id === u.id ? { ...u, flash: true } : x));
+}
+
+function withClearedFlash(arr: User[], id: string): User[] {
+  return arr.map((x) => (x.id === id ? { ...x, flash: false } : x));
+}
+
+function withoutUser(arr: User[], id: string): User[] {
+  return arr.filter((x) => x.id !== id);
+}
+
 export default function UsersPage() {
   const queryClient = useQueryClient();
   const { data: loadedUsers = [] } = useQuery({
@@ -122,12 +133,12 @@ export default function UsersPage() {
 
   const handleSaveUser = (u: User, isEdit: boolean) => {
     if (isEdit) {
-      updateUsers((arr) => arr.map((x) => (x.id === u.id ? { ...u, flash: true } : x)));
+      updateUsers((arr) => withUpsertedUser(arr, u));
     } else {
       updateUsers((arr) => [{ ...u, flash: true }, ...arr]);
     }
     setTimeout(() => {
-      updateUsers((arr) => arr.map((x) => (x.id === u.id ? { ...x, flash: false } : x)));
+      updateUsers((arr) => withClearedFlash(arr, u.id));
     }, 1500);
   };
 
@@ -230,7 +241,7 @@ export default function UsersPage() {
                   <td className="px-4 text-[14px] font-medium text-[#2D3748]">{u.name}</td>
                   <td className="px-4 text-[14px] text-[#2D3748]">{truncateEmail(u.email)}</td>
                   <td className="px-4 text-[14px] text-[#2D3748]">
-                    {u.totalReports == null ? <span className="text-[#A0AEC0]">—</span> : u.totalReports}
+                    {u.totalReports ?? <span className="text-[#A0AEC0]">—</span>}
                   </td>
                   <td className="px-4 text-[14px]">
                     {u.score == null ? (
@@ -293,7 +304,7 @@ export default function UsersPage() {
                             </button>
                             <button
                               onClick={() => {
-                                updateUsers((arr) => arr.filter((x) => x.id !== u.id));
+                                updateUsers((arr) => withoutUser(arr, u.id));
                                 setDeleteId(null);
                                 toast.success(`${u.name} removed.`);
                               }}
@@ -370,7 +381,7 @@ export default function UsersPage() {
   );
 }
 
-function DetailRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function DetailRow({ label, value, mono }: { readonly label: string; readonly value: string; readonly mono?: boolean }) {
   return (
     <div>
       <div className="text-xs uppercase text-[#718096] tracking-wide">{label}</div>
@@ -393,6 +404,275 @@ const ROLE_LABEL: Record<RoleKey, string> = {
   admin: "Admin",
 };
 
+function defaultQuestRole(defaultRole: RoleKey): RoleKey | "" {
+  if (defaultRole === "analyst" || defaultRole === "admin") return defaultRole;
+  return "";
+}
+
+function initialQuestRole(
+  editing: User | undefined,
+  editingApps: string[],
+  defaultRole: RoleKey,
+): RoleKey | "" {
+  if (editing) {
+    const hasQuestApp = editingApps.includes("QA Questionnaire Platform");
+    if (hasQuestApp && APP_ROLES.questionnaire.includes(editing.role)) return editing.role;
+    return "";
+  }
+  return defaultQuestRole(defaultRole);
+}
+
+function defaultQuestOn(editingApps: string[]): boolean {
+  return editingApps.length === 0 || editingApps.includes("QA Questionnaire Platform");
+}
+
+function initialAutoRole(editing: User | undefined, editingApps: string[]): RoleKey | "" {
+  if (!editing) return "";
+  const hasAutoApp = editingApps.includes("QA Automation Platform");
+  if (hasAutoApp && APP_ROLES.automation.includes(editing.role)) return editing.role;
+  return "";
+}
+
+function splitName(n: string) {
+  const parts = (n || "").trim().split(/\s+/);
+  return { first: parts[0] ?? "", last: parts.slice(1).join(" ") };
+}
+
+const MAX_EMAIL_LENGTH = 254; // RFC 5321 max mailbox length
+
+function isValidEmail(email: string) {
+  if (email.length > MAX_EMAIL_LENGTH) return false;
+  return /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/.test(email);
+}
+
+type FormAccess = {
+  userId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  autoOn: boolean;
+  autoRole: RoleKey | "";
+  questOn: boolean;
+  questRole: RoleKey | "";
+  editing?: User;
+};
+
+function buildUserFromForm(form: FormAccess): User {
+  const platforms: string[] = [];
+  if (form.autoOn && form.autoRole) platforms.push("QA Automation Platform");
+  if (form.questOn && form.questRole) platforms.push("QA Questionnaire Platform");
+  const primaryRole: RoleKey = (form.questOn && form.questRole ? form.questRole : form.autoRole) as RoleKey;
+  return {
+    id: form.userId,
+    name: `${form.firstName.trim()} ${form.lastName.trim()}`.trim(),
+    email: form.email.trim(),
+    totalReports: form.editing?.totalReports ?? (primaryRole === "admin" ? null : 0),
+    score: form.editing?.score ?? (primaryRole === "admin" ? null : 0),
+    lastSubmission: form.editing?.lastSubmission ?? null,
+    status: "Active",
+    role: primaryRole,
+    platforms,
+  };
+}
+
+function InviteSuccess({
+  email,
+  onClose,
+}: {
+  readonly email: string;
+  readonly onClose: () => void;
+}) {
+  return (
+    <div className="p-8 text-center">
+      <div className="mx-auto w-12 h-12 rounded-full bg-[#C6F6D5] flex items-center justify-center mb-4">
+        <CheckCircle2 className="h-7 w-7 text-[#38A169]" />
+      </div>
+      <h2 className="text-[20px] font-semibold text-[#1A202C] mb-2">
+        Invitation sent successfully!
+      </h2>
+      <p className="text-sm text-[#718096] mb-6">
+        An invitation email has been sent to {email}. The user will set their password on first login.
+      </p>
+      <Button variant="outline" onClick={onClose} className="px-8">
+        Close
+      </Button>
+    </div>
+  );
+}
+
+function IdentityFields({
+  firstName,
+  onFirstNameChange,
+  errFirst,
+  lastName,
+  onLastNameChange,
+  errLast,
+  email,
+  onEmailChange,
+  errEmail,
+  userId,
+  inputBase,
+  labelBase,
+  req,
+}: Readonly<{
+  firstName: string;
+  onFirstNameChange: (v: string) => void;
+  errFirst: boolean;
+  lastName: string;
+  onLastNameChange: (v: string) => void;
+  errLast: boolean;
+  email: string;
+  onEmailChange: (v: string) => void;
+  errEmail: boolean;
+  userId: string;
+  inputBase: string;
+  labelBase: string;
+  req: React.ReactNode;
+}>) {
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className={labelBase}>{req}First Name</label>
+          <input
+            value={firstName}
+            onChange={(e) => onFirstNameChange(e.target.value)}
+            placeholder="John"
+            className={`${inputBase} ${errFirst ? "border-[#E53E3E]" : "border-[#E2E8F0]"}`}
+          />
+          {errFirst && <p className="text-xs text-[#E53E3E] mt-1">First name is required.</p>}
+        </div>
+        <div>
+          <label className={labelBase}>{req}Last Name</label>
+          <input
+            value={lastName}
+            onChange={(e) => onLastNameChange(e.target.value)}
+            placeholder="Smith"
+            className={`${inputBase} ${errLast ? "border-[#E53E3E]" : "border-[#E2E8F0]"}`}
+          />
+          {errLast && <p className="text-xs text-[#E53E3E] mt-1">Last name is required.</p>}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className={labelBase}>{req}Email</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => onEmailChange(e.target.value)}
+            placeholder="john.smith@email.com"
+            className={`${inputBase} ${errEmail ? "border-[#E53E3E]" : "border-[#E2E8F0]"}`}
+          />
+          <p className={`text-[12px] mt-1 ${errEmail ? "text-[#E53E3E]" : "text-[#718096]"}`}>
+            {errEmail ? "Enter a valid email address." : "Email must be unique in the system"}
+          </p>
+        </div>
+        <div>
+          <label className={labelBase} htmlFor="user-id-display">User ID</label>
+          <div id="user-id-display" className="mt-1 h-10 rounded-lg border border-[#E2E8F0] bg-[#F7FAFC] px-3 flex items-center justify-between">
+            <span className="text-[13px] text-[#A0AEC0]">Auto-generated</span>
+            <span className="text-[13px] text-[#718096] font-mono">{userId}</span>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function AppAccessSection({
+  autoOn,
+  setAutoOn,
+  autoRole,
+  setAutoRole,
+  questOn,
+  setQuestOn,
+  questRole,
+  setQuestRole,
+  errApps,
+  showSummary,
+  firstName,
+  lastName,
+}: Readonly<{
+  autoOn: boolean;
+  setAutoOn: (v: boolean) => void;
+  autoRole: RoleKey | "";
+  setAutoRole: (r: RoleKey) => void;
+  questOn: boolean;
+  setQuestOn: (v: boolean) => void;
+  questRole: RoleKey | "";
+  setQuestRole: (r: RoleKey) => void;
+  errApps: boolean;
+  showSummary: boolean;
+  firstName: string;
+  lastName: string;
+}>) {
+  return (
+    <div>
+      <div
+        className="text-[11px] uppercase text-[#718096] font-medium pb-2 border-b border-[#EDF2F7]"
+        style={{ letterSpacing: "0.05em" }}
+      >
+        Application Access & Roles
+      </div>
+      <p className="text-[12px] text-[#718096] mt-2 mb-3">
+        A user can have different roles in each application.
+      </p>
+
+      <div className="grid grid-cols-2 gap-3">
+        <AppCard
+          icon={<BarChart3 className="h-5 w-5 text-[#2B3178]" />}
+          iconBg="bg-[#2B3178]/10"
+          name="QA Automation Platform"
+          accent="#2B3178"
+          enabled={autoOn}
+          onToggle={setAutoOn}
+          role={autoRole}
+          setRole={(r) => setAutoRole(r)}
+          roles={APP_ROLES.automation}
+        />
+        <AppCard
+          icon={<ClipboardList className="h-5 w-5 text-[#059669]" />}
+          iconBg="bg-[#059669]/10"
+          name="QA Questionnaire Platform"
+          accent="#059669"
+          enabled={questOn}
+          onToggle={setQuestOn}
+          role={questRole}
+          setRole={(r) => setQuestRole(r)}
+          roles={APP_ROLES.questionnaire}
+        />
+      </div>
+
+      {errApps && (
+        <p className="text-[13px] text-[#E53E3E] mt-3">
+          Please grant access to at least one application.
+        </p>
+      )}
+
+      {showSummary && (firstName || lastName) && (
+        <div className="rounded-lg bg-[#F7FAFC] border border-[#EDF2F7] p-3">
+          <p className="text-[13px] text-[#2D3748] mb-1.5">
+            {firstName} {lastName} will be invited as:
+          </p>
+          <ul className="space-y-1 text-[13px]">
+            {autoOn && autoRole && (
+              <li className="text-[#2B3178]">
+                · {ROLE_LABEL[autoRole]} on QA Automation Platform
+              </li>
+            )}
+            {questOn && questRole && (
+              <li className="text-[#059669]">
+                · {ROLE_LABEL[questRole]} on QA Questionnaire Platform
+              </li>
+            )}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function UserModal({
   open,
   onOpenChange,
@@ -401,18 +681,14 @@ function UserModal({
   editing,
   onSave,
 }: {
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
-  title: string;
-  defaultRole: RoleKey;
-  editing?: User;
-  onSave: (u: User) => void;
+  readonly open: boolean;
+  readonly onOpenChange: (o: boolean) => void;
+  readonly title: string;
+  readonly defaultRole: RoleKey;
+  readonly editing?: User;
+  readonly onSave: (u: User) => void;
 }) {
   const isEdit = !!editing;
-  const splitName = (n: string) => {
-    const parts = (n || "").trim().split(/\s+/);
-    return { first: parts[0] ?? "", last: parts.slice(1).join(" ") };
-  };
   const initial = splitName(editing?.name ?? "");
   const editingApps = editing?.platforms ?? [];
 
@@ -423,18 +699,10 @@ function UserModal({
     editing?.id ?? `USR-${crypto.randomUUID().slice(0, 4).toUpperCase()}`,
   );
   const [autoOn, setAutoOn] = useState(editingApps.includes("QA Automation Platform"));
-  const [questOn, setQuestOn] = useState(
-    editingApps.length === 0 ? true : editingApps.includes("QA Questionnaire Platform"),
-  );
-  const [autoRole, setAutoRole] = useState<RoleKey | "">(
-    editing && editingApps.includes("QA Automation Platform") && APP_ROLES.automation.includes(editing.role)
-      ? editing.role
-      : "",
-  );
+  const [questOn, setQuestOn] = useState(defaultQuestOn(editingApps));
+  const [autoRole, setAutoRole] = useState<RoleKey | "">(initialAutoRole(editing, editingApps));
   const [questRole, setQuestRole] = useState<RoleKey | "">(
-    editing && editingApps.includes("QA Questionnaire Platform") && APP_ROLES.questionnaire.includes(editing.role)
-      ? editing.role
-      : (!editing ? defaultRole === "analyst" || defaultRole === "admin" ? defaultRole : "" : ""),
+    initialQuestRole(editing, editingApps, defaultRole),
   );
 
   const [submitted, setSubmitted] = useState(false);
@@ -446,7 +714,7 @@ function UserModal({
     setLastName(initial.last);
     setEmail(editing?.email ?? "");
     setAutoOn(editingApps.includes("QA Automation Platform"));
-    setQuestOn(editingApps.length === 0 ? true : editingApps.includes("QA Questionnaire Platform"));
+    setQuestOn(defaultQuestOn(editingApps));
     setAutoRole("");
     setQuestRole("");
     setSubmitted(false);
@@ -459,7 +727,7 @@ function UserModal({
     onOpenChange(o);
   };
 
-  const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const validEmail = isValidEmail(email);
   const atLeastOneApp = (autoOn && autoRole) || (questOn && questRole);
   const errFirst = submitted && !firstName.trim();
   const errLast = submitted && !lastName.trim();
@@ -471,21 +739,19 @@ function UserModal({
     if (!firstName.trim() || !lastName.trim() || !validEmail || !atLeastOneApp) return;
     setLoading(true);
     setTimeout(() => {
-      const platforms: string[] = [];
-      if (autoOn && autoRole) platforms.push("QA Automation Platform");
-      if (questOn && questRole) platforms.push("QA Questionnaire Platform");
-      const primaryRole: RoleKey = (questOn && questRole ? questRole : autoRole) as RoleKey;
-      onSave({
-        id: userId,
-        name: `${firstName.trim()} ${lastName.trim()}`.trim(),
-        email: email.trim(),
-        totalReports: editing?.totalReports ?? (primaryRole === "admin" ? null : 0),
-        score: editing?.score ?? (primaryRole === "admin" ? null : 0),
-        lastSubmission: editing?.lastSubmission ?? null,
-        status: "Active",
-        role: primaryRole,
-        platforms,
-      });
+      onSave(
+        buildUserFromForm({
+          userId,
+          firstName,
+          lastName,
+          email,
+          autoOn,
+          autoRole,
+          questOn,
+          questRole,
+          editing,
+        }),
+      );
       setLoading(false);
       setSuccess(true);
     }, 1500);
@@ -496,7 +762,7 @@ function UserModal({
   const labelBase = "text-[13px] text-[#2D3748] font-medium";
   const req = <span className="text-[#E53E3E] mr-0.5">*</span>;
 
-  const showSummary = (autoOn && autoRole) || (questOn && questRole);
+  const showSummary = Boolean((autoOn && autoRole) || (questOn && questRole));
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -504,24 +770,7 @@ function UserModal({
         className="sm:max-w-[640px] p-0 gap-0 rounded-[12px] overflow-hidden border-0 shadow-2xl"
       >
         {success ? (
-          <div className="p-8 text-center">
-            <div className="mx-auto w-12 h-12 rounded-full bg-[#C6F6D5] flex items-center justify-center mb-4">
-              <CheckCircle2 className="h-7 w-7 text-[#38A169]" />
-            </div>
-            <h2 className="text-[20px] font-semibold text-[#1A202C] mb-2">
-              Invitation sent successfully!
-            </h2>
-            <p className="text-sm text-[#718096] mb-6">
-              An invitation email has been sent to {email}. The user will set their password on first login.
-            </p>
-            <Button
-              variant="outline"
-              onClick={() => handleOpenChange(false)}
-              className="px-8"
-            >
-              Close
-            </Button>
-          </div>
+          <InviteSuccess email={email} onClose={() => handleOpenChange(false)} />
         ) : (
           <>
             <div className="px-6 pt-5 pb-4 border-b border-[#EDF2F7]">
@@ -533,118 +782,36 @@ function UserModal({
             </div>
 
             <div className="px-6 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
-              {/* Names row */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className={labelBase}>{req}First Name</label>
-                  <input
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="John"
-                    className={`${inputBase} ${errFirst ? "border-[#E53E3E]" : "border-[#E2E8F0]"}`}
-                  />
-                  {errFirst && <p className="text-xs text-[#E53E3E] mt-1">First name is required.</p>}
-                </div>
-                <div>
-                  <label className={labelBase}>{req}Last Name</label>
-                  <input
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    placeholder="Smith"
-                    className={`${inputBase} ${errLast ? "border-[#E53E3E]" : "border-[#E2E8F0]"}`}
-                  />
-                  {errLast && <p className="text-xs text-[#E53E3E] mt-1">Last name is required.</p>}
-                </div>
-              </div>
+              <IdentityFields
+                firstName={firstName}
+                onFirstNameChange={setFirstName}
+                errFirst={errFirst}
+                lastName={lastName}
+                onLastNameChange={setLastName}
+                errLast={errLast}
+                email={email}
+                onEmailChange={setEmail}
+                errEmail={errEmail}
+                userId={userId}
+                inputBase={inputBase}
+                labelBase={labelBase}
+                req={req}
+              />
 
-              {/* Email + UserID row */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className={labelBase}>{req}Email</label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="john.smith@email.com"
-                    className={`${inputBase} ${errEmail ? "border-[#E53E3E]" : "border-[#E2E8F0]"}`}
-                  />
-                  <p className={`text-[12px] mt-1 ${errEmail ? "text-[#E53E3E]" : "text-[#718096]"}`}>
-                    {errEmail ? "Enter a valid email address." : "Email must be unique in the system"}
-                  </p>
-                </div>
-                <div>
-                  <label className={labelBase}>User ID</label>
-                  <div className="mt-1 h-10 rounded-lg border border-[#E2E8F0] bg-[#F7FAFC] px-3 flex items-center justify-between">
-                    <span className="text-[13px] text-[#A0AEC0]">Auto-generated</span>
-                    <span className="text-[13px] text-[#718096] font-mono">{userId}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Application Access section */}
-              <div>
-                <div
-                  className="text-[11px] uppercase text-[#718096] font-medium pb-2 border-b border-[#EDF2F7]"
-                  style={{ letterSpacing: "0.05em" }}
-                >
-                  Application Access & Roles
-                </div>
-                <p className="text-[12px] text-[#718096] mt-2 mb-3">
-                  A user can have different roles in each application.
-                </p>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <AppCard
-                    icon={<BarChart3 className="h-5 w-5 text-[#2B3178]" />}
-                    iconBg="bg-[#2B3178]/10"
-                    name="QA Automation Platform"
-                    accent="#2B3178"
-                    enabled={autoOn}
-                    onToggle={setAutoOn}
-                    role={autoRole}
-                    setRole={(r) => setAutoRole(r)}
-                    roles={APP_ROLES.automation}
-                  />
-                  <AppCard
-                    icon={<ClipboardList className="h-5 w-5 text-[#059669]" />}
-                    iconBg="bg-[#059669]/10"
-                    name="QA Questionnaire Platform"
-                    accent="#059669"
-                    enabled={questOn}
-                    onToggle={setQuestOn}
-                    role={questRole}
-                    setRole={(r) => setQuestRole(r)}
-                    roles={APP_ROLES.questionnaire}
-                  />
-                </div>
-
-                {errApps && (
-                  <p className="text-[13px] text-[#E53E3E] mt-3">
-                    Please grant access to at least one application.
-                  </p>
-                )}
-              </div>
-
-              {/* Summary */}
-              {showSummary && (firstName || lastName) && (
-                <div className="rounded-lg bg-[#F7FAFC] border border-[#EDF2F7] p-3">
-                  <p className="text-[13px] text-[#2D3748] mb-1.5">
-                    {firstName} {lastName} will be invited as:
-                  </p>
-                  <ul className="space-y-1 text-[13px]">
-                    {autoOn && autoRole && (
-                      <li className="text-[#2B3178]">
-                        · {ROLE_LABEL[autoRole as RoleKey]} on QA Automation Platform
-                      </li>
-                    )}
-                    {questOn && questRole && (
-                      <li className="text-[#059669]">
-                        · {ROLE_LABEL[questRole as RoleKey]} on QA Questionnaire Platform
-                      </li>
-                    )}
-                  </ul>
-                </div>
-              )}
+              <AppAccessSection
+                autoOn={autoOn}
+                setAutoOn={setAutoOn}
+                autoRole={autoRole}
+                setAutoRole={setAutoRole}
+                questOn={questOn}
+                setQuestOn={setQuestOn}
+                questRole={questRole}
+                setQuestRole={setQuestRole}
+                errApps={errApps}
+                showSummary={showSummary}
+                firstName={firstName}
+                lastName={lastName}
+              />
             </div>
 
             <div className="px-6 py-4 border-t border-[#EDF2F7] flex items-center justify-end gap-3">
@@ -681,15 +848,15 @@ function AppCard({
   setRole,
   roles,
 }: {
-  icon: React.ReactNode;
-  iconBg: string;
-  name: string;
-  accent: string;
-  enabled: boolean;
-  onToggle: (v: boolean) => void;
-  role: RoleKey | "";
-  setRole: (r: RoleKey) => void;
-  roles: RoleKey[];
+  readonly icon: React.ReactNode;
+  readonly iconBg: string;
+  readonly name: string;
+  readonly accent: string;
+  readonly enabled: boolean;
+  readonly onToggle: (v: boolean) => void;
+  readonly role: RoleKey | "";
+  readonly setRole: (r: RoleKey) => void;
+  readonly roles: RoleKey[];
 }) {
   return (
     <div
@@ -712,11 +879,11 @@ function AppCard({
       </div>
       {enabled && (
         <div className="mt-4">
-          <label className="text-[13px] text-[#2D3748] font-medium">
+          <label className="text-[13px] text-[#2D3748] font-medium" htmlFor={`${name}-role`}>
             <span className="text-[#E53E3E] mr-0.5">*</span>Role in this application
           </label>
           <Select value={role} onValueChange={(v) => setRole(v as RoleKey)}>
-            <SelectTrigger className="mt-1 h-10">
+            <SelectTrigger id={`${name}-role`} className="mt-1 h-10">
               <SelectValue placeholder="Select role" />
             </SelectTrigger>
             <SelectContent>

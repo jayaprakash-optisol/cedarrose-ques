@@ -2,9 +2,9 @@ import { Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
-  title?: string;
-  children: React.ReactNode;
-  backgroundImage?: string;
+  readonly title?: string;
+  readonly children: React.ReactNode;
+  readonly backgroundImage?: string;
 }
 
 export function QuestionnaireShell({ title, children, backgroundImage }: Props) {

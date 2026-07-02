@@ -1,10 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import userEvent from "@testing-library/user-event";
 import { render, screen, waitFor } from "@testing-library/react";
+import * as reactRouterDom from "react-router-dom";
 import CompleteRegistrationPage from "@/features/auth/pages/CompleteRegistrationPage";
 import { authService } from "@/services";
 import { ApiError } from "@/services/api/errors";
 import { renderWithProviders } from "../../../helpers/render";
+
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual<typeof reactRouterDom>("react-router-dom");
+  return { ...actual, useNavigate: actual.useNavigate };
+});
 
 describe("CompleteRegistrationPage", () => {
   beforeEach(() => vi.restoreAllMocks());
@@ -172,6 +178,8 @@ describe("CompleteRegistrationPage", () => {
 
   it("navigates to /login when Continue to sign in is clicked", async () => {
     const user = userEvent.setup();
+    const navigateSpy = vi.fn();
+    vi.spyOn(reactRouterDom, "useNavigate").mockReturnValue(navigateSpy);
     vi.spyOn(authService, "verifyInvitation").mockResolvedValue({
       firstName: "Jane",
       lastName: "Doe",
@@ -188,6 +196,7 @@ describe("CompleteRegistrationPage", () => {
     await user.click(screen.getByRole("button", { name: "Activate account" }));
     await screen.findByText("Account activated");
     await user.click(screen.getByRole("button", { name: "Continue to sign in" }));
+    expect(navigateSpy).toHaveBeenCalledWith("/login", { replace: true });
   });
 
   it("renders Sign in link to /login in the form view", async () => {
@@ -230,7 +239,13 @@ describe("CompleteRegistrationPage", () => {
     await user.type(pw, "short");
     await user.type(cpw, "short");
     await user.click(screen.getByRole("button", { name: "Activate account" }));
-    // Wait for the timeout to clear the shake
-    await new Promise((r) => setTimeout(r, 400));
+    const errorMessage = await screen.findByText("Password must be at least 8 characters.");
+    expect(errorMessage.closest(".cr-shake")).not.toBeNull();
+    await waitFor(
+      () => {
+        expect(errorMessage.closest(".cr-shake")).toBeNull();
+      },
+      { timeout: 1000 },
+    );
   });
 });

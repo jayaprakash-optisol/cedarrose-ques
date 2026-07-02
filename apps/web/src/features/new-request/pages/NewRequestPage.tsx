@@ -6,7 +6,6 @@ import { Loader2, Check, AlertCircle, ArrowLeft, Copy, ExternalLink } from "luci
 import { toast } from "sonner";
 import { companiesService, casesService, templatesService } from "@/services";
 import { ApiError } from "@/services/api/client";
-import { COUNTRIES } from "@/config/workflow";
 import type { CaseRecord, CompanyData, RecipientType } from "@/types/case";
 import type { Template } from "@/types/template";
 import { AppShell } from "@/components/layout/AppShell";
@@ -51,7 +50,7 @@ export default function NewRequestPage() {
   const [createdCase, setCreatedCase] = useState<CaseRecord | null>(null);
 
   const [recipientType, setRecipientType] = useState<RecipientType>("Supplier");
-  const [auth, setAuth] = useState<"OTP" | "Password" | "One-time link">("OTP");
+  const auth: "OTP" | "Password" | "One-time link" = "OTP";
   const [expiry, setExpiry] = useState("48");
   const autoFetchAttempted = useRef(false);
 
@@ -200,11 +199,7 @@ export default function NewRequestPage() {
           <div className="space-y-4">
             <div className="rounded-lg border border-border bg-card p-6">
               <h3 className="text-sm font-semibold mb-3">Step B — Review fetched company data</h3>
-              {!company ? (
-                <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Loading company data…
-                </div>
-              ) : (
+              {company ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                   <Read label="Company name" value={company.companyName} />
                   <Read label="Registration #" value={company.registrationNumber} />
@@ -214,6 +209,10 @@ export default function NewRequestPage() {
                   <Read label="Incorporation date" value={company.additionalFields.incorporationDate} />
                   <Read label="Legal structure" value={company.additionalFields.legalStructure} />
                   <Read label="Primary industry" value={company.additionalFields.primaryIndustry} />
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Loading company data…
                 </div>
               )}
               {emailWarning && (
@@ -379,7 +378,7 @@ export default function NewRequestPage() {
   );
 }
 
-function Stepper({ step }: { step: Step }) {
+function Stepper({ step }: Readonly<{ step: Step }>) {
   const steps: { id: Step; label: string }[] = [
     { id: "A", label: "Enter order details" },
     { id: "B", label: "Review fetched data" },
@@ -392,9 +391,7 @@ function Stepper({ step }: { step: Step }) {
       {steps.map((s, i) => {
         const done = i < idx;
         const current = i === idx;
-        const circleStyle: React.CSSProperties = done
-          ? { backgroundColor: "#2B3178", color: "#FFFFFF" }
-          : current
+        const circleStyle: React.CSSProperties = done || current
           ? { backgroundColor: "#2B3178", color: "#FFFFFF" }
           : { backgroundColor: "#E2E8F0", color: "#4A5568" };
         const labelStyle: React.CSSProperties = done || current
@@ -423,7 +420,7 @@ function Stepper({ step }: { step: Step }) {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: Readonly<{ label: string; children: React.ReactNode }>) {
   return (
     <div className="space-y-1">
       <Label className="text-xs text-muted-foreground">{label}</Label>
@@ -432,7 +429,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function Read({ label, value }: { label: string; value: string }) {
+function Read({ label, value }: Readonly<{ label: string; value: string }>) {
   return (
     <div>
       <div className="text-xs text-muted-foreground">{label}</div>

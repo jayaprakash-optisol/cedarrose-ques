@@ -232,9 +232,20 @@ export function mapCurrentUser(u: ApiUser): CurrentUser {
   };
 }
 
+function parseUserScore(score: ApiUser["score"]): number | null {
+  if (score == null) return null;
+  if (typeof score === "string") return Number.parseFloat(score);
+  return score;
+}
+
+function mapUserStatus(status: string): User["status"] {
+  if (status === "Pending") return "Pending";
+  if (status === "Active") return "Active";
+  return "Inactive";
+}
+
 export function mapUser(u: ApiUser): User {
-  const score =
-    u.score == null ? null : typeof u.score === "string" ? Number.parseFloat(u.score) : u.score;
+  const score = parseUserScore(u.score);
   return {
     id: u.userId,
     name: `${u.firstName} ${u.lastName}`.trim(),
@@ -242,7 +253,7 @@ export function mapUser(u: ApiUser): User {
     totalReports: u.totalReports ?? null,
     score: Number.isFinite(score) ? score : null,
     lastSubmission: u.lastSubmission ? absTime(u.lastSubmission) : null,
-    status: (u.status === "Pending" ? "Pending" : u.status === "Active" ? "Active" : "Inactive") as User["status"],
+    status: mapUserStatus(u.status),
     role: toRoleKey(u.role),
     platforms: u.platforms?.map((p) => p.platform),
   };
@@ -328,15 +339,17 @@ export function mapCase(
   };
 }
 
+function normalizeRecipientEmailEntry(entry: ApiCompany["recipientEmails"][number]): string {
+  if (typeof entry === "string") return entry;
+  if (typeof entry === "object" && entry && "email" in entry) {
+    return String((entry as { email: string }).email);
+  }
+  return String(entry);
+}
+
 function normalizeRecipientEmails(emails: ApiCompany["recipientEmails"]): string[] {
   if (!Array.isArray(emails)) return [];
-  return emails.map((entry) =>
-    typeof entry === "string"
-      ? entry
-      : typeof entry === "object" && entry && "email" in entry
-        ? String((entry as { email: string }).email)
-        : String(entry)
-  );
+  return emails.map(normalizeRecipientEmailEntry);
 }
 
 export function mapCompany(c: ApiCompany): CompanyData {
@@ -504,7 +517,7 @@ function mapSection(s: ApiTemplateSection, index: number): Section {
     title: s.title,
     description: s.description ?? undefined,
     banner: s.banner ?? undefined,
-    questions: s.questions
+    questions: [...s.questions]
       .sort((a, b) => a.orderIndex - b.orderIndex)
       .map((q, qi) => mapQuestion(q, qi)),
   };

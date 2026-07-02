@@ -6,6 +6,7 @@ import { Check, Loader2, Circle } from "lucide-react";
 import type { CaseRecord } from "@/types/case";
 import { WORKFLOW_STEPS } from "@/config/workflow";
 import { buildWorkflowProgress } from "@/lib/workflow-progress";
+import { resolveWorkflowStepState } from "@/lib/workflow-step-state";
 import { RecipientBadge, StatusBadge } from "@/components/common/StatusBadge";
 import { ResponsesReview } from "@/features/cases/components/ResponsesReview";
 import { absTime } from "@/lib/format";
@@ -14,9 +15,9 @@ import { resolveCaseCompletion } from "@/lib/response-completion";
 import { casesService, auditService } from "@/services";
 
 interface Props {
-  case: CaseRecord | null;
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
+  readonly case: CaseRecord | null;
+  readonly open: boolean;
+  readonly onOpenChange: (o: boolean) => void;
 }
 
 export function CaseDetailPanel({ case: selected, open, onOpenChange }: Props) {
@@ -136,12 +137,7 @@ export function CaseDetailPanel({ case: selected, open, onOpenChange }: Props) {
               <ol className="space-y-2">
                 {WORKFLOW_STEPS.map((name, idx) => {
                   const num = idx + 1;
-                  const state =
-                    num < timeline.currentStep
-                      ? "done"
-                      : num === timeline.currentStep
-                        ? "current"
-                        : "todo";
+                  const state = resolveWorkflowStepState(num, timeline.currentStep);
                   const ts = timeline.completedAt[idx];
                   return (
                     <li key={num} className="flex items-start gap-3">
@@ -188,7 +184,7 @@ export function CaseDetailPanel({ case: selected, open, onOpenChange }: Props) {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children }: Readonly<{ title: string; children: React.ReactNode }>) {
   return (
     <div>
       <h3 className="text-xs uppercase tracking-wide font-semibold text-muted-foreground mb-2">{title}</h3>
@@ -197,7 +193,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Field({ label, value }: { label: string; value: string }) {
+function Field({ label, value }: Readonly<{ label: string; value: string }>) {
   return (
     <div className="grid grid-cols-[140px_1fr] gap-2 text-sm">
       <div className="text-muted-foreground">{label}</div>

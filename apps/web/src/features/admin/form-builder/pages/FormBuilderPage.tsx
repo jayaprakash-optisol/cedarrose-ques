@@ -18,17 +18,17 @@ import {
   Upload,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import {
+  Button,
+  Input,
+  Textarea,
+  Switch,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/features/admin/shared/formControls";
 import {
   Collapsible,
   CollapsibleContent,
@@ -62,7 +62,6 @@ import type {
   Section,
   Template,
   TableColumn,
-  Condition,
   Validation,
 } from "@/types/template";
 
@@ -80,6 +79,23 @@ const FIELD_TYPES: { value: FieldType; label: string }[] = [
   { value: "toggle", label: "Toggle (yes/no)" },
   { value: "url", label: "URL" },
 ];
+
+function replaceSectionById(arr: Section[], id: string, updated: Section): Section[] {
+  return arr.map((s) => (s.id === id ? updated : s));
+}
+
+function removeSectionById(arr: Section[], id: string): Section[] {
+  return arr.filter((s) => s.id !== id);
+}
+
+function moveSectionById(arr: Section[], id: string, dir: "up" | "down"): Section[] {
+  const i = arr.findIndex((s) => s.id === id);
+  const j = dir === "up" ? i - 1 : i + 1;
+  if (j < 0 || j >= arr.length) return arr;
+  const next = [...arr];
+  [next[i], next[j]] = [next[j], next[i]];
+  return next;
+}
 
 function reorderList<T>(items: T[], fromIndex: number, toIndex: number): T[] {
   if (fromIndex === toIndex) return items;
@@ -107,7 +123,7 @@ function resolveInsertIndex(container: HTMLElement | null, clientY: number): num
   const first = cards[0].getBoundingClientRect();
   if (clientY <= first.top + EDGE_DROP_ZONE_PX) return 0;
 
-  const last = cards[cards.length - 1].getBoundingClientRect();
+  const last = cards.at(-1)!.getBoundingClientRect();
   if (clientY >= last.bottom - EDGE_DROP_ZONE_PX) return cards.length;
 
   for (let i = 0; i < cards.length; i++) {
@@ -132,7 +148,7 @@ function playFlipAnimation(container: HTMLElement | null, previous: Map<string, 
     if (!id) return;
     const prevTop = previous.get(id);
     if (prevTop === undefined) return;
-    const node = el as HTMLElement;
+    const node = el;
     const delta = prevTop - node.offsetTop;
     if (Math.abs(delta) < 1) return;
     node.style.transform = `translateY(${delta}px)`;
@@ -243,8 +259,8 @@ export default function FormBuilderPage() {
       await templatesService.delete(id);
       await queryClient.invalidateQueries({ queryKey: ["templates"] });
       if (selectedId === id) {
-        const remaining = library.filter((t) => t.id !== id);
-        setSelectedId(remaining[0]?.id ?? null);
+        const remaining = library.find((t) => t.id !== id);
+        setSelectedId(remaining?.id ?? null);
         setDraft(null);
       }
       toast.success("Template deleted");
@@ -264,6 +280,7 @@ export default function FormBuilderPage() {
   };
 
   const tpl = draft;
+  const isBuilderPanelLoading = listLoading || (!!selectedId && detailLoading);
 
   return (
     <AppShell>
@@ -284,11 +301,12 @@ export default function FormBuilderPage() {
             onNew={() => setNewOpen(true)}
             onDelete={handleDelete}
           />
-          {listLoading || (selectedId && detailLoading) ? (
+          {isBuilderPanelLoading && (
             <div className="rounded-lg border border-border bg-card p-8 text-sm text-muted-foreground">
               Loading template…
             </div>
-          ) : tpl ? (
+          )}
+          {!isBuilderPanelLoading && tpl && (
             <BuilderCanvas
               tpl={tpl}
               updateTpl={updateDraft}
@@ -298,7 +316,8 @@ export default function FormBuilderPage() {
               saving={saving}
               statusUpdating={statusUpdating}
             />
-          ) : (
+          )}
+          {!isBuilderPanelLoading && !tpl && (
             <div className="rounded-lg border border-border bg-card p-8 text-sm text-muted-foreground">
               Select or create a template to begin editing.
             </div>
@@ -313,8 +332,9 @@ export default function FormBuilderPage() {
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Template name</label>
+              <label htmlFor="new-template-name" className="text-sm font-medium">Template name</label>
               <Input
+                id="new-template-name"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 placeholder="e.g. Enhanced KYC — Supplier"
@@ -322,9 +342,9 @@ export default function FormBuilderPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Recipient</label>
+              <label htmlFor="new-template-recipient" className="text-sm font-medium">Recipient</label>
               <Select value={newRecipient} onValueChange={(v) => setNewRecipient(v as Template["recipientType"])}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger id="new-template-recipient"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Supplier">Supplier</SelectItem>
                   <SelectItem value="Customer">Customer</SelectItem>
@@ -352,14 +372,14 @@ function TemplateLibrary({
   onSelect,
   onNew,
   onDelete,
-}: {
+}: Readonly<{
   templates: Template[];
   selectedId: string;
   loading?: boolean;
   onSelect: (id: string) => void;
   onNew: () => void;
   onDelete: (id: string) => void;
-}) {
+}>) {
   return (
     <aside className="rounded-lg border border-border bg-card p-3 space-y-3 h-fit">
       <div className="flex items-center justify-between">
@@ -430,7 +450,7 @@ function BuilderCanvas({
   onStatusChange,
   saving,
   statusUpdating,
-}: {
+}: Readonly<{
   tpl: Template;
   updateTpl: (p: Partial<Template>) => void;
   updateSections: (fn: (s: Section[]) => Section[]) => void;
@@ -438,7 +458,7 @@ function BuilderCanvas({
   onStatusChange: (status: Template["status"]) => void | Promise<void>;
   saving?: boolean;
   statusUpdating?: boolean;
-}) {
+}>) {
   const [addOpen, setAddOpen] = useState(false);
 
   const summary = useMemo(() => {
@@ -498,22 +518,9 @@ function BuilderCanvas({
             section={sec}
             isFirst={idx === 0}
             isLast={idx === tpl.sections.length - 1}
-            onChange={(updated) =>
-              updateSections((arr) => arr.map((s) => (s.id === sec.id ? updated : s)))
-            }
-            onRemove={() =>
-              updateSections((arr) => arr.filter((s) => s.id !== sec.id))
-            }
-            onMove={(dir) =>
-              updateSections((arr) => {
-                const i = arr.findIndex((s) => s.id === sec.id);
-                const j = dir === "up" ? i - 1 : i + 1;
-                if (j < 0 || j >= arr.length) return arr;
-                const next = [...arr];
-                [next[i], next[j]] = [next[j], next[i]];
-                return next;
-              })
-            }
+            onChange={(updated) => updateSections((arr) => replaceSectionById(arr, sec.id, updated))}
+            onRemove={() => updateSections((arr) => removeSectionById(arr, sec.id))}
+            onMove={(dir) => updateSections((arr) => moveSectionById(arr, sec.id, dir))}
           />
         ))}
 
@@ -546,15 +553,14 @@ function AddSectionDialog({
   onOpenChange,
   sections,
   onAdd,
-}: {
+}: Readonly<{
   open: boolean;
   onOpenChange: (v: boolean) => void;
   sections: Section[];
   onAdd: (title: string, description: string, afterIdx: number) => void;
-}) {
+}>) {
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
-  const [pos, setPos] = useState(String(sections.length - 1));
 
   return (
     <Dialog
@@ -564,7 +570,6 @@ function AddSectionDialog({
         if (v) {
           setTitle("");
           setDesc("");
-          setPos(String(sections.length - 1));
         }
       }}
     >
@@ -574,16 +579,18 @@ function AddSectionDialog({
         </DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Section title</label>
+            <label htmlFor="add-section-title" className="text-xs text-muted-foreground">Section title</label>
             <Input
+              id="add-section-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Financial Information"
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Section description (optional)</label>
+            <label htmlFor="add-section-description" className="text-xs text-muted-foreground">Section description (optional)</label>
             <Textarea
+              id="add-section-description"
               value={desc}
               onChange={(e) => setDesc(e.target.value)}
               placeholder="Brief description of what this section covers"
@@ -611,11 +618,11 @@ function QuestionDropEdge({
   position,
   active,
   style,
-}: {
+}: Readonly<{
   position: "top" | "bottom";
   active: boolean;
   style: CSSProperties;
-}) {
+}>) {
   const Icon = position === "top" ? ArrowUp : ArrowDown;
   const label = position === "top" ? "Drop at top" : "Drop at bottom";
 
@@ -643,7 +650,7 @@ function getDropOverlayPositions(container: HTMLElement | null) {
   }
   const containerTop = container.getBoundingClientRect().top;
   const first = cards[0].getBoundingClientRect();
-  const last = cards[cards.length - 1].getBoundingClientRect();
+  const last = cards.at(-1)!.getBoundingClientRect();
   return {
     top: first.top - containerTop - 4,
     bottom: last.bottom - containerTop + 4,
@@ -657,7 +664,7 @@ function getInsertMarkerTop(container: HTMLElement | null, insertIdx: number): n
   const containerTop = container.getBoundingClientRect().top;
   if (insertIdx <= 0) return cards[0].getBoundingClientRect().top - containerTop - 2;
   if (insertIdx >= cards.length) {
-    const last = cards[cards.length - 1].getBoundingClientRect();
+    const last = cards.at(-1)!.getBoundingClientRect();
     return last.bottom - containerTop + 2;
   }
   return cards[insertIdx].getBoundingClientRect().top - containerTop - 2;
@@ -670,14 +677,14 @@ function SectionCard({
   onChange,
   onRemove,
   onMove,
-}: {
+}: Readonly<{
   section: Section;
   isFirst: boolean;
   isLast: boolean;
   onChange: (s: Section) => void;
   onRemove: () => void;
   onMove: (dir: "up" | "down") => void;
-}) {
+}>) {
   const [open, setOpen] = useState(true);
   const [renameOpen, setRenameOpen] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
@@ -689,7 +696,7 @@ function SectionCard({
     bottom: number;
     marker: number;
   } | null>(null);
-  const questionListRef = useRef<HTMLDivElement>(null);
+  const questionListRef = useRef<HTMLFieldSetElement>(null);
   const dragFromRef = useRef<number | null>(null);
   const update = (patch: Partial<Section>) => onChange({ ...section, ...patch });
 
@@ -724,7 +731,7 @@ function SectionCard({
     setInsertIndex(null);
     setDropOverlay(null);
   };
-  const handleListDragOver = (e: DragEvent<HTMLDivElement>) => {
+  const handleListDragOver = (e: DragEvent<HTMLFieldSetElement>) => {
     e.preventDefault();
     if (dragFromRef.current === null) return;
     e.dataTransfer.dropEffect = "move";
@@ -736,7 +743,7 @@ function SectionCard({
       marker: getInsertMarkerTop(questionListRef.current, nextInsert),
     });
   };
-  const handleListDrop = (e: DragEvent<HTMLDivElement>) => {
+  const handleListDrop = (e: DragEvent<HTMLFieldSetElement>) => {
     e.preventDefault();
     const fromIndex = dragFromRef.current;
     if (fromIndex === null) return;
@@ -782,9 +789,10 @@ function SectionCard({
         </DropdownMenu>
       </div>
       <CollapsibleContent>
-        <div
+        <fieldset
           ref={questionListRef}
-          className="relative px-4 pb-4 space-y-3"
+          aria-label={`${section.title} questions`}
+          className="relative px-4 pb-4 space-y-3 border-0 p-0 m-0"
           onDragOver={handleListDragOver}
           onDrop={handleListDrop}
         >
@@ -843,7 +851,7 @@ function SectionCard({
           >
             <Plus className="h-4 w-4" /> Add question to this section
           </button>
-        </div>
+        </fieldset>
       </CollapsibleContent>
 
       <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
@@ -884,7 +892,7 @@ function QuestionCard({
   onDragEnd,
   onChange,
   onDelete,
-}: {
+}: Readonly<{
   index: number;
   question: Question;
   allQuestions: Question[];
@@ -895,7 +903,7 @@ function QuestionCard({
   onDragEnd: () => void;
   onChange: (patch: Partial<Question>) => void;
   onDelete: () => void;
-}) {
+}>) {
   const cardRef = useRef<HTMLDivElement>(null);
   const dragGhostRef = useRef<HTMLElement | null>(null);
   const [optInput, setOptInput] = useState("");
@@ -903,7 +911,7 @@ function QuestionCard({
   const [confirmDel, setConfirmDel] = useState(false);
 
   const updateValidation = (patch: Partial<Validation>) => {
-    onChange({ validation: { ...(question.validation ?? {}), ...patch } });
+    onChange({ validation: { ...question.validation, ...patch } });
   };
   const updateColumn = (idx: number, patch: Partial<TableColumn>) => {
     const cols = [...(question.columns ?? [])];
@@ -1033,13 +1041,13 @@ function QuestionCard({
 
       <div className="flex flex-wrap items-center gap-4 pl-6 text-sm">
         <div className="flex items-center gap-2">
-          <label className="text-xs text-muted-foreground">Type</label>
+          <label htmlFor={`${question.id}-type`} className="text-xs text-muted-foreground">Type</label>
           <Select
             value={question.type}
             onValueChange={(v) => onChange({ type: v as FieldType })}
             disabled={question.systemControlled}
           >
-            <SelectTrigger className="w-[220px] h-8"><SelectValue /></SelectTrigger>
+            <SelectTrigger id={`${question.id}-type`} className="w-[220px] h-8"><SelectValue /></SelectTrigger>
             <SelectContent>
               {FIELD_TYPES.map((f) => (
                 <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
@@ -1049,26 +1057,29 @@ function QuestionCard({
         </div>
         <div className="flex items-center gap-2">
           <Switch
+            id={`${question.id}-required`}
             checked={question.required}
             onCheckedChange={(v) => onChange({ required: v })}
             disabled={question.systemControlled}
           />
-          <label className="text-xs">Required</label>
+          <label htmlFor={`${question.id}-required`} className="text-xs">Required</label>
         </div>
       </div>
 
       {/* Validation rules */}
       {question.type === "number" && (
         <div className="pl-6 flex flex-wrap items-center gap-3">
-          <label className="text-xs text-muted-foreground">Min</label>
+          <label htmlFor={`${question.id}-min`} className="text-xs text-muted-foreground">Min</label>
           <Input
+            id={`${question.id}-min`}
             type="number"
             value={question.validation?.min ?? ""}
             onChange={(e) => updateValidation({ min: e.target.value === "" ? undefined : Number(e.target.value) })}
             className="h-8 w-24"
           />
-          <label className="text-xs text-muted-foreground">Max</label>
+          <label htmlFor={`${question.id}-max`} className="text-xs text-muted-foreground">Max</label>
           <Input
+            id={`${question.id}-max`}
             type="number"
             value={question.validation?.max ?? ""}
             onChange={(e) => updateValidation({ max: e.target.value === "" ? undefined : Number(e.target.value) })}
@@ -1078,8 +1089,9 @@ function QuestionCard({
       )}
       {(question.type === "text" || question.type === "longtext" || question.type === "url") && (
         <div className="pl-6 flex flex-wrap items-center gap-3">
-          <label className="text-xs text-muted-foreground">Max characters</label>
+          <label htmlFor={`${question.id}-maxlength`} className="text-xs text-muted-foreground">Max characters</label>
           <Input
+            id={`${question.id}-maxlength`}
             type="number"
             value={question.validation?.maxLength ?? ""}
             onChange={(e) => updateValidation({ maxLength: e.target.value === "" ? undefined : Number(e.target.value) })}
@@ -1091,17 +1103,19 @@ function QuestionCard({
         <div className="pl-6 flex flex-wrap items-center gap-4 text-xs">
           <div className="flex items-center gap-2">
             <Switch
+              id={`${question.id}-allow-past`}
               checked={question.validation?.allowPast ?? true}
               onCheckedChange={(v) => updateValidation({ allowPast: v })}
             />
-            <label>Allow past dates</label>
+            <label htmlFor={`${question.id}-allow-past`}>Allow past dates</label>
           </div>
           <div className="flex items-center gap-2">
             <Switch
+              id={`${question.id}-allow-future`}
               checked={question.validation?.allowFuture ?? true}
               onCheckedChange={(v) => updateValidation({ allowFuture: v })}
             />
-            <label>Allow future dates</label>
+            <label htmlFor={`${question.id}-allow-future`}>Allow future dates</label>
           </div>
         </div>
       )}
@@ -1109,7 +1123,7 @@ function QuestionCard({
       {/* Upload preview for file */}
       {question.type === "file" && (
         <div className="pl-6">
-          <label className="text-xs text-muted-foreground">File upload</label>
+          <span className="text-xs text-muted-foreground">File upload</span>
           <div className="mt-1.5 flex items-center justify-between gap-3 rounded-md border border-dashed border-border bg-secondary/30 px-3 py-3">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Upload className="h-4 w-4" />
@@ -1125,10 +1139,10 @@ function QuestionCard({
       {/* Options for dropdown / radio / multiselect */}
       {(question.type === "dropdown" || question.type === "multiselect" || question.type === "radio") && (
         <div className="pl-6 space-y-2">
-          <label className="text-xs text-muted-foreground">Options</label>
+          <label htmlFor={`${question.id}-new-option`} className="text-xs text-muted-foreground">Options</label>
           <div className="flex flex-wrap gap-1.5">
             {(question.options ?? []).map((opt, i) => (
-              <span key={i} className="inline-flex items-center gap-1 rounded-md bg-secondary text-foreground px-2 py-1 text-xs">
+              <span key={`${opt}-${i}`} className="inline-flex items-center gap-1 rounded-md bg-secondary text-foreground px-2 py-1 text-xs">
                 {opt}
                 <button
                   onClick={() =>
@@ -1143,6 +1157,7 @@ function QuestionCard({
             ))}
           </div>
           <Input
+            id={`${question.id}-new-option`}
             value={optInput}
             onChange={(e) => setOptInput(e.target.value)}
             placeholder="Type an option and press Enter…"
@@ -1161,21 +1176,21 @@ function QuestionCard({
       {/* Dynamic table columns */}
       {question.type === "table" && (
         <div className="pl-6 space-y-2">
-          <label className="text-xs text-muted-foreground font-medium">Table columns</label>
+          <span className="text-xs text-muted-foreground font-medium">Table columns</span>
           <div className="overflow-x-auto rounded-md border border-border">
             <table className="w-full text-xs">
               <thead className="bg-secondary/50">
                 <tr>
                   {(question.columns ?? []).map((c, i) => (
-                    <th key={i} className="px-2 py-1.5 text-left font-medium">{c.name || "Untitled"}</th>
+                    <th key={`${c.name || "untitled"}-${i}`} className="px-2 py-1.5 text-left font-medium">{c.name || "Untitled"}</th>
                   ))}
                   <th className="px-2 py-1.5 w-10"></th>
                 </tr>
               </thead>
               <tbody>
                 <tr className="border-t border-border">
-                  {(question.columns ?? []).map((_, i) => (
-                    <td key={i} className="px-2 py-2 text-muted-foreground italic">—</td>
+                  {(question.columns ?? []).map((c, i) => (
+                    <td key={`${c.name || "untitled"}-${i}`} className="px-2 py-2 text-muted-foreground italic">—</td>
                   ))}
                   <td className="px-2 py-2 text-muted-foreground"><X className="h-3 w-3" /></td>
                 </tr>
@@ -1184,7 +1199,7 @@ function QuestionCard({
           </div>
           <div className="space-y-1.5">
             {(question.columns ?? []).map((col, i) => (
-              <div key={i} className="flex items-center gap-2">
+              <div key={`${col.name || "untitled"}-${i}`} className="flex items-center gap-2">
                 <Input
                   value={col.name}
                   onChange={(e) => updateColumn(i, { name: e.target.value })}

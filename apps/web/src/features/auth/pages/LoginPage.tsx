@@ -1,11 +1,11 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState, type SubmitEvent } from "react";
-import { Eye, EyeOff } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/services/api/client";
 import { completeLogin } from "@/lib/auth-session";
 import {
   AuthPageShell,
+  PasswordField,
   authButtonClassName,
   authInputClassName,
   authLabelClassName,
@@ -17,7 +17,6 @@ export default function LoginPage() {
   const queryClient = useQueryClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [shake, setShake] = useState(false);
@@ -60,31 +59,16 @@ export default function LoginPage() {
           />
         </div>
 
-        <div className="mt-4">
-          <label htmlFor="login-password" className={authLabelClassName}>
-            Password
-          </label>
-          <div className="relative">
-            <input
-              id="login-password"
-              type={showPw ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              className={`${authInputClassName} pr-10`}
-              required
-            />
-            <button
-              type="button"
-              onClick={() => setShowPw((s) => !s)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-cr-secondary)] hover:text-[var(--color-cr-body)]"
-              aria-label={showPw ? "Hide password" : "Show password"}
-            >
-              {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
-          </div>
-          {error && <p className="mt-2 text-[12px] text-[var(--color-cr-error)]">{error}</p>}
-        </div>
+        <PasswordField
+          id="login-password"
+          label="Password"
+          value={password}
+          onChange={setPassword}
+          placeholder="Enter your password"
+          className="mt-4"
+          autoComplete="current-password"
+        />
+        {error && <p className="mt-2 text-[12px] text-[var(--color-cr-error)]">{error}</p>}
 
         <div className="mt-2 flex justify-end">
           <Link to="/forgot-password" className={`text-[12px] ${authLinkClassName}`}>

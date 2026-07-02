@@ -4,12 +4,22 @@ import { ShieldCheck, Clock, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
 import { questionnaireService } from "@/services";
 import type { QSessionState } from "@/types/questionnaire";
+import {
+  questionnaireSessionKey,
+  readQuestionnaireSession,
+} from "@/lib/questionnaire-session";
 import { QuestionnaireShell } from "../components/QuestionnaireShell";
 import { OtpInputGroup } from "../components/OtpInputGroup";
 import { cn } from "@/lib/utils";
 
-const SESSION_KEY = (token: string) => `q_session_${token}`;
+const SESSION_KEY = questionnaireSessionKey;
 const OTP_DURATION_SEC = 10 * 60;
+
+function getTimerColor(secondsLeft: number): string {
+  if (secondsLeft < 30) return "text-[var(--color-cr-error)]";
+  if (secondsLeft < 120) return "text-[#D69E2E]";
+  return "text-[var(--color-cr-secondary)]";
+}
 
 export default function QuestionnaireOtpPage() {
   const { token } = useParams<{ token: string }>();
@@ -27,16 +37,12 @@ export default function QuestionnaireOtpPage() {
 
   useEffect(() => {
     if (!token) return;
-    const stored = sessionStorage.getItem(SESSION_KEY(token));
-    if (!stored) {
+    const parsed = readQuestionnaireSession(token);
+    if (!parsed) {
       navigate(`/q/${token}`, { replace: true });
       return;
     }
-    try {
-      setSession(JSON.parse(stored) as QSessionState);
-    } catch {
-      navigate(`/q/${token}`, { replace: true });
-    }
+    setSession(parsed);
   }, [token, navigate]);
 
   const startTimer = useCallback(() => {
@@ -72,12 +78,7 @@ export default function QuestionnaireOtpPage() {
     return `${m}:${s}`;
   };
 
-  const timerColor =
-    secondsLeft < 30
-      ? "text-[var(--color-cr-error)]"
-      : secondsLeft < 120
-        ? "text-[#D69E2E]"
-        : "text-[var(--color-cr-secondary)]";
+  const timerColor = getTimerColor(secondsLeft);
 
   const handleVerify = async () => {
     if (!token || !session) return;

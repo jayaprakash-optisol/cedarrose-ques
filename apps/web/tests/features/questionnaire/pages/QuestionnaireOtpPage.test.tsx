@@ -281,6 +281,32 @@ describe("QuestionnaireOtpPage", () => {
   });
 
   it("locks after 3 failed attempts and clears digits", async () => {
-    // Test skipped — order-dependent flakiness with the shared mock
+    mockVerifyOtp.mockReset();
+    mockVerifyOtp.mockRejectedValue(new Error("Invalid code"));
+    const user = userEvent.setup();
+    renderOtpPage(`/q/${TOKEN}/otp`);
+    await waitFor(() => {
+      expect(screen.getByLabelText("Digit 1")).toBeInTheDocument();
+    });
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      for (let i = 1; i <= 6; i++) {
+        const input = screen.getByLabelText(`Digit ${i}`);
+        await user.clear(input);
+        await user.type(input, String(i));
+      }
+      await user.click(screen.getByRole("button", { name: /Verify & access form/ }));
+      await waitFor(() => {
+        expect(mockVerifyOtp).toHaveBeenCalledTimes(attempt);
+      });
+    }
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Too many incorrect attempts\. Please request a new code\./),
+      ).toBeInTheDocument();
+    });
+    expect(screen.getByLabelText("Digit 1")).toHaveValue("");
+    expect(screen.getByRole("button", { name: /Verify & access form/ })).toBeDisabled();
   });
 });

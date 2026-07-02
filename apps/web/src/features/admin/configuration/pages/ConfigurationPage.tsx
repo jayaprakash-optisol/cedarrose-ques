@@ -2,28 +2,28 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { AlertTriangle, Minus, Plus } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import {
+  Button,
+  Input,
+  Textarea,
+  Switch,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/features/admin/shared/formControls";
 
 
 function Section({
   title,
   description,
   children,
-}: {
+}: Readonly<{
   title: string;
   description: string;
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <section className="rounded-lg border border-border bg-card">
       <header className="px-5 py-4 border-b border-border">
@@ -39,11 +39,11 @@ function Setting({
   label,
   help,
   children,
-}: {
+}: Readonly<{
   label: string;
   help?: string;
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-3 items-start">
       <div>
@@ -55,15 +55,81 @@ function Setting({
   );
 }
 
+function RewardTitleFields({
+  idPrefix,
+  title,
+  onTitleChange,
+  description,
+  onDescriptionChange,
+}: Readonly<{
+  idPrefix: string;
+  title: string;
+  onTitleChange: (value: string) => void;
+  description: string;
+  onDescriptionChange: (value: string) => void;
+}>) {
+  return (
+    <div className="space-y-3">
+      <div>
+        <label htmlFor={`${idPrefix}-title`} className="text-xs text-muted-foreground">Reward title</label>
+        <Input id={`${idPrefix}-title`} value={title} onChange={(e) => onTitleChange(e.target.value)} className="mt-1" />
+      </div>
+      <div>
+        <label htmlFor={`${idPrefix}-desc`} className="text-xs text-muted-foreground">Reward description</label>
+        <Textarea id={`${idPrefix}-desc`} value={description} onChange={(e) => onDescriptionChange(e.target.value)} className="mt-1" rows={3} />
+      </div>
+    </div>
+  );
+}
+
+function TierCard({
+  borderColor,
+  badgeColor,
+  badgeLabel,
+  active,
+  onActiveChange,
+  awardedWhenClassName,
+  awardedWhen,
+  children,
+}: Readonly<{
+  borderColor: string;
+  badgeColor: string;
+  badgeLabel: string;
+  active: boolean;
+  onActiveChange: (value: boolean) => void;
+  awardedWhenClassName: string;
+  awardedWhen: React.ReactNode;
+  children: React.ReactNode;
+}>) {
+  return (
+    <div className="rounded-lg bg-card border border-border border-l-4 shadow-sm overflow-hidden" style={{ borderLeftColor: borderColor }}>
+      <div className="p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <span className={`rounded-full ${badgeColor} text-white px-3 py-1 text-xs font-semibold`}>{badgeLabel}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium">Active</span>
+            <Switch checked={active} onCheckedChange={onActiveChange} />
+          </div>
+        </div>
+        <div className={`rounded-md text-xs px-3 py-2 ${awardedWhenClassName}`}>{awardedWhen}</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{children}</div>
+      </div>
+      <div className="bg-muted/50 px-4 py-2 text-xs text-muted-foreground">
+        Delivery: Post-submission confirmation screen + confirmation email
+      </div>
+    </div>
+  );
+}
+
 function NumberStepper({
   value,
   onChange,
   min = 0,
-}: {
+}: Readonly<{
   value: number;
   onChange: (n: number) => void;
   min?: number;
-}) {
+}>) {
   return (
     <div className="inline-flex items-center rounded-md border border-border">
       <button
@@ -255,8 +321,8 @@ export default function ConfigPage() {
           <div className="rounded-md bg-secondary/40 border border-border p-5">
             <div className="flex items-center justify-between gap-4 relative">
               <div className="absolute left-6 right-6 top-1/2 h-px bg-border -z-0" />
-              {milestones.map((m, i) => (
-                <div key={i} className="flex flex-col items-center text-center z-10">
+              {milestones.map((m) => (
+                <div key={m.label} className="flex flex-col items-center text-center z-10">
                   <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">
                     {m.label}
                   </div>
@@ -307,7 +373,7 @@ export default function ConfigPage() {
                 <Switch checked={gamification} onCheckedChange={setGamification} />
               </div>
 
-              <div className={`pl-4 border-l-2 border-border space-y-4 ${!gamification ? "opacity-40 pointer-events-none" : ""}`}>
+              <div className={`pl-4 border-l-2 border-border space-y-4 ${gamification ? "" : "opacity-40 pointer-events-none"}`}>
                 <div>
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -348,106 +414,90 @@ export default function ConfigPage() {
               <Switch checked={rewardSystem} onCheckedChange={setRewardSystem} />
             </div>
 
-            <div className={`space-y-4 ${!rewardSystem ? "opacity-40 pointer-events-none" : ""}`}>
+            <div className={`space-y-4 ${rewardSystem ? "" : "opacity-40 pointer-events-none"}`}>
               {/* Tier 1 */}
-              <div className="rounded-lg bg-card border border-border border-l-4 shadow-sm overflow-hidden" style={{ borderLeftColor: "#27AE60" }}>
-                <div className="p-4 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="rounded-full bg-[#27AE60] text-white px-3 py-1 text-xs font-semibold">Tier 1 — Full Completion</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium">Active</span>
-                      <Switch checked={tier1Active} onCheckedChange={setTier1Active} />
-                    </div>
-                  </div>
-                  <div className="rounded-md bg-green-50 text-green-900 text-xs px-3 py-2">
+              <TierCard
+                borderColor="#27AE60"
+                badgeColor="bg-[#27AE60]"
+                badgeLabel="Tier 1 — Full Completion"
+                active={tier1Active}
+                onActiveChange={setTier1Active}
+                awardedWhenClassName="bg-green-50 text-green-900"
+                awardedWhen={
+                  <>
                     <span className="font-semibold">Awarded when:</span> ALL mandatory AND optional fields submitted · Status = COMPLETED
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-3">
+                  </>
+                }
+              >
+                <RewardTitleFields
+                  idPrefix="tier1-reward"
+                  title={tier1Title}
+                  onTitleChange={setTier1Title}
+                  description={tier1Desc}
+                  onDescriptionChange={setTier1Desc}
+                />
+                <div>
+                  <div className="text-xs font-semibold mb-2">Benefits included</div>
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-3">
                       <div>
-                        <label className="text-xs text-muted-foreground">Reward title</label>
-                        <Input value={tier1Title} onChange={(e) => setTier1Title(e.target.value)} className="mt-1" />
+                        <div className="text-sm">Accelerated report processing</div>
+                        <div className="text-xs text-muted-foreground">Subject's report is prioritised</div>
                       </div>
-                      <div>
-                        <label className="text-xs text-muted-foreground">Reward description</label>
-                        <Textarea value={tier1Desc} onChange={(e) => setTier1Desc(e.target.value)} className="mt-1" rows={3} />
-                      </div>
+                      <Switch checked={tier1Accel} onCheckedChange={setTier1Accel} />
                     </div>
-                    <div>
-                      <div className="text-xs font-semibold mb-2">Benefits included</div>
-                      <div className="space-y-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="text-sm">Accelerated report processing</div>
-                            <div className="text-xs text-muted-foreground">Subject's report is prioritised</div>
-                          </div>
-                          <Switch checked={tier1Accel} onCheckedChange={setTier1Accel} />
-                        </div>
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="text-sm">Service discount eligibility</div>
-                            <div className="text-xs text-muted-foreground">Subject eligible for applicable discount</div>
-                          </div>
-                          <Switch checked={tier1Discount} onCheckedChange={setTier1Discount} />
-                        </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-sm">Service discount eligibility</div>
+                        <div className="text-xs text-muted-foreground">Subject eligible for applicable discount</div>
                       </div>
+                      <Switch checked={tier1Discount} onCheckedChange={setTier1Discount} />
                     </div>
                   </div>
                 </div>
-                <div className="bg-muted/50 px-4 py-2 text-xs text-muted-foreground">
-                  Delivery: Post-submission confirmation screen + confirmation email
-                </div>
-              </div>
+              </TierCard>
 
               {/* Tier 2 */}
-              <div className="rounded-lg bg-card border border-border border-l-4 shadow-sm overflow-hidden" style={{ borderLeftColor: "#F39C12" }}>
-                <div className="p-4 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="rounded-full bg-[#F39C12] text-white px-3 py-1 text-xs font-semibold">Tier 2 — Core Completion</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium">Active</span>
-                      <Switch checked={tier2Active} onCheckedChange={setTier2Active} />
-                    </div>
-                  </div>
-                  <div className="rounded-md bg-amber-50 text-amber-900 text-xs px-3 py-2">
+              <TierCard
+                borderColor="#F39C12"
+                badgeColor="bg-[#F39C12]"
+                badgeLabel="Tier 2 — Core Completion"
+                active={tier2Active}
+                onActiveChange={setTier2Active}
+                awardedWhenClassName="bg-amber-50 text-amber-900"
+                awardedWhen={
+                  <>
                     <span className="font-semibold">Awarded when:</span> All mandatory fields submitted, some optional missing · Status = COMPLETED — MISSING DATA
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-xs text-muted-foreground">Reward title</label>
-                        <Input value={tier2Title} onChange={(e) => setTier2Title(e.target.value)} className="mt-1" />
+                  </>
+                }
+              >
+                <RewardTitleFields
+                  idPrefix="tier2-reward"
+                  title={tier2Title}
+                  onTitleChange={setTier2Title}
+                  description={tier2Desc}
+                  onDescriptionChange={setTier2Desc}
+                />
+                <div>
+                  <div className="text-xs font-semibold mb-2">Benefits included</div>
+                  <div className="space-y-3 opacity-60">
+                    <div>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="text-sm">Accelerated report processing</div>
+                        <Switch checked={false} disabled />
                       </div>
-                      <div>
-                        <label className="text-xs text-muted-foreground">Reward description</label>
-                        <Textarea value={tier2Desc} onChange={(e) => setTier2Desc(e.target.value)} className="mt-1" rows={3} />
-                      </div>
+                      <div className="text-xs text-muted-foreground">Not available for Tier 2</div>
                     </div>
                     <div>
-                      <div className="text-xs font-semibold mb-2">Benefits included</div>
-                      <div className="space-y-3 opacity-60">
-                        <div>
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="text-sm">Accelerated report processing</div>
-                            <Switch checked={false} disabled />
-                          </div>
-                          <div className="text-xs text-muted-foreground">Not available for Tier 2</div>
-                        </div>
-                        <div>
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="text-sm">Service discount eligibility</div>
-                            <Switch checked={false} disabled />
-                          </div>
-                          <div className="text-xs text-muted-foreground">Not available in Phase 1</div>
-                        </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="text-sm">Service discount eligibility</div>
+                        <Switch checked={false} disabled />
                       </div>
+                      <div className="text-xs text-muted-foreground">Not available in Phase 1</div>
                     </div>
                   </div>
                 </div>
-                <div className="bg-muted/50 px-4 py-2 text-xs text-muted-foreground">
-                  Delivery: Post-submission confirmation screen + confirmation email
-                </div>
-              </div>
+              </TierCard>
 
               {/* No reward row */}
               <div className="flex items-center gap-4 rounded-md border border-dashed border-border bg-muted/20 px-4 py-3">

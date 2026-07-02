@@ -1,8 +1,8 @@
 interface Props {
-  label: string;
-  value: number | string;
-  tone?: "navy" | "green" | "amber" | "red";
-  hint?: string;
+  readonly label: string;
+  readonly value: number | string;
+  readonly tone?: "navy" | "green" | "amber" | "red";
+  readonly hint?: string;
 }
 
 const TONE: Record<NonNullable<Props["tone"]>, string> = {

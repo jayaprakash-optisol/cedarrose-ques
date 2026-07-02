@@ -1,21 +1,34 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Download, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import type { CaseRecord, CaseStatus, RecipientType } from "@/types/case";
 import { casesService } from "@/services";
 import { AppShell } from "@/components/layout/AppShell";
 import { CaseTable } from "@/features/cases/components/CaseTable";
 import { CaseDetailPanel } from "@/features/cases/components/CaseDetailPanel";
 import { ListPagination } from "@/components/common/ListPagination";
+import { ListHeader, FilterField, SelectFilterField, DateRangeFilterFields, ExportButton } from "@/components/common/ListFilterBar";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DateField } from "@/components/ui/date-field";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { usePaginatedDateFilter } from "@/hooks/usePaginatedDateFilter";
 import { DEFAULT_PAGE_SIZE } from "@/types/pagination";
 import { toast } from "sonner";
 
+const STATUS_OPTIONS = [
+  "All",
+  "SENT",
+  "OPENED",
+  "IN PROGRESS",
+  "COMPLETED",
+  "COMPLETED — MISSING DATA",
+  "PENDING CONTACT",
+  "PENDING LINKAGE & CONTACT",
+  "EXPIRED",
+  "NOT SENT",
+];
+
+const RECIPIENT_OPTIONS = ["All", "Supplier", "Customer", "Partner"];
 
 export default function AllCasesPage() {
   const [searchParams] = useSearchParams();
@@ -24,10 +37,7 @@ export default function AllCasesPage() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<CaseStatus | "All">("All");
   const [type, setType] = useState<RecipientType | "All">("All");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
+  const { from, setFrom, to, setTo, page, setPage, limit, setLimit } = usePaginatedDateFilter(DEFAULT_PAGE_SIZE);
   const [selected, setSelected] = useState<CaseRecord | null>(null);
   const [exporting, setExporting] = useState(false);
 
@@ -35,7 +45,7 @@ export default function AllCasesPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, status, type, from, to]);
+  }, [debouncedSearch, status, type, from, to, setPage]);
 
   const listParams = useMemo(
     () => ({
@@ -86,68 +96,40 @@ export default function AllCasesPage() {
   return (
     <AppShell>
       <div className="space-y-5">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">All cases</h2>
-          <p className="text-sm text-muted-foreground">
-            {meta.total} case{meta.total === 1 ? "" : "s"} total
-            {isFetching ? " · Loading…" : ""}
-          </p>
-        </div>
+        <ListHeader title="All cases" count={meta.total} countSuffix=" total" isFetching={isFetching} />
 
         <div className="rounded-[10px] border border-[#EDF2F7] bg-white p-4">
           <div className="flex flex-wrap items-end gap-4">
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-[12px] font-medium text-[#4A5568] mb-1.5">Search</label>
+            <FilterField label="Search" htmlFor="cases-search" className="flex-1 min-w-[200px]">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#4A5568]" />
                 <Input
+                  id="cases-search"
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
                   placeholder="Search company, order ID, or UID"
                   className="pl-9 h-11 rounded-lg border-[#CBD5E0] bg-white text-[14px] text-[#2D3748] focus-visible:border-[#2B3178] focus-visible:ring-[#2B3178]"
                 />
               </div>
-            </div>
-            <div style={{ width: 180 }}>
-              <label className="block text-[12px] font-medium text-[#4A5568] mb-1.5">Status</label>
-              <Select value={status} onValueChange={(v) => setStatus(v as CaseStatus | "All")}>
-                <SelectTrigger className="h-11 rounded-lg border-[#CBD5E0] bg-white text-[14px] text-[#2D3748] focus:border-[#2B3178] focus:ring-[#2B3178]"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {["All", "SENT", "OPENED", "IN PROGRESS", "COMPLETED", "COMPLETED — MISSING DATA", "PENDING CONTACT", "PENDING LINKAGE & CONTACT", "EXPIRED", "NOT SENT"].map((s) =>
-                    <SelectItem key={s} value={s}>{s}</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            <div style={{ width: 180 }}>
-              <label className="block text-[12px] font-medium text-[#4A5568] mb-1.5">Recipient</label>
-              <Select value={type} onValueChange={(v) => setType(v as RecipientType | "All")}>
-                <SelectTrigger className="h-11 rounded-lg border-[#CBD5E0] bg-white text-[14px] text-[#2D3748] focus:border-[#2B3178] focus:ring-[#2B3178]"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {["All", "Supplier", "Customer", "Partner"].map((s) =>
-                    <SelectItem key={s} value={s}>{s}</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            <div style={{ width: 160 }}>
-              <label className="block text-[12px] font-medium text-[#4A5568] mb-1.5">From date</label>
-              <DateField value={from} onChange={setFrom} />
-            </div>
-            <div style={{ width: 160 }}>
-              <label className="block text-[12px] font-medium text-[#4A5568] mb-1.5">To date</label>
-              <DateField value={to} onChange={setTo} minDate={from || undefined} />
-            </div>
-            <div>
-              <Button
-                variant="outline"
-                onClick={exportCsv}
-                disabled={exporting}
-                className="h-11 rounded-lg"
-              >
-                <Download className="h-4 w-4 mr-1" /> CSV
-              </Button>
-            </div>
+            </FilterField>
+            <SelectFilterField
+              label="Status"
+              htmlFor="cases-status"
+              width={180}
+              value={status}
+              onValueChange={(v) => setStatus(v as CaseStatus | "All")}
+              options={STATUS_OPTIONS}
+            />
+            <SelectFilterField
+              label="Recipient"
+              htmlFor="cases-recipient"
+              width={180}
+              value={type}
+              onValueChange={(v) => setType(v as RecipientType | "All")}
+              options={RECIPIENT_OPTIONS}
+            />
+            <DateRangeFilterFields from={from} onFromChange={setFrom} to={to} onToChange={setTo} />
+            <ExportButton onClick={exportCsv} disabled={exporting} label="CSV" />
           </div>
         </div>
 

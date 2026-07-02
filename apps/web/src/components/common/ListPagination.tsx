@@ -6,10 +6,10 @@ import type { PaginationMeta } from "@/types/pagination";
 const PAGE_SIZES = [10, 20, 50, 100] as const;
 
 interface Props {
-  meta: PaginationMeta;
-  onPageChange: (page: number) => void;
-  onPageSizeChange?: (limit: number) => void;
-  className?: string;
+  readonly meta: PaginationMeta;
+  readonly onPageChange: (page: number) => void;
+  readonly onPageSizeChange?: (limit: number) => void;
+  readonly className?: string;
 }
 
 export function ListPagination({ meta, onPageChange, onPageSizeChange, className }: Props) {

@@ -1,11 +1,12 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { CedarLogo } from "@/components/CedarLogo";
 
 interface AuthPageShellProps {
-  children: ReactNode;
-  title: string;
-  subtitle: string;
-  shake?: boolean;
+  readonly children: ReactNode;
+  readonly title: string;
+  readonly subtitle: string;
+  readonly shake?: boolean;
 }
 
 export function AuthPageShell({ children, title, subtitle, shake = false }: AuthPageShellProps) {
@@ -60,3 +61,116 @@ export const authButtonClassName =
 
 export const authLinkClassName =
   "text-[var(--color-cr-indigo)] no-underline hover:underline";
+
+interface PasswordFieldProps {
+  readonly id: string;
+  readonly label: string;
+  readonly value: string;
+  readonly onChange: (value: string) => void;
+  readonly placeholder: string;
+  readonly autoFocus?: boolean;
+  readonly className?: string;
+  readonly minLength?: number;
+  readonly autoComplete?: string;
+}
+
+export function PasswordField({
+  id,
+  label,
+  value,
+  onChange,
+  placeholder,
+  autoFocus = false,
+  className = "",
+  minLength,
+  autoComplete = "new-password",
+}: PasswordFieldProps) {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <div className={className}>
+      <label htmlFor={id} className={authLabelClassName}>
+        {label}
+      </label>
+      <div className="relative">
+        <input
+          id={id}
+          type={visible ? "text" : "password"}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className={`${authInputClassName} pr-10`}
+          required
+          minLength={minLength}
+          autoComplete={autoComplete}
+          autoFocus={autoFocus}
+        />
+        <button
+          type="button"
+          onClick={() => setVisible((v) => !v)}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-cr-secondary)] hover:text-[var(--color-cr-body)]"
+          aria-label={visible ? "Hide password" : "Show password"}
+        >
+          {visible ? <EyeOff size={18} /> : <Eye size={18} />}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+interface PasswordConfirmSubmitProps {
+  readonly confirmId: string;
+  readonly confirmValue: string;
+  readonly onConfirmChange: (value: string) => void;
+  readonly error: string;
+  readonly submitting: boolean;
+  readonly submitLabel: string;
+}
+
+export function PasswordConfirmSubmit({
+  confirmId,
+  confirmValue,
+  onConfirmChange,
+  error,
+  submitting,
+  submitLabel,
+}: PasswordConfirmSubmitProps) {
+  return (
+    <>
+      <PasswordField
+        id={confirmId}
+        label="Confirm password"
+        value={confirmValue}
+        onChange={onConfirmChange}
+        placeholder="Re-enter your password"
+        className="mt-4"
+        minLength={8}
+      />
+      {error && <p className="mt-2 text-[12px] text-[var(--color-cr-error)]">{error}</p>}
+
+      <button type="submit" disabled={submitting} className={`mt-6 ${authButtonClassName}`}>
+        {submitting ? <span className="cr-spinner" /> : submitLabel}
+      </button>
+    </>
+  );
+}
+
+interface AuthStatusPanelProps {
+  readonly iconWrapperClassName: string;
+  readonly icon: ReactNode;
+  readonly message: ReactNode;
+  readonly children: ReactNode;
+}
+
+export function AuthStatusPanel({ iconWrapperClassName, icon, message, children }: AuthStatusPanelProps) {
+  return (
+    <div className="mt-8 text-center space-y-4">
+      <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full ${iconWrapperClassName}`}>
+        {icon}
+      </div>
+      <p className="text-[14px] text-[var(--color-cr-secondary)]">{message}</p>
+      {children}
+    </div>
+  );
+}
+

@@ -2,10 +2,18 @@ import { useRef } from "react";
 import { cn } from "@/lib/utils";
 
 interface Props {
-  value: string[];
-  onChange: (digits: string[]) => void;
-  disabled?: boolean;
-  hasError?: boolean;
+  readonly value: string[];
+  readonly onChange: (digits: string[]) => void;
+  readonly disabled?: boolean;
+  readonly hasError?: boolean;
+}
+
+const DIGIT_POSITIONS = [0, 1, 2, 3, 4, 5] as const;
+
+function digitBorderClass(hasError: boolean | undefined, filled: boolean): string {
+  if (hasError) return "border-[1.5px] border-[var(--color-cr-error)] bg-[#FFF5F5]";
+  if (filled) return "border-[1.5px] border-[var(--color-cr-indigo)]";
+  return "border-[1.5px] border-[var(--color-cr-input-border)]";
 }
 
 export function OtpInputGroup({ value, onChange, disabled, hasError }: Props) {
@@ -38,10 +46,11 @@ export function OtpInputGroup({ value, onChange, disabled, hasError }: Props) {
   }
 
   return (
-    <div className="flex justify-center gap-2" role="group" aria-label="One-time password">
-      {Array.from({ length: 6 }).map((_, i) => (
+    <fieldset className="flex justify-center gap-2 border-0 p-0 m-0">
+      <legend className="sr-only">One-time password</legend>
+      {DIGIT_POSITIONS.map((i) => (
         <input
-          key={i}
+          key={`otp-digit-${i}`}
           ref={(el) => {
             inputRefs.current[i] = el;
           }}
@@ -58,16 +67,12 @@ export function OtpInputGroup({ value, onChange, disabled, hasError }: Props) {
           onPaste={i === 0 ? handlePaste : undefined}
           className={cn(
             "text-center font-semibold outline-none transition rounded-[10px] bg-white",
-            hasError
-              ? "border-[1.5px] border-[var(--color-cr-error)] bg-[#FFF5F5]"
-              : value[i]
-                ? "border-[1.5px] border-[var(--color-cr-indigo)]"
-                : "border-[1.5px] border-[var(--color-cr-input-border)]",
+            digitBorderClass(hasError, Boolean(value[i])),
             "focus:border-[2px] focus:border-[var(--color-cr-indigo)] focus:shadow-[0_0_0_3px_rgba(79,70,229,0.15)]",
           )}
           style={{ width: 52, height: 60, fontSize: 24, color: "var(--color-cr-heading)" }}
         />
       ))}
-    </div>
+    </fieldset>
   );
 }

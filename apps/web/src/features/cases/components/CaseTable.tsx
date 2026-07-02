@@ -115,9 +115,9 @@ function renderExpiresIn(c: CaseRecord) {
 }
 
 interface Props {
-  cases: CaseRecord[];
-  onRowClick?: (c: CaseRecord) => void;
-  showOrderId?: boolean;
+  readonly cases: CaseRecord[];
+  readonly onRowClick?: (c: CaseRecord) => void;
+  readonly showOrderId?: boolean;
 }
 
 export function CaseTable({ cases, onRowClick, showOrderId = false }: Props) {

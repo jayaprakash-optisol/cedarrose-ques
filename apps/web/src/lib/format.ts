@@ -17,5 +17,5 @@ export function absTime(iso: string | undefined): string {
 }
 
 export function isStale(iso: string, hours = 72): boolean {
-  return Date.now() - new Date(iso).getTime() > hours * 3600_000;
+  return Date.now() - new Date(iso).getTime() > hours * 3_600_000;
 }

@@ -2,20 +2,20 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
-import { Check, ChevronRight, Circle, Download, Loader2, Search } from "lucide-react";
+import { Check, ChevronRight, Circle, Loader2, Search } from "lucide-react";
 import type { AuditEvent, EventType } from "@/types/audit";
 import type { CaseRecord } from "@/types/case";
 import { auditService, casesService } from "@/services";
 import { AppShell } from "@/components/layout/AppShell";
 import { ListPagination } from "@/components/common/ListPagination";
+import { ListHeader, FilterField, SelectFilterField, DateRangeFilterFields, ExportButton } from "@/components/common/ListFilterBar";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DateField } from "@/components/ui/date-field";
 import { absTime } from "@/lib/format";
 import { indexAuditEventsByCase, resolveAuditCaseLabels } from "@/lib/audit-log";
+import { resolveWorkflowStepState } from "@/lib/workflow-step-state";
 import { buildWorkflowProgress, normalizeWorkflowStep } from "@/lib/workflow-progress";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { usePaginatedDateFilter } from "@/hooks/usePaginatedDateFilter";
 import { DEFAULT_PAGE_SIZE } from "@/types/pagination";
 import { toast } from "sonner";
 import { WORKFLOW_STEPS } from "@/config/workflow";
@@ -31,10 +31,7 @@ export default function AuditLogPage() {
 
   const [q, setQ] = useState("");
   const [type, setType] = useState<EventType | "All">("All");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
+  const { from, setFrom, to, setTo, page, setPage, limit, setLimit } = usePaginatedDateFilter(DEFAULT_PAGE_SIZE);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
 
@@ -42,7 +39,7 @@ export default function AuditLogPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, type, from, to, sp.caseId]);
+  }, [debouncedSearch, type, from, to, sp.caseId, setPage]);
 
   const listParams = useMemo(
     () => ({
@@ -112,54 +109,37 @@ export default function AuditLogPage() {
   return (
     <AppShell>
       <div className="space-y-4">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">Audit log</h2>
-          <p className="text-sm text-muted-foreground">
-            {meta.total} case{meta.total === 1 ? "" : "s"}
-            {sp.caseId ? " · filtered by case" : ""}
-            {isFetching ? " · Loading…" : ""}
-          </p>
-        </div>
+        <ListHeader
+          title="Audit log"
+          count={meta.total}
+          countSuffix={sp.caseId ? " · filtered by case" : ""}
+          isFetching={isFetching}
+        />
 
         <div className="rounded-[10px] border border-[#EDF2F7] bg-white p-4">
           <div className="flex flex-wrap items-end gap-4">
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-[12px] font-medium text-[#4A5568] mb-1.5">Search</label>
+            <FilterField label="Search" htmlFor="audit-search" className="flex-1 min-w-[200px]">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#4A5568]" />
                 <Input
+                  id="audit-search"
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
                   placeholder="Search subject or order ID"
                   className="pl-9 h-11 rounded-lg border-[#CBD5E0] bg-white text-[14px] text-[#2D3748] focus-visible:border-[#2B3178] focus-visible:ring-[#2B3178]"
                 />
               </div>
-            </div>
-            <div style={{ width: 180 }}>
-              <label className="block text-[12px] font-medium text-[#4A5568] mb-1.5">Event type</label>
-              <Select value={type} onValueChange={(v) => setType(v as typeof type)}>
-                <SelectTrigger className="h-11 rounded-lg border-[#CBD5E0] bg-white text-[14px] text-[#2D3748] focus:border-[#2B3178] focus:ring-[#2B3178]"><SelectValue /></SelectTrigger>
-                <SelectContent>{EVENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div style={{ width: 160 }}>
-              <label className="block text-[12px] font-medium text-[#4A5568] mb-1.5">From date</label>
-              <DateField value={from} onChange={setFrom} />
-            </div>
-            <div style={{ width: 160 }}>
-              <label className="block text-[12px] font-medium text-[#4A5568] mb-1.5">To date</label>
-              <DateField value={to} onChange={setTo} minDate={from || undefined} />
-            </div>
-            <div className="ml-auto">
-              <Button
-                variant="outline"
-                onClick={exportCsv}
-                disabled={exporting}
-                className="h-11 rounded-lg"
-              >
-                <Download className="h-4 w-4 mr-1" /> Export CSV
-              </Button>
-            </div>
+            </FilterField>
+            <SelectFilterField
+              label="Event type"
+              htmlFor="audit-event-type"
+              width={180}
+              value={type}
+              onValueChange={(v) => setType(v as typeof type)}
+              options={EVENT_TYPES}
+            />
+            <DateRangeFilterFields from={from} onFromChange={setFrom} to={to} onToChange={setTo} />
+            <ExportButton onClick={exportCsv} disabled={exporting} label="Export CSV" className="ml-auto" />
           </div>
         </div>
 
@@ -185,11 +165,7 @@ export default function AuditLogPage() {
                 const isOpen = expanded === rowKey;
                 const { subject, orderId } = resolveAuditCaseLabels(e);
                 const caseEvents = isOpen ? (eventsByCase.get(rowKey) ?? [e]) : [e];
-                const caseRecord: Pick<CaseRecord, "status"> | undefined = expandedCase?.status
-                  ? expandedCase
-                  : e.caseStatus
-                    ? ({ status: e.caseStatus as CaseRecord["status"] })
-                    : undefined;
+                const caseRecord = resolveCaseStatusRecord(expandedCase, e.caseStatus);
                 const timeline = isOpen && expandedCase
                   ? buildWorkflowProgress(expandedCase, caseEvents)
                   : null;
@@ -257,24 +233,33 @@ export default function AuditLogPage() {
   );
 }
 
-function FragmentRow({ children }: { children: React.ReactNode }) {
+function resolveCaseStatusRecord(
+  expandedCase: CaseRecord | undefined,
+  eventCaseStatus: AuditEvent["caseStatus"],
+): Pick<CaseRecord, "status"> | undefined {
+  if (expandedCase?.status) return expandedCase;
+  if (eventCaseStatus) return { status: eventCaseStatus as CaseRecord["status"] };
+  return undefined;
+}
+
+function FragmentRow({ children }: Readonly<{ children: React.ReactNode }>) {
   return <>{children}</>;
 }
 
 function WorkflowTimelinePanel({
   title, orderId, status, currentStep, completedAt,
-}: {
+}: Readonly<{
   title: string;
   orderId: string;
   status?: import("@/types/case").CaseStatus;
   currentStep: number;
   completedAt: (string | null)[];
-}) {
+}>) {
   const left = WORKFLOW_STEPS.slice(0, 8);
   const right = WORKFLOW_STEPS.slice(8);
   const renderStep = (name: string, idx: number) => {
     const num = idx + 1;
-    const state = num < currentStep ? "done" : num === currentStep ? "current" : "todo";
+    const state = resolveWorkflowStepState(num, currentStep);
     const ts = completedAt[idx];
     return (
       <li key={num} className="flex items-start gap-3">

@@ -5,7 +5,7 @@ export function useDebouncedValue<T>(value: T, delayMs = 300): T {
 
   useEffect(() => {
     const timer = globalThis.setTimeout(() => setDebounced(value), delayMs);
-    return () => window.clearTimeout(timer);
+    return () => globalThis.clearTimeout(timer);
   }, [value, delayMs]);
 
   return debounced;

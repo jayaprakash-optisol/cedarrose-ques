@@ -111,6 +111,31 @@ export default function OverviewPage() {
   );
 }
 
+function RangePicker<TId extends string>({
+  ranges,
+  selected,
+  onSelect,
+}: Readonly<{
+  ranges: { id: TId; label: string }[];
+  selected: TId;
+  onSelect: (id: TId) => void;
+}>) {
+  return (
+    <div className="inline-flex rounded-full border border-border bg-secondary p-0.5 text-xs">
+      {ranges.map((r) => (
+        <button
+          key={r.id}
+          onClick={() => onSelect(r.id)}
+          className={[
+            "px-2.5 py-1 rounded-full transition-colors",
+            selected === r.id ? "bg-card text-navy font-medium shadow-sm" : "text-muted-foreground hover:text-foreground",
+          ].join(" ")}
+        >{r.label}</button>
+      ))}
+    </div>
+  );
+}
+
 function ResponseTrends() {
   const [range, setRange] = useState<"7d" | "30d" | "all">("30d");
   const ranges = [
@@ -145,18 +170,7 @@ function ResponseTrends() {
           <h3 className="text-sm font-semibold">Response trends</h3>
           <p className="text-xs text-muted-foreground mt-0.5">Questionnaires dispatched vs submitted</p>
         </div>
-        <div className="inline-flex rounded-full border border-border bg-secondary p-0.5 text-xs">
-          {ranges.map((r) => (
-            <button
-              key={r.id}
-              onClick={() => setRange(r.id)}
-              className={[
-                "px-2.5 py-1 rounded-full transition-colors",
-                range === r.id ? "bg-card text-navy font-medium shadow-sm" : "text-muted-foreground hover:text-foreground",
-              ].join(" ")}
-            >{r.label}</button>
-          ))}
-        </div>
+        <RangePicker ranges={ranges} selected={range} onSelect={setRange} />
       </div>
       <div className="h-56">
         <ResponsiveContainer width="100%" height="100%">
@@ -187,7 +201,7 @@ const STATUS_COLORS: Record<CaseStatus, string> = {
   "NOT SENT": "#718096",
 };
 
-function StatusBreakdown({ cases }: { cases: CaseRecord[] }) {
+function StatusBreakdown({ cases }: Readonly<{ cases: CaseRecord[] }>) {
   const ORDER: CaseStatus[] = [
     "COMPLETED", "IN PROGRESS", "SENT", "OPENED", "EXPIRED",
     "PENDING CONTACT", "PENDING LINKAGE & CONTACT", "NOT SENT",
@@ -270,12 +284,21 @@ function AverageCompletionTime() {
   const bars = data?.byCompany ?? [];
   const avg = data?.overallAvgDays ?? 0;
 
-  const colorFor = (s: string) =>
-    s === "under" ? "bg-status-completed-fg" :
-    s === "expired" ? "bg-status-abandoned-fg" : "bg-status-pending-fg";
-  const bgFor = (s: string) =>
-    s === "under" ? "bg-status-completed-bg" :
-    s === "expired" ? "bg-status-abandoned-bg" : "bg-status-pending-bg";
+  const colorFor = (s: string) => {
+    if (s === "under") return "bg-status-completed-fg";
+    if (s === "expired") return "bg-status-abandoned-fg";
+    return "bg-status-pending-fg";
+  };
+  const bgFor = (s: string) => {
+    if (s === "under") return "bg-status-completed-bg";
+    if (s === "expired") return "bg-status-abandoned-bg";
+    return "bg-status-pending-bg";
+  };
+  const textFor = (s: string) => {
+    if (s === "expired") return "text-status-abandoned-fg";
+    if (s === "under") return "text-status-completed-fg";
+    return "text-status-pending-fg";
+  };
 
   return (
     <div className="rounded-lg border border-border bg-card p-5 space-y-5">
@@ -284,18 +307,7 @@ function AverageCompletionTime() {
           <h3 className="text-sm font-semibold">Average completion time</h3>
           <p className="text-xs text-muted-foreground mt-0.5">How long subjects take to complete and submit</p>
         </div>
-        <div className="inline-flex rounded-full border border-border bg-secondary p-0.5 text-xs">
-          {ranges.map((r) => (
-            <button
-              key={r.id}
-              onClick={() => setRange(r.id)}
-              className={[
-                "px-2.5 py-1 rounded-full transition-colors",
-                range === r.id ? "bg-card text-navy font-medium shadow-sm" : "text-muted-foreground hover:text-foreground",
-              ].join(" ")}
-            >{r.label}</button>
-          ))}
-        </div>
+        <RangePicker ranges={ranges} selected={range} onSelect={setRange} />
       </div>
 
       {isLoading && (
@@ -352,7 +364,7 @@ function AverageCompletionTime() {
                 </div>
                 <div className="absolute left-20 -top-2 -translate-y-full opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 rounded-md border border-border bg-card shadow-md p-2 text-[11px] min-w-[180px]">
                   <div className="font-semibold text-foreground">{b.companyName}</div>
-                  <span className={["inline-block mt-1 px-1.5 py-0.5 rounded-full text-[10px]", bgFor(b.state), b.state === "expired" ? "text-status-abandoned-fg" : b.state === "under" ? "text-status-completed-fg" : "text-status-pending-fg"].join(" ")}>{b.status}</span>
+                  <span className={["inline-block mt-1 px-1.5 py-0.5 rounded-full text-[10px]", bgFor(b.state), textFor(b.state)].join(" ")}>{b.status}</span>
                   <div className="mt-1 text-muted-foreground">Dispatched: <span className="text-foreground">{b.dispatchedAt}</span></div>
                   <div className="text-muted-foreground">{b.state === "expired" ? "Expired" : "Submitted"}: <span className="text-foreground">{b.endAt}</span></div>
                   <div className="text-muted-foreground">Total days: <span className="text-foreground tabular-nums">{b.days.toFixed(1)} days</span></div>

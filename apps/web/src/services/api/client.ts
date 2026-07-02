@@ -16,7 +16,8 @@ import { DEFAULT_PAGE_SIZE } from "@/types/pagination";
 import type { PaginatedResult } from "@/types/pagination";
 import type { AuditListParams } from "@/types/audit";
 import type { CaseListParams } from "@/types/case";
-import { ApiError, type ApiEnvelope } from "./errors";
+import { ApiError } from "./errors";
+import { parseApiEnvelope } from "./envelope";
 import {
   mapAuditEvent,
   mapCase,
@@ -42,14 +43,6 @@ import {
   type ApiUser,
 } from "./mappers";
 
-async function parseJson<T>(res: Response): Promise<ApiEnvelope<T>> {
-  try {
-    return (await res.json()) as ApiEnvelope<T>;
-  } catch {
-    throw new ApiError("INVALID_JSON", "Invalid response from server", res.status);
-  }
-}
-
 export async function apiClient<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${env.apiBaseUrl}${path}`, {
     ...init,
@@ -65,7 +58,7 @@ export async function apiClient<T>(path: string, init?: RequestInit): Promise<T>
     throw new ApiError("EMPTY_RESPONSE", "Empty response from server", res.status);
   }
 
-  const body = await parseJson<T>(res);
+  const body = await parseApiEnvelope<T>(res);
 
   if (!body.success) {
     const code = body.error?.code ?? "ERROR";
@@ -176,7 +169,7 @@ export const apiSettingsService: SettingsService = {
     const user = await apiClient<ApiUser>("/auth/me", {
       method: "PATCH",
       body: JSON.stringify({
-        ...(firstName !== undefined ? { firstName, lastName } : {}),
+        ...(firstName === undefined ? {} : { firstName, lastName }),
         ...input.preferences,
       }),
     });

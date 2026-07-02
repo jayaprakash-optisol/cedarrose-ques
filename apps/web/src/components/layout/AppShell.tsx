@@ -37,7 +37,7 @@ const ADMIN_NAV: NavItem[] = [
 
 const SIDEBAR_WIDTH = 240;
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children }: { readonly children: React.ReactNode }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();

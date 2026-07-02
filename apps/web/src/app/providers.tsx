@@ -7,7 +7,7 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000 } },
 });
 
-export function AppProviders({ children }: { children: React.ReactNode }) {
+export function AppProviders({ children }: { readonly children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>

@@ -9,11 +9,11 @@ import { caseCompanyName, caseCrisUid } from "@/lib/case-display";
 import { formatLinkExpiryDate, formatLinkValidityLabel, projectedLinkExpiry } from "@/lib/link-validity";
 
 interface Props {
-  case: CaseRecord;
-  open: boolean;
-  onClose: () => void;
-  onConfirmed: () => void;
-  onViewDetails: () => void;
+  readonly case: CaseRecord;
+  readonly open: boolean;
+  readonly onClose: () => void;
+  readonly onConfirmed: () => void;
+  readonly onViewDetails: () => void;
 }
 
 export function ResendLinkModal({ case: c, open, onClose, onConfirmed, onViewDetails }: Props) {
@@ -52,11 +52,10 @@ export function ResendLinkModal({ case: c, open, onClose, onConfirmed, onViewDet
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={handleClose}>
-      <div
-        className="w-[480px] max-w-full rounded-xl bg-card shadow-xl overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 z-50">
+      <button type="button" aria-label="Close dialog" className="absolute inset-0 h-full w-full cursor-default bg-black/60" onClick={handleClose} />
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-4">
+        <div className="pointer-events-auto w-[480px] max-w-full rounded-xl bg-card shadow-xl overflow-hidden">
         {state === "success" ? (
           <div className="p-8 text-center space-y-4">
             <div className="flex justify-center">
@@ -130,12 +129,13 @@ export function ResendLinkModal({ case: c, open, onClose, onConfirmed, onViewDet
             </div>
           </>
         )}
+        </div>
       </div>
     </div>
   );
 }
 
-function Row({ label, value, valueClass = "" }: { label: string; value: string; valueClass?: string }) {
+function Row({ label, value, valueClass = "" }: Readonly<{ label: string; value: string; valueClass?: string }>) {
   return (
     <div className="flex justify-between gap-2">
       <span className="text-muted-foreground">{label}:</span>

@@ -1,6 +1,7 @@
 import { env } from "@/config/env";
 import type { PaginatedResult, PaginationMeta } from "@/types/pagination";
 import { ApiError, type ApiEnvelope } from "./errors";
+import { parseApiEnvelope } from "./envelope";
 
 type QueryValue = string | number | boolean | undefined | null;
 
@@ -14,14 +15,6 @@ export function buildQueryString(params: Record<string, QueryValue>): string {
   return query ? `?${query}` : "";
 }
 
-async function parseEnvelope<T>(res: Response): Promise<ApiEnvelope<T>> {
-  try {
-    return (await res.json()) as ApiEnvelope<T>;
-  } catch {
-    throw new ApiError("INVALID_JSON", "Invalid response from server", res.status);
-  }
-}
-
 export async function apiListWithMeta<T>(
   path: string,
   params: Record<string, QueryValue> = {},
@@ -32,7 +25,7 @@ export async function apiListWithMeta<T>(
     headers: { "Content-Type": "application/json" },
   });
 
-  const body = await parseEnvelope<T[]>(res);
+  const body = await parseApiEnvelope<T[]>(res);
   if (!body.success) {
     throw new ApiError(body.error?.code ?? "ERROR", body.error?.message ?? res.statusText, res.status);
   }
@@ -43,7 +36,7 @@ export async function apiListWithMeta<T>(
     total: body.data?.length ?? 0,
   };
 
-  return { data: (body.data ?? []) as T[], meta };
+  return { data: body.data ?? [], meta };
 }
 
 export async function downloadApiCsv(

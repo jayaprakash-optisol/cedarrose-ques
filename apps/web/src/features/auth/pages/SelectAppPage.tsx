@@ -39,7 +39,7 @@ export default function SelectAppPage() {
       return;
     }
     setAppSelected("automation");
-    window.location.assign(qaAutomationUrl);
+    globalThis.location.assign(qaAutomationUrl);
   };
 
   return (
@@ -105,21 +105,16 @@ export default function SelectAppPage() {
   );
 }
 
-function AppCard({
-  onClick,
-  icon,
-  title,
-  description,
-  features,
-  cta,
-}: {
-  onClick: () => void;
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  features: string[];
-  cta: string;
-}) {
+interface AppCardProps {
+  readonly onClick: () => void;
+  readonly icon: React.ReactNode;
+  readonly title: string;
+  readonly description: string;
+  readonly features: readonly string[];
+  readonly cta: string;
+}
+
+function AppCard({ onClick, icon, title, description, features, cta }: AppCardProps) {
   return (
     <button
       type="button"

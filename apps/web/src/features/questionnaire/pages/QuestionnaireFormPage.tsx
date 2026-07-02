@@ -8,6 +8,7 @@ import {
   clearQuestionnaireSessionToken,
   isSessionExpiredError,
   questionnaireSessionKey,
+  readQuestionnaireSession,
 } from "@/lib/questionnaire-session";
 import type { Section } from "@/types/template";
 import { QuestionnaireShell } from "../components/QuestionnaireShell";
@@ -107,15 +108,10 @@ export default function QuestionnaireFormPage() {
   // Load session
   useEffect(() => {
     if (!token) return;
-    const stored = sessionStorage.getItem(SESSION_KEY(token));
-    if (!stored) { navigate(`/q/${token}`, { replace: true }); return; }
-    try {
-      const parsed = JSON.parse(stored) as QSessionState;
-      if (!parsed.sessionToken) { navigate(`/q/${token}/otp`, { replace: true }); return; }
-      setSession(parsed);
-    } catch {
-      navigate(`/q/${token}`, { replace: true });
-    }
+    const parsed = readQuestionnaireSession(token);
+    if (!parsed) { navigate(`/q/${token}`, { replace: true }); return; }
+    if (!parsed.sessionToken) { navigate(`/q/${token}/otp`, { replace: true }); return; }
+    setSession(parsed);
   }, [token, navigate]);
 
   // Load form data

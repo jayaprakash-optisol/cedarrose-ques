@@ -1,4 +1,4 @@
-export function CedarLogo({ withText = true, size = 48 }: { withText?: boolean; size?: number }) {
+export function CedarLogo({ withText = true, size = 48 }: { readonly withText?: boolean; readonly size?: number }) {
   const radius = size === 48 ? 10 : 8;
   const fontSize = size === 48 ? 18 : 14;
   return (
