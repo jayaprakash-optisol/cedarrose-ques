@@ -115,7 +115,15 @@ describe("NewRequestPage", () => {
     });
     await user.click(screen.getByRole("button", { name: /Confirm & send link/ }));
     await waitFor(() => {
-      expect(mockCreate).toHaveBeenCalled();
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderId: "ORD-10001",
+          companyRequestId: "cr-1",
+          subjectName: "Acme Trading",
+          country: "UAE",
+          recipientEmail: "ops@acme.example",
+        }),
+      );
     });
   });
 

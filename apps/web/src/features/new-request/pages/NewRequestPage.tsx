@@ -93,6 +93,8 @@ export default function NewRequestPage() {
       const data = await companyRequestsService.getById(cr.companyRequestId);
       setCompany(data);
       setSelectedRequestId(cr.companyRequestId);
+      setOrderId(cr.orderId);
+      setSubject(data.companyName);
       if (!country) setCountry(data.country);
       setStep("B");
     } catch (e) {
@@ -201,28 +203,6 @@ export default function NewRequestPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Field label="Company Name *">
-                <Select value={subject} onValueChange={setSubject}>
-                  <SelectTrigger><SelectValue placeholder="Select company" /></SelectTrigger>
-                  <SelectContent>
-                    {["ABC Holdings Ltd", "Acme Trading LLC", "Globex Corporation", "Initech Partners", "Umbrella Group"].map((c) => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Order ID *">
-                <Select value={orderId} onValueChange={setOrderId}>
-                  <SelectTrigger><SelectValue placeholder="Select order ID" /></SelectTrigger>
-                  <SelectContent>
-                    {["ORD-10001", "ORD-10002", "ORD-10003", "ORD-10004", "ORD-10005"].map((o) => (
-                      <SelectItem key={o} value={o}>{o}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
             {error && (
               <div className="rounded-md bg-status-abandoned-bg text-status-abandoned-fg p-3 text-sm flex items-start gap-2">
                 <AlertCircle className="h-4 w-4 mt-0.5" />
@@ -455,15 +435,6 @@ function Stepper({ step }: Readonly<{ step: Step }>) {
         );
       })}
     </ol>
-  );
-}
-
-function Field({ label, children }: Readonly<{ label: string; children: React.ReactNode }>) {
-  return (
-    <div className="space-y-1">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
-      {children}
-    </div>
   );
 }
 
