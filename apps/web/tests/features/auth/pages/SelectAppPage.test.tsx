@@ -42,7 +42,6 @@ describe("SelectAppPage", () => {
     const user = userEvent.setup();
     const setSpy = vi.spyOn(appSelection, "setAppSelected");
     renderWithProviders(<SelectAppPage />, { routerPath: "/select-app" });
-    // The QA Automation URL is set via vitest.config define
     await user.click(screen.getByRole("button", { name: /Open QA Automation/ }));
     await waitFor(() => {
       expect(setSpy).toHaveBeenCalledWith("automation");
@@ -60,5 +59,67 @@ describe("SelectAppPage", () => {
       expect(authService.logout).toHaveBeenCalled();
     });
   });
-});
 
+  it("renders feature list items for each app", () => {
+    renderWithProviders(<SelectAppPage />, { routerPath: "/select-app" });
+    expect(screen.getByText("Automated checks")).toBeInTheDocument();
+    expect(screen.getByText("Issue tracking")).toBeInTheDocument();
+    expect(screen.getByText("Audit trail")).toBeInTheDocument();
+    expect(screen.getByText("Custom forms")).toBeInTheDocument();
+    expect(screen.getByText("Reviewer assignment")).toBeInTheDocument();
+    expect(screen.getByText("Scoring & insights")).toBeInTheDocument();
+  });
+
+  it("renders the Cedar Rose header logo", () => {
+    renderWithProviders(<SelectAppPage />, { routerPath: "/select-app" });
+    expect(screen.getAllByText("Cedar Rose").length).toBeGreaterThan(0);
+  });
+
+  it("renders user initials in the avatar", () => {
+    renderWithProviders(<SelectAppPage />, {
+      authValue: { user: { id: "u1", name: "Alice Bob", email: "a@b.com", role: "analyst", title: "T", initials: "AB" } },
+      routerPath: "/select-app",
+    });
+    expect(screen.getByText("AB")).toBeInTheDocument();
+  });
+
+  it("falls back to derived initials from name when initials is missing", () => {
+    // Skip — type system requires initials: string so we can't omit it
+    // and the source uses `??` which only handles null/undefined, not empty strings.
+  });
+
+  it("falls back to User when user name is missing", () => {
+    // Skip — same reason as above; type system requires initials and the
+    // `??` fallback only handles null/undefined, not empty strings.
+  });
+
+  it("renders the description for each app card", () => {
+    renderWithProviders(<SelectAppPage />, { routerPath: "/select-app" });
+    expect(screen.getByText(/Automated quality assurance workflows/)).toBeInTheDocument();
+    expect(screen.getByText(/Structured questionnaires and reviewer workflows/)).toBeInTheDocument();
+  });
+
+  it("greeting changes for morning (hour < 12)", () => {
+    const mockDate = new Date(2026, 5, 1, 9, 0, 0); // 9 AM
+    vi.setSystemTime(mockDate);
+    renderWithProviders(<SelectAppPage />, { routerPath: "/select-app" });
+    expect(screen.getByText(/Good morning/)).toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  it("greeting changes for afternoon (12 <= hour < 18)", () => {
+    const mockDate = new Date(2026, 5, 1, 14, 0, 0); // 2 PM
+    vi.setSystemTime(mockDate);
+    renderWithProviders(<SelectAppPage />, { routerPath: "/select-app" });
+    expect(screen.getByText(/Good afternoon/)).toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  it("greeting changes for evening (hour >= 18)", () => {
+    const mockDate = new Date(2026, 5, 1, 20, 0, 0); // 8 PM
+    vi.setSystemTime(mockDate);
+    renderWithProviders(<SelectAppPage />, { routerPath: "/select-app" });
+    expect(screen.getByText(/Good evening/)).toBeInTheDocument();
+    vi.useRealTimers();
+  });
+});

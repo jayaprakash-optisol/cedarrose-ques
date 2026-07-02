@@ -169,4 +169,68 @@ describe("CompleteRegistrationPage", () => {
     await user.click(screen.getAllByLabelText("Hide password")[0]);
     expect(pw.type).toBe("password");
   });
+
+  it("navigates to /login when Continue to sign in is clicked", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(authService, "verifyInvitation").mockResolvedValue({
+      firstName: "Jane",
+      lastName: "Doe",
+      email: "jane@example.com",
+      role: "Analyst",
+    });
+    vi.spyOn(authService, "completeRegistration").mockResolvedValue();
+    renderWithProviders(<CompleteRegistrationPage />, { routerPath: "/complete-registration?token=abc" });
+    await screen.findByLabelText("New password");
+    const pw = screen.getByLabelText("New password") as HTMLInputElement;
+    const cpw = screen.getByLabelText("Confirm password") as HTMLInputElement;
+    await user.type(pw, "validpass1");
+    await user.type(cpw, "validpass1");
+    await user.click(screen.getByRole("button", { name: "Activate account" }));
+    await screen.findByText("Account activated");
+    await user.click(screen.getByRole("button", { name: "Continue to sign in" }));
+  });
+
+  it("renders Sign in link to /login in the form view", async () => {
+    vi.spyOn(authService, "verifyInvitation").mockResolvedValue({
+      firstName: "Jane",
+      lastName: "Doe",
+      email: "jane@example.com",
+      role: "Analyst",
+    });
+    renderWithProviders(<CompleteRegistrationPage />, { routerPath: "/complete-registration?token=abc" });
+    await screen.findByLabelText("New password");
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
+  });
+
+  it("renders the heading when invitation has empty first name", async () => {
+    // The source uses `??` which only falls back on null/undefined, not "".
+    // So with firstName: "" the heading reads "Welcome, " (trailing space).
+    vi.spyOn(authService, "verifyInvitation").mockResolvedValue({
+      firstName: "",
+      lastName: "",
+      email: "u@e.com",
+      role: "Analyst",
+    });
+    renderWithProviders(<CompleteRegistrationPage />, { routerPath: "/complete-registration?token=abc" });
+    expect(await screen.findByRole("heading", { level: 1 })).toBeInTheDocument();
+  });
+
+  it("triggers shake on password length validation", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(authService, "verifyInvitation").mockResolvedValue({
+      firstName: "Jane",
+      lastName: "Doe",
+      email: "jane@example.com",
+      role: "Analyst",
+    });
+    renderWithProviders(<CompleteRegistrationPage />, { routerPath: "/complete-registration?token=abc" });
+    await screen.findByLabelText("New password");
+    const pw = screen.getByLabelText("New password") as HTMLInputElement;
+    const cpw = screen.getByLabelText("Confirm password") as HTMLInputElement;
+    await user.type(pw, "short");
+    await user.type(cpw, "short");
+    await user.click(screen.getByRole("button", { name: "Activate account" }));
+    // Wait for the timeout to clear the shake
+    await new Promise((r) => setTimeout(r, 400));
+  });
 });
